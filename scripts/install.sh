@@ -72,7 +72,7 @@ if [ "$OS_NAME" = "Linux" ] && [ "$INSTALL_DEV" = false ] && [[ "$APP_DIR" != /o
     warn "pAIring is in $APP_DIR. On a server it belongs in /opt/pairing, outside anyone's home folder."
     info "To install it there instead (an admin with sudo runs the first line):"
     info "  sudo mkdir -p /opt/pairing && sudo chown $me: /opt/pairing"
-    info "  git clone https://github.com/upupabit/pairing.git /opt/pairing   (or copy this folder there)"
+    info "  git clone https://github.com/bytepenny-ai/pairing.git /opt/pairing   (or copy this folder there)"
     info "  cd /opt/pairing && bash scripts/install.sh"
     ask_continue "Install here in $APP_DIR anyway?"
 fi

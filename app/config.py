@@ -138,12 +138,12 @@ SDCPP_GITHUB_REPO = "leejet/stable-diffusion.cpp"
 SDCPP_PINNED_VERSION = "master-929-3f8527a"
 # The default repos for installing and updating (Admin settings > Update shows them in "Repository"). Set in .env
 # for a partner's own build, e.g. PAIRING_GITHUB_REPO=partner/pairing; a repo chosen in Settings still wins.
-MATRICXON_GITHUB_REPO = os.environ.get("MATRICXON_GITHUB_REPO", "upupabit/matricxon")
+MATRICXON_GITHUB_REPO = os.environ.get("MATRICXON_GITHUB_REPO", "bytepenny-ai/matricxon")
 # Exception: Matricxon is developed alongside this app, so installs default to its newest main branch.
 # A tag or branch can be set in Settings (MatricxonServerConfig.install_version).
 MATRICXON_DEFAULT_VERSION = os.environ.get("MATRICXON_DEFAULT_VERSION", "main")
 # Admin settings > Update: where pAIring updates itself from.
-PAIRING_GITHUB_REPO = os.environ.get("PAIRING_GITHUB_REPO", "upupabit/pairing")
+PAIRING_GITHUB_REPO = os.environ.get("PAIRING_GITHUB_REPO", "bytepenny-ai/pairing")
 PAIRING_DEFAULT_BRANCH = os.environ.get("PAIRING_DEFAULT_BRANCH", "main")
 
 # Where auto-installed engines go; outside BASE_DIR so git status never sees them.

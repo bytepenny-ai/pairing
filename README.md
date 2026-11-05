@@ -31,7 +31,7 @@
 <br>
 
 > [!IMPORTANT]
-> **Under active development.** pAIring is updated every few days with new features and fixes. Pull often to stay current, and check the [GitHub commits](https://github.com/upupabit/pairing/commits/main) for what changed.
+> **Under active development.** pAIring is updated every few days with new features and fixes. Pull often to stay current, and check the [GitHub commits](https://github.com/bytepenny-ai/pairing/commits/main) for what changed.
 
 <br>
 
