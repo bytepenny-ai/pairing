@@ -52,4 +52,4 @@ cryptography>=50.0.1
 # exporter package: spans are exported straight into our own DB via a
 # hand-written in-process exporter, not to an external OTel backend.
 opentelemetry-api>=1.27.0
-opentelemetry-sdk>=1.27.0
+opentelemetry-sdk>=1.45.2
