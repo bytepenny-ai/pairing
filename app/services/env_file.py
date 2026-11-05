@@ -4,6 +4,7 @@ table, since they're needed before or independent of the DB) and matricxon_proce
 overrides in Matricxon's own .env, which must work however the process starts; see write_env_values).
 """
 
+import os
 from pathlib import Path
 
 from app.config import BASE_DIR
@@ -46,4 +47,7 @@ def write_env_values(values: dict[str, str | None], path: Path | None = None) ->
     for key, value in remaining.items():
         if value is not None:
             result.append(f"{key}={value}")
+    # Owner-only, set before writing: the file holds SECRET_KEY and the database password.
+    path.touch(mode=0o600, exist_ok=True)
+    os.chmod(path, 0o600)
     path.write_text("\n".join(result) + "\n" if result else "")

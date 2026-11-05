@@ -63,7 +63,10 @@ async def save_attachments(uploads: list[UploadFile], conversation_id: str) -> l
             status_code=400, detail=f"Only {MAX_ATTACHMENT_DOCUMENTS} document files are allowed per message."
         )
 
-    target_dir = ATTACHMENTS_DIR / conversation_id
+    # The caller has checked the conversation exists and is the user's; also keep the folder inside ATTACHMENTS_DIR.
+    target_dir = (ATTACHMENTS_DIR / conversation_id).resolve()
+    if target_dir.parent != ATTACHMENTS_DIR.resolve():
+        raise HTTPException(status_code=400, detail="Invalid conversation id.")
     target_dir.mkdir(parents=True, exist_ok=True)
     max_bytes = MAX_ATTACHMENT_MB * 1024 * 1024
 
