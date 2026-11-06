@@ -120,14 +120,11 @@
   <main class="relative flex flex-1 flex-col min-w-0">
     <header class="flex items-center justify-between border-b border-slate-800 px-4 py-3">
       <!-- Logo mark + wordmark: the app's brand, instead of a per-chat title, so it reads the same whichever conversation is open. -->
-      <div class="flex items-center gap-2 shrink-0">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="h-7 w-7 rounded-lg" aria-hidden="true">
-          <rect width="32" height="32" rx="8" style="fill: rgb(var(--color-brand-600))"/>
-          <path d="M9 11h14M12.5 11v8.5c0 1-1 1-1 1M19.5 11v6c0 2 1.2 2.4 2.6 3.1.5.25.5.95-.1 1.05"
-                fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <!-- "p" and "I" in the logo's pink (#f0268a, as www/public/logos/pairing.svg), "A" keeping its brand-500 blue, "ring" unstyled. Not theme-aware yet (a flat Tailwind color, not a --color-* custom property), so it looks the same across all 10 UI themes; only the chat header logo, not login.html's. -->
-        <span class="text-sm font-bold tracking-tight text-slate-100"><span class="text-[#f0268a]">p</span><span class="text-brand-500">A</span><span class="text-[#f0268a]">I</span>ring</span>
+      <div class="flex items-center gap-1 shrink-0">
+        <!-- The logo mark of www/public/logos/pairing.svg and docs/logo.svg. -->
+        {% with mark_class="h-[22px] w-[23px] shrink-0 -mt-0.5" %}{% include "_logo_mark.html" %}{% endwith %}
+        <!-- As the www wordmark (www/public/logos/pairing.svg): "AI" in the logo's pink (#f0268a), "p" and "ring" in the theme's text color. -->
+        <span class="text-sm font-bold tracking-[0.03em] text-slate-100">p<span class="text-[#f0268a]">AI</span>ring</span>
         <span class="text-[10px] font-mono text-slate-500">v{{ app_version }}</span>
       </div>
 
@@ -228,12 +225,7 @@
 
     <div id="empty-state" class="flex-1 flex items-center justify-center px-4 hidden">
       <div class="text-center max-w-md">
-        <div class="mx-auto mb-4 h-12 w-12 rounded-2xl bg-brand-600 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="h-7 w-7" fill="none">
-            <path d="M9 11h14M12.5 11v8.5c0 1-1 1-1 1M19.5 11v6c0 2 1.2 2.4 2.6 3.1.5.25.5.95-.1 1.05"
-                  stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
+        {% with mark_class="block mx-auto mb-4 h-14 w-14" %}{% include "_logo_mark.html" %}{% endwith %}
         <h2 class="text-lg font-semibold text-slate-100">{{ app_name }}</h2>
         {% if engine_self_hosted %}
         <p class="mt-1 text-sm text-slate-400">Everything here runs locally. Ask anything to get started.</p>

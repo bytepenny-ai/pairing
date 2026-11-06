@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <!-- Favicon: the chat header's logo mark, inlined as a data URI (no image asset). -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230954cc'/%3E%3Cpath d='M9 11h14M12.5 11v8.5c0 1-1 1-1 1M19.5 11v6c0 2 1.2 2.4 2.6 3.1.5.25.5.95-.1 1.05' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg?v={{ static_version }}">
 
 
   <!-- Tailwind's browser build (the script cdn.tailwindcss.com serves), vendored locally so the app has no third-party network dependency (see "Vendored frontend libraries" in README.md). It compiles utility classes client-side via a MutationObserver, so no Node build step. -->
