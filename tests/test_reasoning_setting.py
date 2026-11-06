@@ -48,3 +48,22 @@ async def test_a_chat_with_reasoning_on_sends_think_off_while_blocked_and_keeps_
 
     assert seen == [True, False]
     assert conversation.params["think"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_fresh_install_starts_with_reasoning_off(db):
+    from app.services import auth_service
+
+    await auth_service.seed_default_users(db)  # empty database: the first start
+    assert await reasoning_setting.enabled(db) is False
+    await reasoning_setting.set_enabled(db, True)
+    await auth_service.seed_default_users(db)  # later starts keep the admin's choice
+    assert await reasoning_setting.enabled(db) is True
+
+
+@pytest.mark.asyncio
+async def test_an_existing_install_keeps_reasoning_on_even_if_admin_is_recreated(db, user):
+    from app.services import auth_service
+
+    await auth_service.seed_default_users(db)  # "admin" missing, but other accounts exist
+    assert await reasoning_setting.enabled(db) is True

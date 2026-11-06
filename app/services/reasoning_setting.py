@@ -1,6 +1,7 @@
 """Admin settings > System > Reasoning: one switch that allows or blocks the chats' Reasoning option for everyone.
 Off turns reasoning off in every chat and hides the chip (chat_thinking.js), e.g. on slow systems. Each chat keeps
 its own saved choice, used again once the switch is back on. Read per reply, so a change applies from the next message.
+A fresh install starts with it off (start_off); an install from before the switch, with no saved value, keeps it on.
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,12 @@ class ReasoningSetting:
         else:
             row.value = {"enabled": enabled}
         await db.commit()
+
+    async def start_off(self, db: AsyncSession) -> None:
+        """Saves "off" on a fresh install (auth_service.seed_default_users, empty database) unless a value exists;
+        the caller commits."""
+        if await db.get(AppSetting, (SYSTEM_OWNER_ID, self.KEY)) is None:
+            db.add(AppSetting(owner_id=SYSTEM_OWNER_ID, key=self.KEY, value={"enabled": False}))
 
     async def apply(self, db: AsyncSession, params: dict) -> dict:
         """`params` for one reply: think forced off while the switch is off; the chat's saved params are untouched."""
