@@ -1,0 +1,47 @@
+{# Admin settings > System > HTTP proxy. #}
+      <section class="space-y-3">
+        <h2 class="text-sm font-semibold text-slate-200">Outbound HTTP proxy</h2>
+        <p class="text-xs text-slate-500 -mt-2">
+          Is used to download models from this UI as well as external servers if you configure them to run
+          locally. Unrelated to "Local {{ app_name }} server mode" above, which is about requests <em>to</em> this
+          app, not requests <em>from</em> it. Username/password are optional — no scheme picker, always
+          built as <span class="font-mono">http://[user[:pass]@]host:port</span>.
+        </p>
+        <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-3">
+          <label class="flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" id="http-proxy-enabled" class="rounded border-slate-700 bg-slate-950">
+            Enabled
+          </label>
+          <div class="grid grid-cols-[2fr_1fr] gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Host / IP</label>
+              <input type="text" id="http-proxy-host" placeholder="192.168.1.10"
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Port</label>
+              <input type="number" id="http-proxy-port" min="1" max="65535" placeholder="8080"
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Username (optional)</label>
+              <input type="text" id="http-proxy-username" autocomplete="off"
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 mb-1">Password (optional)</label>
+              <input type="password" id="http-proxy-password" autocomplete="new-password" placeholder="(unchanged if left blank)"
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="http-proxy-save-btn" type="button"
+            class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+            Save
+          </button>
+          <span id="http-proxy-status" class="text-xs text-slate-500"></span>
+        </div>
+      </section>

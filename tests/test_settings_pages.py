@@ -35,7 +35,8 @@ async def test_user_settings_has_only_user_tabs_even_for_an_admin(db, user, admi
         assert _tabs(response) == ["model", "behavior", "knowledge", "my-skills", "account"]
         assert "will not affect other users" in html
         assert 'id="hf-search-input"' not in html and 'id="mcp-panel"' not in html
-        for admin_only in ("tab-system", "tab-external-servers", "tab-mcp-servers", "tab-users", "tab-channels"):
+        admin_only_panels = ("tab-system-service", "tab-system-chat", "tab-external-servers", "tab-mcp-servers")
+        for admin_only in (*admin_only_panels, "tab-users", "tab-channels"):
             assert f'id="{admin_only}"' not in html
         assert ('href="/admin-settings"' in html) is (who is admin_user)
 
@@ -45,8 +46,12 @@ async def test_admin_settings_has_the_admin_tabs_and_the_admin_models_page(db, a
     response = await pages.admin_settings_page(_request(admin_user.id), db=db)
     html = response.body.decode()
 
-    admin_tabs = ["model", "system", "external-servers", "mcp-servers", "users", "channels", "skills", "update"]
+    system = ["system-service", "system-database", "system-proxy", "system-rag", "system-chat"]
+    rest = ["external-servers", "mcp-servers", "users", "channels", "skills", "update"]
+    admin_tabs = ["model", "default-models", *system, *rest]
     assert _tabs(response) == admin_tabs
+    for page in [*system, "default-models"]:  # one panel per page
+        assert f'id="tab-{page}"' in html
     assert 'id="hf-search-input"' in html and 'id="mcp-panel"' in html
     assert "will not affect other users" not in html
     # truly separate: none of the user-level panels or controls are in this page

@@ -74,18 +74,17 @@ async def test_the_library_and_private_skills_stay_apart(db, user, admin_user):
 async def test_a_chat_uses_its_chosen_skills_in_order_and_skips_a_disabled_one(db, user):
     library = SkillLibrary(db)
     first = await library.create(_skill("First", "Step one."))
-    second = await library.create(_skill("Second", "Step two."))
     private = await SkillLibrary(db, owner_id=user.id).create(_skill("Private", "My way."))
     chat = await _chat(db, user)
 
-    result = await conversation_skills.choose(db, chat, user, [second.id, private.id, first.id])
+    result = await conversation_skills.choose(db, chat, user, [private.id, first.id])
 
-    assert [s.name for s in result.chosen] == ["Second", "Private", "First"] and result.editable
+    assert [s.name for s in result.chosen] == ["Private", "First"] and result.editable
     prompt = conversation_skills.build_skills_prompt(await conversation_skills.active_skills(db, chat))
-    assert prompt.index("## Second") < prompt.index("## Private") < prompt.index("## First")
+    assert prompt.index("## Private") < prompt.index("## First")
 
     await library.update(first.id, _skill("First", "Step one.", enabled=False))
-    assert [s.name for s in await conversation_skills.active_skills(db, chat)] == ["Second", "Private"]
+    assert [s.name for s in await conversation_skills.active_skills(db, chat)] == ["Private"]
 
 
 @pytest.mark.asyncio

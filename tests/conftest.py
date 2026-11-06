@@ -2,6 +2,8 @@
 engine/session machinery (app/database.py) so service tests run the same queries as production.
 """
 
+from typing import NoReturn
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -46,6 +48,35 @@ def _tests_never_resolve_the_real_matricxon_checkout(monkeypatch, tmp_path):
     own project_dir see "not installed".
     """
     monkeypatch.setattr(matricxon_process, "_DEFAULT_PROJECT_DIR", tmp_path / "no-matricxon-checkout")
+
+
+@pytest.fixture(autouse=True)
+def _tests_never_reach_real_servers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No real network from tests: a request through httpx's own transports fails as an unreachable server. A full
+    run once sent DELETE /api/cache/persistence/chats/... to the developer's live Matricxon (refused only for lack
+    of the admin secret). Faked HTTP (MockTransport, a patched AsyncClient) and servers a test starts itself
+    (network_guard.LocalTestServers) still work.
+    """
+    import httpx
+
+    from tests.network_guard import LocalTestServers
+
+    real_sync, real_async = httpx.HTTPTransport.handle_request, httpx.AsyncHTTPTransport.handle_async_request
+
+    def blocked(request: httpx.Request) -> bool:
+        return not LocalTestServers.allowed(request.url.host, request.url.port)
+
+    def refuse(request: httpx.Request) -> NoReturn:
+        raise httpx.ConnectError(f"tests may not reach real servers ({request.url.host})", request=request)
+
+    def guarded(self: httpx.HTTPTransport, request: httpx.Request) -> httpx.Response:
+        return refuse(request) if blocked(request) else real_sync(self, request)
+
+    async def guarded_async(self: httpx.AsyncHTTPTransport, request: httpx.Request) -> httpx.Response:
+        return refuse(request) if blocked(request) else await real_async(self, request)
+
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", guarded)
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", guarded_async)
 
 
 @pytest.fixture(autouse=True)

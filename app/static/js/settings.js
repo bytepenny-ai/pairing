@@ -1660,7 +1660,9 @@ const knowledgeBaseSectionEl = document.getElementById("knowledge-base-section")
 // Knowledge tab.
 const saveBarHomeParent = saveBarEl?.parentNode;
 const saveBarHomeNextSibling = saveBarEl?.nextSibling;
-const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "my-skills", "account", "system", "external-servers", "mcp-servers", "users", "channels", "skills", "update"];
+// System is split into five pages; Default models sits under Models (settings/system.html), each its own tab.
+const SYSTEM_TABS = ["system-service", "system-database", "system-proxy", "system-rag", "system-chat"];
+const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "my-skills", "account", "default-models", ...SYSTEM_TABS, "external-servers", "mcp-servers", "users", "channels", "skills", "update"];
 
 let activeTabName = "model";
 
@@ -1715,22 +1717,22 @@ function loadTabData(name) {
   if (name === "external-servers") {
     loadExternalServersIntoEditor();
   }
-  if (name === "system") {
-    loadSystemInfo();
-    loadDbConfigIntoEditor();
-    loadInstancesIntoEditor();
-    loadProxyModeIntoEditor();
-    loadHttpProxyIntoEditor();
-    loadRagLimitsIntoEditor();
-    loadDefaultModelForNewUsersEditor();
-    loadDefaultVisionModelEditor();
-    loadDefaultEmbeddingModelEditor();
-    loadTitleModeIntoEditor();
-    loadChannelDeliveryModeIntoEditor();
-    loadReplyTimeoutIntoEditor();
-    loadVisionReplyTimeoutIntoEditor();
-    loadRetentionSettingsIntoEditor();
-  }
+  // Each System page, and Default models, loads only its own parts.
+  const systemLoaders = {
+    "system-service": [loadSystemInfo, loadProxyModeIntoEditor, loadInstancesIntoEditor],
+    "system-database": [loadDbConfigIntoEditor],
+    "system-proxy": [loadHttpProxyIntoEditor],
+    "system-rag": [loadRagLimitsIntoEditor],
+    "default-models": [loadDefaultModelForNewUsersEditor, loadDefaultVisionModelEditor, loadDefaultEmbeddingModelEditor],
+    "system-chat": [
+      loadTitleModeIntoEditor,
+      loadChannelDeliveryModeIntoEditor,
+      loadReplyTimeoutIntoEditor,
+      loadVisionReplyTimeoutIntoEditor,
+      loadRetentionSettingsIntoEditor,
+    ],
+  };
+  for (const load of systemLoaders[name] || []) load();
   if (name === "users") {
     loadUsers();
     refreshAddUserGate();

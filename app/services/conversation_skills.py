@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import MAX_SKILLS_PER_CHAT
 from app.models import Conversation, ConversationSkill, Skill, User
 from app.schemas.skill import ConversationSkillsOut, SkillOut
 from app.services import channel_service, conversation_service
@@ -95,8 +96,10 @@ async def set_for_channel(
 
 
 async def _replace(db: AsyncSession, conversation: Conversation, user: User, skill_ids: list[str]) -> None:
-    """404 for a skill this chat can't use."""
+    """400 past MAX_SKILLS_PER_CHAT; 404 for a skill this chat can't use."""
     wanted = list(dict.fromkeys(skill_ids))
+    if len(wanted) > MAX_SKILLS_PER_CHAT:
+        raise HTTPException(status_code=400, detail=f"A chat can use at most {MAX_SKILLS_PER_CHAT} skills.")
     skills = (
         {s.id: s for s in (await db.execute(select(Skill).where(Skill.id.in_(wanted)))).scalars().all()}
         if wanted

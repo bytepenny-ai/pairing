@@ -116,6 +116,9 @@ MAX_ATTACHMENT_MB = 10
 MAX_ATTACHMENT_DOCUMENTS = 5
 MAX_ATTACHMENT_IMAGES = 1
 
+# Skills one chat or channel can use (conversation_skills.py): each adds to the prompt, and more dilute the task.
+MAX_SKILLS_PER_CHAT = 2
+
 # Profile pictures from Settings > Account (app/services/avatar_service.py); only the filename is stored.
 AVATARS_DIR = Path(os.environ.get("AVATARS_DIR", BASE_DIR / "avatars"))
 AVATARS_DIR.mkdir(parents=True, exist_ok=True)

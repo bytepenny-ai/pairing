@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.config import MAX_SKILLS_PER_CHAT
+
 MAX_SKILL_CHARS = 20000
 
 
@@ -68,6 +70,7 @@ class ConversationSkillsOut(BaseModel):
     chosen: list[SkillOut]
     editable: bool
     reason: str | None = None  # why not editable
+    limit: int = MAX_SKILLS_PER_CHAT  # most skills one chat can use
 
 
 class ConversationSkillsIn(BaseModel):

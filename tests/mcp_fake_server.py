@@ -7,6 +7,8 @@ import time
 import uvicorn
 from mcp.server.fastmcp import FastMCP
 
+from tests.network_guard import LocalTestServers
+
 
 def build_app() -> FastMCP:
     mcp = FastMCP("fake", host="127.0.0.1")
@@ -40,6 +42,7 @@ class FakeMcpServer:
             s.bind(("127.0.0.1", 0))
             self.port = s.getsockname()[1]
         self.url = f"http://127.0.0.1:{self.port}/mcp"
+        LocalTestServers.allow(self.port)
         config = uvicorn.Config(build_app().streamable_http_app(), host="127.0.0.1", port=self.port, log_level="error")
         self._server = uvicorn.Server(config)
         self._thread = threading.Thread(target=self._server.run, daemon=True)

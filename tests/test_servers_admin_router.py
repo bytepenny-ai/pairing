@@ -95,7 +95,6 @@ async def test_the_updating_server_shows_its_progress_and_the_rollout_its_order(
     assert overview.servers[0].update_progress["step"] == 2
 
 
-
 @pytest.mark.asyncio
 async def test_a_server_and_its_instance_on_one_machine_share_the_machine_name(db, shared):
     await server_registry.heartbeat(db, {"machine": "web1"})

@@ -1,4 +1,4 @@
-/* The chat header's Skills badge and picker (chat.html #skills-badge, #skills-picker): which skills this chat uses,
+/* The composer's Skills chip and picker (chat.html #skills-badge, #skills-picker): which skills this chat uses,
  * via /api/skills (routers/skills.py). Drawn with the persona/rules icons (chat.js renderPinnedBadges calls render),
  * and locked the same way: only before the first message, and in a channel only for its admins and managers. */
 class ChatSkills {
@@ -12,6 +12,7 @@ class ChatSkills {
     this.selected = new Set();
     this.editable = false;
     this.reason = "";
+    this.limit = 2; // replaced by the server's (ConversationSkillsOut.limit)
     this.badge.addEventListener("click", () => this.open());
     this.picker.querySelector('[data-action="close"]').addEventListener("click", () => this.close());
     this.picker.querySelector('[data-action="save"]').addEventListener("click", () => this.save());
@@ -44,6 +45,7 @@ class ChatSkills {
       const result = await api(`/api/skills/conversation/${conversationId}`);
       if (conversationId !== this.conversationId) return;
       this.chosen = result.chosen;
+      this.limit = result.limit ?? this.limit;
       this.serverEditable = result.editable;
       this.reason = result.reason || "";
     } catch (_err) {
@@ -55,9 +57,15 @@ class ChatSkills {
   drawBadge() {
     const count = this.chosen.length;
     this.badge.classList.remove("hidden");
-    this.badge.textContent = count ? `🛠️ ${count}` : "🛠️";
-    // Not faded, like the note badges (chat.js renderPinnedBadges); still opens when locked, to show why.
-    this.badge.className = "rounded-full bg-slate-800 px-1.5 py-0.5 transition-colors hover:bg-slate-700";
+    // An icon in the composer's toolbar, with a small solid count pill; still opens when locked, to show why.
+    this.badge.textContent = "📚";
+    if (count) {
+      const pill = document.createElement("span");
+      pill.className = "absolute -top-0.5 -right-0.5 min-w-[1rem] rounded-full bg-brand-600 px-1 text-[10px] font-semibold leading-4 text-white";
+      pill.textContent = count;
+      this.badge.append(pill);
+    }
+    this.badge.className = "relative shrink-0 rounded-xl px-2.5 py-1.5 text-sm leading-5 transition-colors hover:bg-slate-800";
     const names = count ? this.chosen.map((s) => s.name).join(", ") : "none";
     const locked = activeHasMessages ? " — locked: can only change before the first message" : this.reason ? ` — ${this.reason}` : "";
     this.badge.title = `Skills: ${names}${this.editable ? "" : locked}`;
@@ -69,6 +77,7 @@ class ChatSkills {
     // Started chat: the red box (as the model picker's warning); otherwise the reason, e.g. a channel member.
     const started = activeHasMessages;
     this.field("locked").classList.toggle("hidden", !started);
+    this.field("header").classList.toggle("hidden", started);
     this.field("note").textContent = this.editable || started ? "" : this.reason;
     this.field("search").classList.toggle("hidden", !this.editable);
     this.picker.querySelector('[data-action="save"]').classList.toggle("hidden", !this.editable);
@@ -94,6 +103,9 @@ class ChatSkills {
   renderChosen() {
     const byId = Object.fromEntries([...this.chosen, ...this.available].map((s) => [s.id, s]));
     const chips = [...this.selected].map((id) => byId[id]).filter(Boolean);
+    const title = this.field("chosen-title");
+    title.textContent = this.editable ? "Selected skills" : "Active skills in this chat";
+    title.classList.toggle("hidden", !chips.length);
     this.field("chosen").innerHTML = chips.length
       ? chips
           .map(
@@ -137,6 +149,7 @@ class ChatSkills {
           .join("")}`,
       )
       .join("");
+    this.applyLimit();
   }
 
   onToggle(event) {
@@ -145,6 +158,17 @@ class ChatSkills {
     if (event.target.checked) this.selected.add(id);
     else this.selected.delete(id);
     this.renderChosen();
+    this.applyLimit();
+  }
+
+  /* At the limit, the unticked boxes are disabled (not hidden) and the note says why. */
+  applyLimit() {
+    const full = this.selected.size >= this.limit;
+    for (const box of this.field("list").querySelectorAll("input[data-skill]")) {
+      box.disabled = full && !box.checked;
+      box.closest("label")?.classList.toggle("opacity-50", box.disabled);
+    }
+    if (this.editable) this.field("note").textContent = full ? `A chat can use up to ${this.limit} skills.` : "";
   }
 
   onRemove(event) {
@@ -162,6 +186,7 @@ class ChatSkills {
         body: JSON.stringify({ skill_ids: [...this.selected] }),
       });
       this.chosen = result.chosen;
+      this.limit = result.limit ?? this.limit;
       this.drawBadge();
       this.close();
     } catch (err) {

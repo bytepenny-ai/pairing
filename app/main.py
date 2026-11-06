@@ -51,6 +51,7 @@ from app.routers import (
     notes,
     pages,
     proxy_admin,
+    reasoning_admin,
     rerank_admin,
     sdcpp_admin,
     servers_admin,
@@ -176,6 +177,7 @@ app.include_router(connectors.router)
 app.include_router(channel_history_admin.router)
 app.include_router(workflow_view_admin.router)
 app.include_router(context_window_admin.router)
+app.include_router(reasoning_admin.router)
 app.include_router(mcp_admin.router)
 app.include_router(mcp_admin.enabled_router)
 app.include_router(mcp_admin.limits_router)

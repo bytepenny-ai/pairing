@@ -1,0 +1,89 @@
+{# Admin settings > Models > Default models. #}
+      <section class="space-y-3">
+        <h2 class="text-sm font-semibold text-slate-200">Default models</h2>
+        <p class="text-xs text-slate-500 -mt-2">
+          The models the system uses by default: for a new account's chats, for messages with an image, and for the
+          Knowledge base (RAG). Each has its own Save button.
+        </p>
+        <div class="space-y-6 rounded-lg bg-slate-900/40 border border-slate-800 px-4 py-4">
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-brand-500">Default model for new users</h3>
+          <p class="text-xs text-slate-500 -mt-2">
+            Whichever model is picked here is what a brand-new account is created with.
+          </p>
+          <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-2">
+            <select id="default-model-for-new-users"
+              class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500"></select>
+            <p id="default-model-for-new-users-empty" class="hidden text-xs text-warning-400">
+              No models installed yet — install one above before adding new users.
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="default-model-for-new-users-save-btn" type="button"
+              class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+              Save
+            </button>
+            <span id="default-model-for-new-users-status" class="text-xs text-slate-500"></span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-800"></div>
+
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-brand-500">Default vision model</h3>
+          <p class="text-xs text-slate-500 -mt-2">
+            Any message with an image attached is answered by this model for that one reply only —
+            a conversation's own model is never changed by this.
+          </p>
+          <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-2">
+            <select id="default-vision-model"
+              class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500"></select>
+            <!-- Shown by engine_capability_notes.js when the active engine sends text only. -->
+            <p data-engine-note="vision" class="hidden text-xs text-warning-400 bg-slate-900 border border-warning-500/50 rounded-lg px-3 py-2">
+              <span data-engine-name></span>, the active engine, doesn't support images: messages are sent as text
+              only, so this setting has no effect until you switch to llama.cpp or Matricxon.
+            </p>
+            <p id="default-vision-model-empty" class="hidden text-xs text-warning-400">
+              No vision-capable models installed yet — pull one (e.g. llava) above to enable image attachments.
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="default-vision-model-save-btn" type="button"
+              class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+              Save
+            </button>
+            <span id="default-vision-model-status" class="text-xs text-slate-500"></span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-800"></div>
+
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-brand-500">Default embedding model</h3>
+          <p class="text-xs text-slate-500 -mt-2">
+            Powers the Knowledge base (RAG) feature for every user — never used for chat. Switching this after
+            documents were already ingested with a different embedding model doesn't re-embed them; their existing
+            vectors stay as they are.
+          </p>
+          <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-2">
+            <select id="default-embedding-model" title="Which installed embedding model powers the Knowledge base (RAG) feature for every user."
+              class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500"></select>
+            <p id="default-embedding-model-empty" class="hidden text-xs text-warning-400">
+              No embedding models installed yet — pull one above to enable the Knowledge base (RAG) feature.
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="default-embedding-model-save-btn" type="button"
+              class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+              Save
+            </button>
+            <span id="default-embedding-model-status" class="text-xs text-slate-500"></span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-800"></div>
+
+        {% include "_rerank_model.html" %}
+
+        </div>
+      </section>

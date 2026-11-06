@@ -7,6 +7,7 @@ class ChannelSkillsPanel {
     this.onClose = onClose;
     this.selected = [];
     this.library = [];
+    this.limit = 2; // replaced by the server's (ConversationSkillsOut.limit)
   }
 
   async open() {
@@ -17,6 +18,7 @@ class ChannelSkillsPanel {
         api("/api/admin/skills"),
       ]);
       this.selected = chosen.chosen.map((s) => s.id);
+      this.limit = chosen.limit ?? this.limit;
       this.started = !chosen.editable; // has messages: a change re-reads the whole history once
       this.library = library.filter((s) => s.enabled);
     } catch (err) {
@@ -72,7 +74,18 @@ class ChannelSkillsPanel {
           )
           .join("")
       : `<p class="px-2 py-3 text-xs text-slate-500">${this.library.length ? "No skill matches." : "The library is empty: add skills on the Skills tab first."}</p>`;
-    this.field("count").textContent = `${this.selected.length} selected`;
+    this.applyLimit();
+  }
+
+  /* At the limit, the unticked boxes are disabled (not hidden), and the count says why. */
+  applyLimit() {
+    const full = this.selected.length >= this.limit;
+    for (const box of this.field("list").querySelectorAll("input[data-skill]")) {
+      box.disabled = full && !box.checked;
+      box.closest("label")?.classList.toggle("opacity-50", box.disabled);
+    }
+    const most = full ? " (the most a channel can use)" : "";
+    this.field("count").textContent = `${this.selected.length} of ${this.limit} selected${most}`;
   }
 
   onToggle(event) {
@@ -80,7 +93,7 @@ class ChannelSkillsPanel {
     if (!id) return;
     this.selected = event.target.checked ? [...this.selected, id] : this.selected.filter((x) => x !== id);
     // No redraw: the rows stay put while ticking; picks go first on the next search.
-    this.field("count").textContent = `${this.selected.length} selected`;
+    this.applyLimit();
   }
 
   async save() {

@@ -1,4 +1,4 @@
-/* Chat header "Reasoning" chip (conversation.params.think: the engines' thinking switch): click switches off/on (off by
+/* Chat header "Reasoning" chip (conversation.params.think: the engines' thinking switch; hidden while Admin settings > System > Reasoning is off): click switches off/on (off by
 default; a chat saved with no value counts as off), saved for this chat
 like the Tools switch (chat_tools.js). Shown only when the chat's model can think (GET
 /api/settings/model-capabilities reports "thinking"). When the model's switch sits early in the prompt
@@ -67,14 +67,19 @@ class ThinkingChip {
     this.render();
     this.button.classList.add("hidden");
     let capabilities = null;
+    let allowed = true;
     try {
-      ({ capabilities } = await api(`/api/settings/model-capabilities?model=${encodeURIComponent(conversation.model || "")}`));
+      // Admin settings > System > Reasoning can block it for everyone: then no chip at all.
+      [{ capabilities }, { enabled: allowed }] = await Promise.all([
+        api(`/api/settings/model-capabilities?model=${encodeURIComponent(conversation.model || "")}`),
+        api("/api/settings/reasoning"),
+      ]);
     } catch (_err) {
       return;
     }
     if (this.conversationId === conversationId) {
       this.capabilities = capabilities || [];
-      this.button.classList.toggle("hidden", !this.capabilities.includes("thinking"));
+      this.button.classList.toggle("hidden", !allowed || !this.capabilities.includes("thinking"));
     }
   }
 

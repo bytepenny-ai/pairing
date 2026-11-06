@@ -24,16 +24,38 @@
     </div>
   </header>
 
-  <!-- Left sidebar, like stats.html: /settings (every account, admins too) has Models, Behavior, Knowledge, Skills and Account; /admin-settings (admins only) has Models, System, Inference engines, MCP servers, Users, Channels, Skills and Update. Panels not listed for a page stay in the DOM, hidden and unreachable, so settings.js still finds the elements it binds. On narrow screens the sidebar is a scrolling row above the content. -->
+  <!-- Left sidebar, like stats.html: /settings (every account, admins too) has Models, Behavior, Knowledge, Skills and Account; /admin-settings (admins only) has Models (Manage models, Default models), System (five pages), Inference engines, MCP servers, Users, Channels, Skills and Update. Panels not listed for a page stay in the DOM, hidden and unreachable, so settings.js still finds the elements it binds. On narrow screens the sidebar is a scrolling row above the content. -->
+  {% set system_pages = [("system-service", "Service"), ("system-database", "Database"), ("system-proxy", "HTTP proxy"), ("system-rag", "RAG"), ("system-chat", "Chat")] %}
+  {% set model_pages = [("model", "Manage models"), ("default-models", "Default models")] %}
   {% set tabs = [("model", "Models")] + ([("system", "System"), ("external-servers", "Inference engines"), ("mcp-servers", "MCP servers"), ("users", "Users"), ("channels", "Channels"), ("skills", "Skills"), ("update", "Update")] if admin_page else [("behavior", "Behavior"), ("knowledge", "Knowledge"), ("my-skills", "Skills"), ("account", "Account")]) %}
+  {# Admin settings groups, folding like the cluster page's categories: a heading and one page per entry. #}
+  {% set groups = {"model": ("Models", model_pages), "system": ("System", system_pages)} if admin_page else {} %}
+  {% macro tab_button(name, label, active) -%}
+        <button type="button" data-tab="{{ name }}"
+          class="settings-tab-btn shrink-0 md:w-full rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors {{ "bg-slate-800 text-slate-100" if active else "text-slate-300 hover:bg-slate-800" }}">
+          {{ label }}
+        </button>
+  {%- endmacro %}
   <div class="flex flex-1 min-h-0 flex-col md:flex-row">
     <aside class="shrink-0 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-900/60 md:w-64">
       <nav class="flex md:flex-col gap-1 overflow-x-auto md:overflow-y-auto px-2 py-2 md:py-3">
         {% for name, label in tabs %}
-        <button type="button" data-tab="{{ name }}"
-          class="settings-tab-btn shrink-0 md:w-full rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors {{ "bg-slate-800 text-slate-100" if loop.first else "text-slate-300 hover:bg-slate-800" }}">
-          {{ label }}
-        </button>
+        {% if name in groups %}
+        {% set heading, pages = groups[name] %}
+        <details open class="group shrink-0 md:w-full">
+          <summary class="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-2 py-2 md:py-1.5 text-sm font-semibold text-slate-200 whitespace-nowrap hover:bg-slate-800 [&::-webkit-details-marker]:hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0 text-slate-500 transition-transform group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 6l6 6-6 6"/></svg>
+            {{ heading }}
+          </summary>
+          <div class="flex md:block gap-1 md:ml-[0.9rem] md:mt-1 md:space-y-1 md:border-l md:border-slate-700 md:pl-2">
+            {% for sub_name, sub_label in pages %}
+            {{ tab_button(sub_name, sub_label, sub_name == "model") }}
+            {% endfor %}
+          </div>
+        </details>
+        {% else %}
+        {{ tab_button(name, label, loop.first) }}
+        {% endif %}
         {% endfor %}
       </nav>
     </aside>
@@ -58,6 +80,13 @@
 
     {% if is_admin %}
     {% include "settings/system.html" %}
+
+    {% if admin_page %}
+    <!-- Admin settings > Models > Default models (the shared Models page is "Manage models"). -->
+    <div id="tab-default-models" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
+      {% include "settings/default_models.html" %}
+    </div>
+    {% endif %}
 
     {% include "settings/engines.html" %}
 
@@ -110,5 +139,6 @@
 {% if admin_page %}<script src="/static/js/settings_rerank_models.js?v={{ static_version }}"></script>{% endif %}
 <script src="/static/js/settings_diffusion_models.js?v={{ static_version }}"></script>
 <script src="/static/js/settings_context_window.js?v={{ static_version }}"></script>
+<script src="/static/js/settings_reasoning.js?v={{ static_version }}"></script>
 <script src="/static/js/settings_group_select.js?v={{ static_version }}"></script>
 {% endblock %}

@@ -1,9 +1,20 @@
-{# Admin settings > System tab, in three parts. #}
-    <!-- System tab: admin-only. Hardware/engine info; the shared model catalog's Pull/Uninstall/Hide actions live in the Model tab's picker (visible to admins there), so this tab is environment context. -->
-    <div id="tab-system" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
+{# Admin settings > System: five pages, one per sidebar entry under System (settings.html SYSTEM_PAGES). #}
+    <div id="tab-system-service" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
       {% include "settings/system_server.html" %}
+    </div>
 
-      {% include "settings/system_network.html" %}
+    <div id="tab-system-database" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
+      {% include "settings/system_database.html" %}
+    </div>
 
+    <div id="tab-system-proxy" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
+      {% include "settings/system_proxy.html" %}
+    </div>
+
+    <div id="tab-system-rag" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
+      {% include "settings/system_rag.html" %}
+    </div>
+
+    <div id="tab-system-chat" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
       {% include "settings/system_chat.html" %}
     </div>

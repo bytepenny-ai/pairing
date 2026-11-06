@@ -63,6 +63,12 @@ class ContextWindow(BaseModel):
     num_ctx: int = Field(ge=256, le=32768)
 
 
+class ReasoningSwitch(BaseModel):
+    """Whether chats may use Reasoning at all (reasoning_setting); off blocks it for everyone."""
+
+    enabled: bool
+
+
 class ChannelPlainMessages(BaseModel):
     """Whether plain channel messages (posted without asking the AI) are included in what the model reads later
     (channel_history_setting). Admin-only, system-wide.

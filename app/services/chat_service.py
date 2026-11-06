@@ -22,6 +22,7 @@ from app.services import (
 )
 from app.services.chat_attachment_service import AttachmentInfo
 from app.services.live_workflow_bus import live_workflow
+from app.services.reasoning_setting import reasoning_setting
 
 
 async def build_reply_stream(
@@ -61,6 +62,8 @@ async def build_reply_stream(
     attachments = attachments or []
     # num_ctx is one system-wide value (Settings > System > Context window).
     params = {**conversation.params, "num_ctx": await context_window_setting.get_num_ctx(db)}
+    # Reasoning may be blocked for everyone (Admin settings > System > Reasoning).
+    params = await reasoning_setting.apply(db, params)
     is_personal = conversation.channel_id is None
     title_mode = await chat_settings_service.get_title_mode(db) if is_personal else None
     # Personal chats always ask the AI, whatever the caller passes (no other human to message). Enforced here

@@ -136,8 +136,6 @@
         <span id="conversation-title" dir="auto" class="hidden truncate text-slate-400"></span>
         <!-- Persona/rules slots for this conversation (GET /api/notes/slots/{id}): one clickable icon per active slot, to view/edit its content without leaving the chat (chat.js loadPinnedBadges/openSlotEditor). -->
         <span id="pinned-badges" class="shrink-0 flex items-center gap-1"></span>
-        <!-- This chat's skills (chat_skills.js): opens the picker below. -->
-        <button id="skills-badge" type="button" class="hidden shrink-0 rounded-full px-1.5 py-0.5"></button>
         <!-- Starts hidden: an empty badge with no conversation open looks like a glitch. chat.js un-hides it once a conversation's model is known (selectConversation) and re-hides it on the empty-state screen (clearMainPane). -->
         <button id="model-badge" type="button"
           class="hidden shrink-0 rounded-full bg-slate-800 px-2.5 py-1 font-mono hover:bg-slate-700 transition-colors"
@@ -188,28 +186,6 @@
     </div>
 
     <!-- Slot editor: the panel opened from one of #pinned-badges' icons, or by picking a missing type from the "+" menu. One open at a time (chat.js openSlotEditor/closeSlotEditor). -->
-    <!-- Skills for this chat (chat_skills.js): the chosen ones, a search and the skills it can use, by category. -->
-    <div id="skills-picker" class="hidden absolute right-4 top-14 z-20 w-96 max-w-[calc(100%-2rem)] space-y-2 rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-xl">
-      <div class="flex items-center justify-between">
-        <p class="text-xs font-semibold text-slate-200">Skills for this chat</p>
-        <a href="/settings#my-skills" class="text-[11px] text-slate-500 underline underline-offset-2 hover:text-slate-300">My skills</a>
-      </div>
-      <!-- Like #model-picker-warning: shown once the chat has messages (chat_skills.js). -->
-      <p data-field="locked" class="hidden rounded-lg border border-warning-500/50 bg-slate-900 px-3 py-2 text-xs leading-snug text-warning-400">
-        This chat already has messages, so its skills can't change any more. Skills open the conversation, so changing
-        them would mean reading the whole chat again. Start a new chat to use other skills.
-      </p>
-      <div data-field="chosen" class="flex flex-wrap gap-1"></div>
-      <p data-field="note" class="text-xs text-warning-400"></p>
-      <input data-field="search" type="search" placeholder="Search skills…" spellcheck="false"
-        class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
-      <div data-field="list" class="max-h-72 overflow-y-auto rounded-md border border-slate-800 bg-slate-950"></div>
-      <div class="flex items-center gap-2">
-        <button type="button" data-action="save" class="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-500">Save</button>
-        <button type="button" data-action="close" class="rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:bg-slate-800">Close</button>
-        <span data-field="status" class="text-xs text-red-400"></span>
-      </div>
-    </div>
 
     <div id="slot-editor" class="hidden absolute right-4 top-14 z-20 w-80 max-w-[calc(100%-2rem)] space-y-2
                                   rounded-lg border border-slate-700 bg-slate-900 p-3 shadow-lg">
@@ -267,51 +243,7 @@
       </div>
     </div>
 
-    <form id="chat-form" class="border-t border-slate-800 p-4">
-      <!-- One chip per file picked via #attach-btn below (chat.js onAttachmentChosen), each with an "x" to drop it; cleared on send. Up to 5 documents + 1 image combined (app.config.MAX_ATTACHMENT_DOCUMENTS/MAX_ATTACHMENT_IMAGES); the server is the authority, this is a client-side nicety. -->
-      <div id="attachment-preview" class="hidden mx-auto max-w-3xl mb-2 flex flex-wrap gap-2"></div>
-      <div class="mx-auto max-w-3xl flex items-end gap-2 rounded-2xl border border-slate-700 bg-slate-900 p-2 focus-within:border-brand-500 transition-colors">
-        <input type="file" id="attachment-input" multiple class="hidden" accept=".png,.jpg,.jpeg,.gif,.webp,.txt,.md,.pdf,.docx,.rtf,.html,.htm,.csv,.json,.odt">
-        <!-- The three icon buttons sit 25% closer than the default gap (gap-px: 1px + button padding = 21px between icons, was 28px). -->
-        <div class="flex shrink-0 items-center gap-px">
-        <button type="button" id="attach-btn" title="Attach an image or text file"
-          class="shrink-0 rounded-xl px-2.5 py-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2"><path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l8.49-8.49a3.5 3.5 0 0 1 4.95 4.95l-8.49 8.49a2 2 0 0 1-2.83-2.83l7.78-7.78"/></svg>
-        </button>
-        <!-- Emoji picker: a plain button + absolutely positioned popover built in JS (chat.js EMOJI_CHOICES/initEmojiPicker); the 50-emoji grid is rendered there, not here. -->
-        <div class="relative shrink-0">
-          <button type="button" id="emoji-btn" title="Insert an emoji"
-            class="rounded-xl px-2.5 py-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8 14.5c1 1.2 2.3 1.8 4 1.8s3-.6 4-1.8"/></svg>
-          </button>
-          <div id="emoji-picker"
-            class="hidden absolute bottom-full left-0 mb-2 grid w-64 grid-cols-8 gap-0.5 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-lg"></div>
-        </div>
-        <!-- Turns MCP tools on for this conversation (chat_tools.js); hidden unless an admin connected some. -->
-        <button type="button" id="tools-btn" aria-pressed="false" aria-label="Tools"
-          class="hidden shrink-0 rounded-xl px-2.5 py-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-        </button>
-        </div>
-        <textarea id="chat-input" rows="1" dir="auto" placeholder="Message {{ app_name }}…"
-          class="flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none"></textarea>
-        <!-- Channel-only: posts the message without asking the AI to reply (chat.js sendMessage). Hidden for personal chats, which always ask the AI (selectConversation). -->
-        <button type="button" id="ask-ai-btn"
-          class="hidden shrink-0 rounded-xl border border-brand-600 px-3 py-2 text-sm font-medium text-brand-500 hover:bg-brand-600 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          Ask AI
-        </button>
-        <button type="submit" id="send-btn"
-          class="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          Send
-        </button>
-      </div>
-      <p class="mx-auto max-w-3xl mt-2 text-center text-xs text-slate-500">
-        Ask anything to get started
-      </p>
-    </form>
+    {% include "_chat_composer.html" %}
   </main>
 </div>
 

@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/self--hosted-yes-pink" alt="Self-hosted">
   <img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License">
   <img src="https://img.shields.io/badge/docker-compose_ready-2496ED?logo=docker&logoColor=white" alt="Docker">
+  <a href="https://www.bestpractices.dev/projects/16359"><img src="https://img.shields.io/cii/level/16359?label=OpenSSF%20Best%20Practices&color=3b5bdb" alt="OpenSSF Best Practices"></a>
   <img src="https://img.shields.io/badge/SQLAlchemy-2.0_async-D71F00" alt="SQLAlchemy">
   <img src="https://img.shields.io/badge/Pydantic-v2-E92063" alt="Pydantic">
   <img src="https://img.shields.io/badge/database-SQLite_%7C_MySQL-003B57" alt="Database">
@@ -136,7 +137,7 @@ It is also important not to expose more models to users than the system RAM/VRAM
   right from the chat header.
 
 **Skills**
-- Task instructions chosen per chat from the 🛠️ icon: summarize,
+- Task instructions chosen per chat from the 📚 icon: summarize,
   review code, analyze a threat report, write a cover letter...
 - Admins manage a shared library under Admin settings → Skills, with a
   gallery of 239 ready-made skills from

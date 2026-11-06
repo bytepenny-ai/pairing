@@ -19,7 +19,7 @@ def test_chunk_text_splits_long_text_with_overlap():
     assert len(chunks) > 1
     # Every chunk after the first repeats the previous chunk's last `overlap` characters: an idea split across a
     # boundary stays whole somewhere.
-    for prev, nxt in zip(chunks, chunks[1:]):
+    for prev, nxt in zip(chunks, chunks[1:], strict=False):
         assert prev[-5:] == nxt[:5]
     # Reassembling without the overlap reproduces the original.
     assert chunks[0] + "".join(c[5:] for c in chunks[1:]) == text
