@@ -9,7 +9,7 @@
  * 
  * Node: {id, label, category, x, y, w, h, detail: {server, title, location, body}}. `detail.server` is the process
  * running the step: "Browser" (chat.js), "pAIring" (this backend) or "ML engine" (the model-serving process, llama.cpp or
- * Matricxon per Admin settings > Inference engines; see inference_client/engine_service). It shows as a badge in the
+ * Matricxon per Admin settings > Inference > Engine; see inference_client/engine_service). It shows as a badge in the
  * detail panel.
  * 
  * Edge: {from, to, branch}. `branch: true` edges are side paths (RAG, attachments, error handling, live delivery,
@@ -176,7 +176,7 @@ const WORKFLOW_NODES = [
       server: APP_NAME,
       title: "Resolving the active engine and calling it",
       location: "app/services/inference_client.py — chat_stream",
-      body: "This is the step that actually hands the conversation off to the AI language model for inference. Reads engine_service.current_engine() — an admin-configurable choice, Admin settings > Inference engines' \"Active engine\" picker — and dispatches to that engine's own client unchanged: llamacpp_client.chat_stream (host failover via llamacpp_pool — local mode: the one llama-server router this app manages itself, which loads each model from the shared GGUF folder on demand; remote mode: the admin's configured host list) or matricxon_client.chat_stream (same failover shape via matricxon_pool; in a Matricxon cluster the node is chosen in order: the one holding this chat in RAM, then one with the model already loaded (up to one extra request in flight), else the least busy; when every node with the model is busy, an idle one loads it in the background, cluster_routing.py; before any text has streamed, a node that is down or answers with an error another node may not give (out of memory, a failed load, a model it lacks) is replaced by the next one, while a bad request is not retried, matricxon_errors.py; embeddings and reranking fail over the same way). Either engine's own error type is normalized into one InferenceError here, so nothing downstream needs to know which engine actually served the request. A \"thinking\" model's reasoning arrives in its own field (llama-server's reasoning_content, Matricxon's message.thinking) and is left out, so only the answer is yielded upward; the chat's Reasoning chip (auto / on / off, in the chat header) is sent as llama.cpp's chat_template_kwargs.enable_thinking or Matricxon's think.",
+      body: "This is the step that actually hands the conversation off to the AI language model for inference. Reads engine_service.current_engine() — an admin-configurable choice, Admin settings > Inference > Engine' \"Active engine\" picker — and dispatches to that engine's own client unchanged: llamacpp_client.chat_stream (host failover via llamacpp_pool — local mode: the one llama-server router this app manages itself, which loads each model from the shared GGUF folder on demand; remote mode: the admin's configured host list) or matricxon_client.chat_stream (same failover shape via matricxon_pool; in a Matricxon cluster the node is chosen in order: the one holding this chat in RAM, then one with the model already loaded (up to one extra request in flight), else the least busy; when every node with the model is busy, an idle one loads it in the background, cluster_routing.py; before any text has streamed, a node that is down or answers with an error another node may not give (out of memory, a failed load, a model it lacks) is replaced by the next one, while a bad request is not retried, matricxon_errors.py; embeddings and reranking fail over the same way). Either engine's own error type is normalized into one InferenceError here, so nothing downstream needs to know which engine actually served the request. A \"thinking\" model's reasoning arrives in its own field (llama-server's reasoning_content, Matricxon's message.thinking) and is left out, so only the answer is yielded upward; the chat's Reasoning chip (auto / on / off, in the chat header) is sent as llama.cpp's chat_template_kwargs.enable_thinking or Matricxon's think.",
     },
   },
   {
@@ -536,7 +536,7 @@ const WORKFLOW_NODES = [
     detail: {
       server: "MCP server",
       title: "Running a tool on an MCP server",
-      location: "app/services/mcp_client.py — McpConnection.call_tool; servers are set up in Admin settings > MCP servers",
+      location: "app/services/mcp_client.py — McpConnection.call_tool; servers are set up in Admin settings > Inference > MCP servers",
       body: "A short-lived streamable-HTTP session per call (connect, initialize, call the tool, close), so nothing is shared between users or between pAIring instances. Limited to 8 calls at once per instance, the server\u0027s own tool-call timeout (default 20 seconds, set per server) per call, 15 seconds to list a server\u0027s tools, and results are cut at the admin-set limit (Admin settings > System, default 4,000 characters; a JSON result is shortened by clipping long strings and lists so it stays valid JSON, other text is cut at a word boundary). A failed or unreachable server becomes an error result the model sees instead of failing the reply.",
     },
   },

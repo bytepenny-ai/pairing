@@ -33,7 +33,7 @@ class EngineDownReason {
     if (allDown && engine in EngineDownReason.LABELS) {
       if (!isAdmin) return `${label} isn't running right now, so no models can be listed. Please ask your admin to start it.`;
       if (await EngineDownReason.localStopped(engine)) {
-        return `${label} isn't running. Please start it in Admin settings > Inference engines, then refresh this page.`;
+        return `${label} isn't running. Please start it in Admin settings > Inference > Engine, then refresh this page.`;
       }
       return `${label} isn't answering on any of its hosts. Please check that it's running, then refresh this page.`;
     }

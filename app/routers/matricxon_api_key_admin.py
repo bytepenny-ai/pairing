@@ -1,4 +1,4 @@
-"""The Matricxon API key: Settings > Inference engines (one server or a few), and the Cluster page in cluster mode
+"""The Matricxon API key: Settings > Inference > Engine (one server or a few), and the Cluster page in cluster mode
 (logic: app.services.matricxon_api_key)."""
 
 from fastapi import APIRouter, Depends, HTTPException

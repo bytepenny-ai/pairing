@@ -11,5 +11,5 @@ class MatricxonApiKeyUpdate(BaseModel):
 
 class MatricxonApiKeyState(BaseModel):
     set: bool
-    # Cluster mode on: the key is set on the Cluster page (for every node), not on the Inference engines panel.
+    # Cluster mode on: the key is set on the Cluster page (for every node), not on the Inference > Engine panel.
     cluster: bool = False

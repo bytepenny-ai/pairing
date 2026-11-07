@@ -1,4 +1,4 @@
-/* Settings > System > RAG: shows how the knowledge base matches the current embedding model and embeds every
+/* Settings > Inference > RAG: shows how the knowledge base matches the current embedding model and embeds every
    document again on request (POST /api/documents/reembed), e.g. after switching embedding models. */
 
 class ReembedPanel {

@@ -1,4 +1,4 @@
-"""Tests for services/matricxon_process.py, the local Matricxon supervisor behind Settings > Inference engines.
+"""Tests for services/matricxon_process.py, the local Matricxon supervisor behind Settings > Inference > Engine.
 A real start/stop isn't exercised (subprocess/os.kill/httpx are patched; see tests/test_llamacpp_process.py).
 """
 

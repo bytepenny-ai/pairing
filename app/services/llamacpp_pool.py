@@ -1,7 +1,7 @@
 """Routes llama.cpp requests across llama-server host(s): a thin wrapper around server_pool.HostPool (selection,
 cooldown, failover; shared with the other pools).
 
-The host list is admin-configured (Settings > Inference engines, settings_service.get_llamacpp_server_config):
+The host list is admin-configured (Settings > Inference > Engine, settings_service.get_llamacpp_server_config):
 "local" is LOCAL_LLAMACPP_HOST alone (the router llamacpp_process.py starts), "remote" the admin's remote_hosts.
 Cached via refresh_from_config, not read per chat request: loaded at startup and refreshed on every admin save.
 """

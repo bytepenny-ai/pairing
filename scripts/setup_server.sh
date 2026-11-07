@@ -88,7 +88,7 @@ if [ "$SETUP" = 2 ]; then
     echo "  3. Send a test chat from this server."
 else
     echo "  1. Log in as admin / admin, then Settings > Account > Update password."
-    echo "  2. Settings > Inference engines: install and choose an engine, then Settings > Models."
+    echo "  2. Settings > Inference > Engine: install and choose an engine, then Settings > Models."
     echo "     (To use an existing Matricxon cluster instead: Cluster > Join an existing cluster.)"
 fi
 echo "Logs: journalctl -u pairing -f    Restart: sudo systemctl restart pairing"

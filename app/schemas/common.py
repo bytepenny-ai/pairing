@@ -89,7 +89,7 @@ MAX_REMOTE_HOSTS = 120
 
 class InstallDefaults(BaseModel):
     """The GitHub repo/version an engine installer (llamacpp/matricxon/sdcpp) uses unless overridden; shown in Settings
-    > Inference engines next to Install and as placeholders.
+    > Inference > Engine next to Install and as placeholders.
     """
 
     repo: str

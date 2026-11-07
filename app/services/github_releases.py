@@ -1,4 +1,4 @@
-"""A GitHub repo's tag list for Settings > Inference engines' version picker (shared available-versions
+"""A GitHub repo's tag list for Settings > Inference > Engine' version picker (shared available-versions
 endpoint in routers/llamacpp_admin, matricxon_admin, sdcpp_admin). Helps fill the installers' install_repo/
 install_version overrides correctly (a typo'd tag otherwise fails several steps into an install).
 

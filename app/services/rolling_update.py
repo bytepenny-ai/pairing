@@ -18,10 +18,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal
 from app.models import SYSTEM_OWNER_ID, AppSetting, Server
 from app.services import http_proxy_service
+from app.services.app_updates import PairingUpdate
 from app.services.db_clock import db_epoch
 from app.services.server_registry import ServerRegistry, server_registry
 from app.services.update_source import UpdateSourceService
-from app.services.update_targets import PairingUpdate
 from app.services.upload_jobs import ProgressThrottle
 
 logger = logging.getLogger("llama_chat")

@@ -1,4 +1,4 @@
-"""Settings > MCP servers: tool servers (Model Context Protocol, streamable HTTP) the admin connects.
+"""Settings > Inference > MCP servers: tool servers (Model Context Protocol, streamable HTTP) the admin connects.
 Admin-only: credentials are entered here.
 """
 

@@ -132,7 +132,7 @@ SDCPP_HOST = os.environ.get("SDCPP_HOST", "http://localhost:8189")
 IMAGES_DIR = Path(os.environ.get("IMAGES_DIR", BASE_DIR / "generated_images"))
 IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-# Local-mode auto-install (Settings > Inference engines)
+# Local-mode auto-install (Settings > Inference > Engine)
 # Tested tags, never "latest": bump them on purpose after verifying. Read only by the installers in app/services/.
 LLAMACPP_GITHUB_REPO = "ggml-org/llama.cpp"
 # Verified with router mode (--models-preset), streamed tool calls and embeddings.

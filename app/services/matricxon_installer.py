@@ -1,4 +1,4 @@
-"""Installs Matricxon from GitHub (the "local" auto-install behind Settings > Inference engines' Install), in
+"""Installs Matricxon from GitHub (the "local" auto-install behind Settings > Inference > Engine' Install), in
 steps (each a "Step X of Y" event). `git clone`s app.config.MATRICXON_DEFAULT_VERSION (Matricxon's main branch,
 its newest code, unlike llama.cpp's pinned tag) unless the admin chose a tag/branch, then builds a `.venv`
 (Matricxon's scripts/start.sh hardcodes `.venv/bin/uvicorn`) and `pip install`s requirements.txt (not

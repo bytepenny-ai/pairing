@@ -40,7 +40,7 @@ class MatricxonAutostart:
         try:
             await matricxon_process.start(config, proxy_url=proxy)
         except (RuntimeError, ValueError) as exc:
-            logger.warning("Could not start Matricxon at startup (%s). Start it in Settings > Inference engines.", exc)
+            logger.warning("Could not start Matricxon at startup (%s). Start it in Settings > Inference > Engine.", exc)
             return
         logger.info("Started Matricxon, the active engine, at pAIring startup.")
         await then()

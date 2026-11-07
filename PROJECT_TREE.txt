@@ -118,6 +118,7 @@ app/schemas/system_metrics.py
 app/schemas/telemetry.py
 app/schemas/update.py
 app/schemas/user.py
+app/services/app_updates.py
 app/services/archive_source.py
 app/services/auth_service.py
 app/services/avatar_service.py
@@ -306,7 +307,6 @@ app/services/tool_loop_service.py
 app/services/tool_result_clip.py
 app/services/tracked_process.py
 app/services/update_process.py
-app/services/update_targets.py
 app/services/user_service.py
 app/static/css/style.css
 app/static/css/themes.css

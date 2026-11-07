@@ -1,4 +1,4 @@
-"""Starts/stops the local llama-server in router mode: the supervisor behind Settings > Inference engines >
+"""Starts/stops the local llama-server in router mode: the supervisor behind Settings > Inference > Engine >
 llama.cpp "local" mode. A changed local parameter restarts it (it reads its arguments only at startup),
 interrupting in-flight replies; model changes don't (llamacpp_admin reloads the preset instead).
 

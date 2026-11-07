@@ -1,4 +1,4 @@
-/* Admin settings > MCP servers (app/templates/_mcp_servers.html): lists MCP tool servers, with a form ("Add server" or a row's Edit) to add or change one and test its connection, via /api/settings/mcp-servers. Also the global on/off switch in Admin settings > System (_mcp_global_switch.html, /api/settings/mcp-enabled). Uses api from app.js. */
+/* Admin settings > Inference > MCP servers (app/templates/_mcp_servers.html): lists MCP tool servers, with a form ("Add server" or a row's Edit) to add or change one and test its connection, via /api/settings/mcp-servers. Also the global on/off switch in Admin settings > System (_mcp_global_switch.html, /api/settings/mcp-enabled). Uses api from app.js. */
 class McpServersPanel {
   static URL = "/api/settings/mcp-servers";
 

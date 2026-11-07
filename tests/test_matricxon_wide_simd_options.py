@@ -1,4 +1,4 @@
-"""Inference engines > Matricxon: the experimental "wider CPU instructions" and "fused GPU kernels"
+"""Inference > Engine > Matricxon: the experimental "wider CPU instructions" and "fused GPU kernels"
 options reach a local Matricxon's environment and .env, and need a restart."""
 
 from app.schemas import MatricxonServerConfig

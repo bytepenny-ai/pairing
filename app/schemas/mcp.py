@@ -1,4 +1,4 @@
-"""Schemas for the MCP servers admin API (Settings > MCP servers)."""
+"""Schemas for the MCP servers admin API (Settings > Inference > MCP servers)."""
 
 import re
 

@@ -62,7 +62,7 @@ async def run_startup_tasks() -> None:
         await _seed_and_repair()
 
     async with AsyncSessionLocal() as db:
-        # Primes the engine and image-engine host pools (Settings > Inference engines) from what's saved. Unlike the
+        # Primes the engine and image-engine host pools (Settings > Inference > Engine) from what's saved. Unlike the
         # instance-count/proxy-mode priming below, this runs on *every* instance: each routes its own chat/image
         # requests through these pools (llamacpp_pool/sdcpp_pool) and needs its cache warm before the connectivity check
         # after this block.

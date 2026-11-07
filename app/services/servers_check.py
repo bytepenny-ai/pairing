@@ -102,7 +102,7 @@ class ServersCheck:
             ok=False,
             title="Matricxon in Remote mode (servers or a cluster)",
             detail="Local mode: every pAIring server treats Matricxon as the one on its own machine.",
-            fix="Switch Matricxon to Remote under Inference engines (a cluster made here: switch it too).",
+            fix="Switch Matricxon to Remote under Inference > Engine (a cluster made here: switch it too).",
         )
 
     @staticmethod

@@ -1,4 +1,4 @@
-"""How the knowledge base relates to the current embedding model, for Settings > System > RAG."""
+"""How the knowledge base relates to the current embedding model, for Settings > Inference > RAG."""
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession

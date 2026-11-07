@@ -1,5 +1,5 @@
 """Which engine, llama.cpp or Matricxon, inference_client dispatches chat/embedding/model-management calls to
-(Settings > Inference engines' "Active engine" picker, routers/engine_admin.py).
+(Settings > Inference > Engine' "Active engine" picker, routers/engine_admin.py).
 
 Both are configured, started and stopped independently (llamacpp_admin/matricxon_admin, their pools); this
 module owns only the state choosing which serves traffic. Cached in-process (hot chat path, like

@@ -1,5 +1,5 @@
 """Knowledge-base documents remember their embedding model: sync re-embeds after a model switch (or always when
-forced), search skips vectors from another model, and Settings > System > RAG can see and fix it."""
+forced), search skips vectors from another model, and Settings > Inference > RAG can see and fix it."""
 
 import numpy as np
 import pytest

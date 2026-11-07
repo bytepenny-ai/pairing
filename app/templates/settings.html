@@ -24,12 +24,13 @@
     </div>
   </header>
 
-  <!-- Left sidebar, like stats.html: /settings (every account, admins too) has Models, Behavior, Knowledge, Skills and Account; /admin-settings (admins only) has Models (Manage models, Default models), System (five pages), Inference engines, MCP servers, Users, Channels, Skills and Update. Panels not listed for a page stay in the DOM, hidden and unreachable, so settings.js still finds the elements it binds. On narrow screens the sidebar is a scrolling row above the content. -->
-  {% set system_pages = [("system-service", "Service"), ("system-database", "Database"), ("system-proxy", "HTTP proxy"), ("system-rag", "RAG"), ("system-chat", "Chat")] %}
+  <!-- Left sidebar, like stats.html: /settings (every account, admins too) has Models, Behavior, Knowledge, Skills and Account; /admin-settings (admins only) has Models (Manage models, Default models), System (four pages), Inference (Engine, MCP servers, RAG), Users, Channels, Skills and Update. Panels not listed for a page stay in the DOM, hidden and unreachable, so settings.js still finds the elements it binds. On narrow screens the sidebar is a scrolling row above the content. -->
+  {% set system_pages = [("system-service", "Service"), ("system-database", "Database"), ("system-proxy", "HTTP proxy"), ("system-chat", "Chat")] %}
+  {% set inference_pages = [("external-servers", "Engine"), ("mcp-servers", "MCP servers"), ("system-rag", "RAG")] %}
   {% set model_pages = [("model", "Manage models"), ("default-models", "Default models")] %}
-  {% set tabs = [("model", "Models")] + ([("system", "System"), ("external-servers", "Inference engines"), ("mcp-servers", "MCP servers"), ("users", "Users"), ("channels", "Channels"), ("skills", "Skills"), ("update", "Update")] if admin_page else [("behavior", "Behavior"), ("knowledge", "Knowledge"), ("my-skills", "Skills"), ("account", "Account")]) %}
+  {% set tabs = [("model", "Models")] + ([("system", "System"), ("inference", "Inference"), ("users", "Users"), ("channels", "Channels"), ("skills", "Skills"), ("update", "Update")] if admin_page else [("behavior", "Behavior"), ("knowledge", "Knowledge"), ("my-skills", "Skills"), ("account", "Account")]) %}
   {# Admin settings groups, folding like the cluster page's categories: a heading and one page per entry. #}
-  {% set groups = {"model": ("Models", model_pages), "system": ("System", system_pages)} if admin_page else {} %}
+  {% set groups = {"model": ("Models", model_pages), "system": ("System", system_pages), "inference": ("Inference", inference_pages)} if admin_page else {} %}
   {% macro tab_button(name, label, active) -%}
         <button type="button" data-tab="{{ name }}"
           class="settings-tab-btn shrink-0 md:w-full rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors {{ "bg-slate-800 text-slate-100" if active else "text-slate-300 hover:bg-slate-800" }}">

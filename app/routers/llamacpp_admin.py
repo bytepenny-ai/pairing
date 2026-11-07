@@ -1,4 +1,4 @@
-"""Settings > Inference engines > llama.cpp admin: local-mode params or remote host list, and start/stop/status
+"""Settings > Inference > Engine > llama.cpp admin: local-mode params or remote host list, and start/stop/status
 of the local llama-server (app/services/llamacpp_process.py). Same shape as matricxon_admin.py and sdcpp_admin.py.
 
 Not to be confused with app/services/llamacpp_admin.py (model pull/delete).

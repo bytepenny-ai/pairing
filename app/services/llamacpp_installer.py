@@ -1,5 +1,5 @@
 """Downloads and installs llama.cpp's official prebuilt release from GitHub: the "local" auto-install behind
-Settings > Inference engines' Install. Never "latest": the pinned app.config.LLAMACPP_PINNED_VERSION unless the
+Settings > Inference > Engine' Install. Never "latest": the pinned app.config.LLAMACPP_PINNED_VERSION unless the
 admin overrides it, for predictable reinstalls.
 
 Asset shape (checked against b11443): `llama-<ver>-bin-ubuntu-<variant-><arch>.tar.gz` holding one `llama-<ver>/`

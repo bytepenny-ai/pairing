@@ -1,7 +1,7 @@
 /* Settings page controller: loads the model catalog and the target's (a conversation, or the app-wide defaults) params, renders a slider per tunable value plus the model picker, and saves on demand. Also handles the Knowledge tab's private document upload/list/delete (every chat searches these automatically) and, for admins, the RAG upload limits on the System tab. */
 
 // A small inline "animate-spin" SVG shared by this page's loading indicators (install progress, Admin settings > System
-// default-model selects, Inference engines Start/Stop, the Matricxon panel's fetch div) so they look alike.
+// default-model selects, Inference > Engine Start/Stop, the Matricxon panel's fetch div) so they look alike.
 const SPINNER_SVG_HTML =
   '<svg class="h-3.5 w-3.5 animate-spin text-brand-500" viewBox="0 0 24 24" fill="none">' +
   '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
@@ -34,7 +34,7 @@ function addInlineSpinner(anchorEl) {
 }
 
 // Dims `panelEl` (must be `position: relative`) behind a centered spinner while `promise` is pending, for a whole
-// section (e.g. Inference engines' per-engine panel) whose fields are empty/stale during its fetch.
+// section (e.g. Inference > Engine's per-engine panel) whose fields are empty/stale during its fetch.
 function withPanelSpinner(panelEl, promise) {
   const overlay = document.createElement("div");
   overlay.className = "absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-slate-900/60";
@@ -408,7 +408,7 @@ function renderModelRow(entry, pairing = null, compact = false) {
   const visionBadge = entry.vision || entry.is_projector
     ? ` <span class="inline-flex items-center rounded-full bg-[rgb(var(--color-brand-500)/0.15)] border border-[rgb(var(--color-brand-500)/0.4)] px-1.5 py-0.5 text-[10px] font-medium text-brand-500 align-middle">${visionBadgeText}</span>`
     : "";
-  // Shown for the active engine (see the "Active engine" picker above Inference engines). Most engines (e.g. llama.cpp) run
+  // Shown for the active engine (see the "Active engine" picker above Inference > Engine). Most engines (e.g. llama.cpp) run
   // every catalog entry, so it would be noise for them. Also skipped for a vision projector (entry.is_projector): "Not
   // supported" would read as "this engine can't run it" for a file never meant as a chat model; its vision badge
   // (visionBadge) says what it is. See CatalogEntry.engine_support/EngineModelSupport.
@@ -1705,7 +1705,7 @@ function activateTab(name) {
 
 // Extracted from the click handler so the per-tab data load also runs when a reload restores a saved tab
 // (SETTINGS_TAB_STORAGE_KEY); otherwise a reload lands on the default "Model" tab and discards where the admin was
-// (seen: reloading right after starting llama.cpp on Inference engines left it blank until re-clicked, as its data loads
+// (seen: reloading right after starting llama.cpp on Inference > Engine left it blank until re-clicked, as its data loads
 // only on that tab's click).
 function loadTabData(name) {
   if (name === "model") {
@@ -2003,7 +2003,7 @@ if (httpProxySaveBtn) {
   });
 }
 
-// Inference engines: llama.cpp, Matricxon and stable-diffusion.cpp (admin only)
+// Inference > Engine: llama.cpp, Matricxon and stable-diffusion.cpp (admin only)
 //
 // The sections share one DOM shape (settings.html's [data-server="llamacpp"|"matricxon"|"sdcpp"]): a mode select, a
 // "local" div (install/start/stop + tunable parameters) and a "remote" div (host rows), so one generic controller
@@ -2463,7 +2463,7 @@ function applyActiveEngineVisibility() {
   }
 }
 
-// [panel id, its cluster-mode note id] for the Matricxon-only boxes on the Inference engines tab.
+// [panel id, its cluster-mode note id] for the Matricxon-only boxes on the Inference > Engine page.
 const MATRICXON_ONLY_PANELS = [
   ["matricxon-cache-panel", "matricxon-cache-managed"],
   ["matricxon-api-key-panel", "matricxon-api-key-managed"],
@@ -2555,7 +2555,7 @@ if (activeEngineSaveBtn) {
       }
       // A full reload, not a refetch: the Model tab's catalog (currentCatalog) and other model fetches (installed
       // vision/embedding models, RAG availability,...) cache for the page load and go stale on an engine switch. Same
-      // reload-instead-of-invalidating pattern as the llama.cpp/Matricxon Start button below. Stays on Inference engines so
+      // reload-instead-of-invalidating pattern as the llama.cpp/Matricxon Start button below. Stays on Inference > Engine so
       // the admin can keep configuring the new engine.
       try {
         sessionStorage.setItem(SETTINGS_TAB_STORAGE_KEY, "external-servers");
@@ -2591,7 +2591,7 @@ async function loadAvailableVersions(server, section) {
   }
 }
 
-/* Switching llama.cpp/Matricxon between local and remote changes which models exist (a remote server has its own storage, managed via its API), so every model cache on this page is stale: reload as for the active-engine switch and return to Inference engines. Returns true if it reloaded. */
+/* Switching llama.cpp/Matricxon between local and remote changes which models exist (a remote server has its own storage, managed via its API), so every model cache on this page is stale: reload as for the active-engine switch and return to Inference > Engine. Returns true if it reloaded. */
 function reloadIfModeChanged(section, body, force = false) {
   const server = section.dataset.server;
   if (!["llamacpp", "matricxon"].includes(server) || (!force && body.mode === section.dataset.loadedMode)) return false;
@@ -2806,7 +2806,7 @@ for (const server of EXTERNAL_SERVERS) {
         statusEl.textContent = "Done.";
         // llama.cpp (or Matricxon) coming up can newly make models available for "Model & behavior", which loads the
         // catalog once at page load and would keep saying "System is not configured for models yet". A full reload is
-        // the simplest reliable fix for an infrequent admin action, saved so it returns to Inference engines (otherwise
+        // the simplest reliable fix for an infrequent admin action, saved so it returns to Inference > Engine (otherwise
         // the status line went blank until re-clicked, which read as stuck).
         if ((server === "llamacpp" || server === "matricxon") && (action === "stop" || result.running)) {
           try {

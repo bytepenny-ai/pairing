@@ -1,4 +1,4 @@
-<!-- Admin settings > MCP servers: the tool servers models can use. Wired by app/static/js/settings_mcp_servers.js to /api/settings/mcp-servers (app/routers/mcp_admin.py). -->
+<!-- Admin settings > Inference > MCP servers: the tool servers models can use. Wired by app/static/js/settings_mcp_servers.js to /api/settings/mcp-servers (app/routers/mcp_admin.py). -->
 <section class="space-y-3" id="mcp-panel">
   <h2 class="text-sm font-semibold text-slate-200">MCP servers</h2>
   <p class="text-xs text-slate-500 -mt-2">
@@ -10,7 +10,7 @@
   <!-- Shown by engine_capability_notes.js when the active engine can't pass tools to models. -->
   <p data-engine-note="tools" class="hidden text-xs text-warning-400 bg-slate-900 border border-warning-500/50 rounded-lg px-3 py-2">
     <span data-engine-name></span>, the active engine, doesn't support tools, so models can't use these servers and
-    the chat's Tools button is hidden. Tools work on llama.cpp and Matricxon (Admin settings &gt; Inference engines).
+    the chat's Tools button is hidden. Tools work on llama.cpp and Matricxon (Admin settings &gt; Inference &gt; Engine).
   </p>
   <div id="mcp-list-header" class="flex items-center justify-between">
     <p class="text-xs font-medium text-slate-400">Connected servers</p>

@@ -168,7 +168,7 @@ async def rag_availability(db: AsyncSession = Depends(get_db), _user: User = Dep
         return RagAvailability(
             available=False,
             reason=f"{engine.display_name} doesn't support embeddings — the knowledge base needs a different "
-            "active engine (see Inference engines/Connectors).",
+            "active engine (see Inference > Engine, or Connectors).",
         )
     if (await get_default_embedding_model(db)) is None:
         return RagAvailability(available=False, reason="No embedding model found yet — ask admin.")

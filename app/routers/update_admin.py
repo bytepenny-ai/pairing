@@ -12,10 +12,10 @@ from app.models import User
 from app.schemas import OkResponse
 from app.schemas.update import UpdateOverview, UpdateSourceIn, UpdateSourceOut, UpdateTokenIn
 from app.services import http_proxy_service, settings_service
+from app.services.app_updates import MatricxonUpdate, PairingUpdate
 from app.services.auth_service import require_admin
 from app.services.extended_model_catalog_service import ExtendedModelCatalog
 from app.services.update_source import UpdateSourceError, UpdateSourceService
-from app.services.update_targets import MatricxonUpdate, PairingUpdate
 
 router = APIRouter(prefix="/api/settings/update", tags=["update"])
 

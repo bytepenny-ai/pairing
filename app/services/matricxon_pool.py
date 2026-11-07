@@ -168,7 +168,7 @@ async def check_hosts() -> dict[str, bool]:
 
 
 async def check_host(host: str) -> bool:
-    """Same probe as check_hosts for one arbitrary host, possibly unsaved; Settings > Inference engines verifies a
+    """Same probe as check_hosts for one arbitrary host, possibly unsaved; Settings > Inference > Engine verifies a
     remote URL before saving (routers/matricxon_admin.py check_host).
     """
     return await ping_host(host, _HEALTH_CHECK_TIMEOUT, path=_HEALTH_PATH)

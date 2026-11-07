@@ -78,7 +78,7 @@ cd /opt/pairing && bash scripts/setup_server.sh
 ## 4. In the browser (`http://<server>:8000`)
 
 - First pAIring: log in as `admin` / `admin`, then Settings → Account → **Update password**.
-  - [ ] Settings → Inference engines: install and choose llama.cpp or Matricxon; then Settings → Models.
+  - [ ] Settings → Inference → Engine: install and choose llama.cpp or Matricxon; then Settings → Models.
   - To use an existing Matricxon cluster instead: Cluster → **Join an existing cluster** (node address, cluster id,
     admin secret), then Cluster → **API key**.
 - Joining: log in with your existing account (the users are shared).

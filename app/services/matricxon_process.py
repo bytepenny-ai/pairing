@@ -1,5 +1,5 @@
 """Starts/stops the local Matricxon via its scripts/start.sh and scripts/stop.sh: the supervisor behind
-Settings > Inference engines > Matricxon "local" mode. Unlike llama.cpp (one binary, llamacpp_process.py) or
+Settings > Inference > Engine > Matricxon "local" mode. Unlike llama.cpp (one binary, llamacpp_process.py) or
 stable-diffusion.cpp (an `sd-server` this app tracks, sdcpp_process.py), Matricxon is a sibling Python project
 with its own venv whose scripts/start.sh manages a PID file (`run/matricxon.pid` in the project), read here
 directly instead of reinventing tracking.
@@ -37,7 +37,7 @@ _lock = asyncio.Lock()
 
 
 def _find_project_dir(project_dir: str | None = None) -> Path | None:
-    """`project_dir` is the admin's override (Settings > Inference engines' "Already have Matricxon installed
+    """`project_dir` is the admin's override (Settings > Inference > Engine' "Already have Matricxon installed
     elsewhere?"): used exclusively if it looks like a checkout (has scripts/start.sh), else the sibling-directory
     default (like llamacpp_process.find_binary).
     """

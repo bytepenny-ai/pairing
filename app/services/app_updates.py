@@ -66,15 +66,40 @@ class PairingUpdate:
         if self.in_container():
             return PairingRestartInfo(mode="docker", can_restart=False, hint="Restart the container.")
         if service := self.systemd_service():
-            return PairingRestartInfo(mode="systemd", can_restart=False, hint=f"sudo systemctl restart {service}")
+            # Allowed when this user may run exactly that without a password (scripts/bootstrap_server.sh's rule).
+            allowed = self.may_sudo_restart(service)
+            return PairingRestartInfo(mode="systemd", can_restart=allowed, hint=f"sudo systemctl restart {service}")
         if (self.base_dir / "scripts" / "restart.sh").is_file():
             return PairingRestartInfo(mode="script", can_restart=True, hint="bash scripts/restart.sh")
         return PairingRestartInfo(mode="manual", can_restart=False, hint="Restart pAIring the way you started it.")
 
+    @staticmethod
+    def may_sudo_restart(service: str) -> bool:
+        """Whether `sudo systemctl restart <service>` runs without a password (sudo -l asks nothing with -n)."""
+        try:
+            out = subprocess.run(
+                ["sudo", "-n", "-l", "systemctl", "restart", service], capture_output=True, timeout=5, check=False
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return out.returncode == 0
+
     def restart(self) -> None:
-        """Runs scripts/restart.sh detached, so it outlives this process."""
-        if not self.restart_info().can_restart:
+        """Restarts detached, so it outlives this process: the systemd service through its sudo rule, else
+        scripts/restart.sh."""
+        info = self.restart_info()
+        if not info.can_restart:
             raise ValueError("pAIring can't restart itself here; please restart it manually.")
+        if info.mode == "systemd":
+            # systemd queues the restart before stopping this process, so it completes after we are gone.
+            subprocess.Popen(
+                ["sudo", "-n", "systemctl", "restart", self.systemd_service()],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            return
         log_dir = self.base_dir / "data" / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         with open(log_dir / "restart.log", "ab") as log:

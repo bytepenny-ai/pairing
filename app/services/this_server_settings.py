@@ -6,8 +6,8 @@ from pathlib import Path
 from app.config import SECRET_KEY_IS_SET, SERVER_ID
 from app.schemas.servers import ThisServerFolder, ThisServerSettings, ThisServerUpdate
 from app.services import env_file
+from app.services.app_updates import PairingUpdate
 from app.services.server_facts import SHARED_FOLDERS
-from app.services.update_targets import PairingUpdate
 
 
 class ThisServerSettingsError(ValueError):

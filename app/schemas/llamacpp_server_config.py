@@ -1,4 +1,4 @@
-"""Schemas for the llama.cpp admin (Settings > Inference engines). Supervisor: services/llamacpp_process.py
+"""Schemas for the llama.cpp admin (Settings > Inference > Engine). Supervisor: services/llamacpp_process.py
 (`llama-server` in router mode); HTTP half: llamacpp_pool.py (local: managed process; remote: `remote_hosts`,
 load-balanced), which this config only chooses between.
 """

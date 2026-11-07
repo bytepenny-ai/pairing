@@ -31,7 +31,7 @@ async def get_summary(db: AsyncSession = Depends(get_db), user: User = Depends(g
 
 @router.get("/embedding-status", response_model=EmbeddingStatus)
 async def embedding_status(db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)):
-    """How many documents match the current embedding model (Settings > System > RAG)."""
+    """How many documents match the current embedding model (Settings > Inference > RAG)."""
     return await DocumentEmbeddingStatus(db).get()
 
 

@@ -16,7 +16,7 @@
         {% for key, purpose, same, where in [
           ("SECRET_KEY", "pAIring's sign-in cookies", "Every pAIring server", "Each pAIring server's .env (This server, above)"),
           ("Matricxon admin secret", "Signs pAIring's admin calls to Matricxon", "Every Matricxon node", "Cluster page; pAIring sends it to the nodes"),
-          ("Matricxon API key", "Protects Matricxon's model routes", "Every Matricxon node", "Inference engines, or the Cluster page"),
+          ("Matricxon API key", "Protects Matricxon's model routes", "Every Matricxon node", "Inference > Engine, or the Cluster page"),
           ("Join token", "Adding a new Matricxon node, once", "Only that node", "Shown when that node starts"),
           ("Cache key", "Encrypts Matricxon's saved chat caches", "Every Matricxon cluster node", "A file in the cluster's shared cache folder, or MATRICXON_CACHE_KEY"),
           ("Consensus secret", "Signs messages between cluster nodes", "Every Matricxon cluster node", "Optional (MATRICXON_CONSENSUS_SECRET); else the cache key"),

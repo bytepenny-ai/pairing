@@ -1,4 +1,4 @@
-/* The access token field in Inference engines > Matricxon > "Use a different version or repo"
+/* The access token field in Inference > Engine > Matricxon > "Use a different version or repo"
  * (engines_matricxon.html): saved with that panel's Save, through /api/settings/update/source/<product>/token, the
  * same token the updates use (settings_update_source.js). Never shown again once saved. */
 class EngineTokenField {

@@ -1,4 +1,4 @@
-"""The API key pAIring sends to Matricxon (MATRICXON_API_KEYS on the servers). Set on the Inference engines panel, or
+"""The API key pAIring sends to Matricxon (MATRICXON_API_KEYS on the servers). Set on the Inference > Engine page, or
 on the Cluster page in cluster mode. Each server gets it at once (matricxon_key_push.py, no restart); pAIring stores it
 encrypted only after every server took it."""
 

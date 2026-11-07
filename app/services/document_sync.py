@@ -235,5 +235,5 @@ async def sync_all_on_startup(db: AsyncSession, force: bool = False) -> dict:
 
 
 async def reembed_all(db: AsyncSession) -> dict:
-    """Embeds every document again with the current embedding model (Settings > System > RAG)."""
+    """Embeds every document again with the current embedding model (Settings > Inference > RAG)."""
     return await sync_all_on_startup(db, force=True)

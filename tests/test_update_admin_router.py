@@ -1,4 +1,4 @@
-"""Tests for routers/update_admin.py and services/update_targets.py (router functions called directly)."""
+"""Tests for routers/update_admin.py and services/app_updates.py (router functions called directly)."""
 
 import json
 
@@ -8,9 +8,9 @@ from fastapi import HTTPException
 from app.routers import update_admin
 from app.schemas import MatricxonServerConfig, MatricxonServerStatus
 from app.schemas.update import SourceUpdateStatus
-from app.services import matricxon_process
+from app.services import app_updates, matricxon_process
+from app.services.app_updates import MatricxonUpdate, PairingUpdate
 from app.services.source_updater import SourceUpdater
-from app.services.update_targets import MatricxonUpdate, PairingUpdate
 
 
 async def _fake_status(self):
@@ -109,11 +109,37 @@ def test_restart_info_prefers_the_script_outside_systemd(monkeypatch, tmp_path):
 
 def test_restart_info_under_systemd_gives_the_command(monkeypatch, tmp_path):
     monkeypatch.setattr(PairingUpdate, "systemd_service", staticmethod(lambda: "pairing"))
+    monkeypatch.setattr(PairingUpdate, "may_sudo_restart", staticmethod(lambda service: False))
 
     info = PairingUpdate(base_dir=tmp_path).restart_info()
 
     assert info.can_restart is False
     assert info.hint == "sudo systemctl restart pairing"
+
+
+def test_under_systemd_with_the_sudo_rule_it_restarts_itself(monkeypatch, tmp_path):
+    """bootstrap_server.sh lets the pairing user run exactly `sudo systemctl restart pairing`."""
+    calls = []
+    monkeypatch.setattr(PairingUpdate, "systemd_service", staticmethod(lambda: "pairing"))
+    monkeypatch.setattr(PairingUpdate, "may_sudo_restart", staticmethod(lambda service: service == "pairing"))
+    monkeypatch.setattr(app_updates.subprocess, "Popen", lambda args, **_: calls.append(args))
+
+    updater = PairingUpdate(base_dir=tmp_path)
+    assert updater.restart_info().can_restart is True
+    updater.restart()
+    assert calls == [["sudo", "-n", "systemctl", "restart", "pairing"]]
+
+
+def test_may_sudo_restart_asks_sudo_without_a_password(monkeypatch):
+    seen = []
+
+    def fake_run(args, **_):
+        seen.append(args)
+        return type("R", (), {"returncode": 1})()
+
+    monkeypatch.setattr(app_updates.subprocess, "run", fake_run)
+    assert PairingUpdate.may_sudo_restart("pairing") is False
+    assert seen == [["sudo", "-n", "-l", "systemctl", "restart", "pairing"]]
 
 
 @pytest.mark.asyncio

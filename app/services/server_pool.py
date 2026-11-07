@@ -18,7 +18,7 @@ T = TypeVar("T")
 
 async def ping_host(host: str, timeout: httpx.Timeout, path: str = "/") -> bool:
     """One-off reachability probe: a plain `GET`, success = 200. Used by HostPool.check_hosts (all configured hosts)
-    and admin endpoints checking a candidate URL typed into Settings > Inference engines before saving
+    and admin endpoints checking a candidate URL typed into Settings > Inference > Engine before saving
     (llamacpp_pool.check_host / sdcpp_pool.check_host).
     """
     try:

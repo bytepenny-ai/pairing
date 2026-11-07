@@ -92,7 +92,7 @@ engine before installing. Checklist: [docs/new_server_checklist.md](docs/new_ser
 
 **After install, open the UI and configure the essentials to get started:**
 
-1. Go to **Settings → Inference engines** and choose your inference engine. llama.cpp and Matricxon are supported (Matricxon has many more options — see the Matricxon repository for details). Both can be installed directly from there: llama.cpp from its official prebuilt release (CPU by default, or a Vulkan/CUDA build). By default both use one shared models folder, so a model downloaded under either engine is stored once and is ready for both. Prefer the cloud? Set up a connector on the **Connectors** page and pick it here instead; switching back is just as quick.
+1. Go to **Settings → Inference → Engine** and choose your inference engine. llama.cpp and Matricxon are supported (Matricxon has many more options — see the Matricxon repository for details). Both can be installed directly from there: llama.cpp from its official prebuilt release (CPU by default, or a Vulkan/CUDA build). By default both use one shared models folder, so a model downloaded under either engine is stored once and is ready for both. Prefer the cloud? Set up a connector on the **Connectors** page and pick it here instead; switching back is just as quick.
 2. After configuring the engine, go to **Settings → Models** and download some models. Embedding models are needed for RAG support, an optional reranker model makes RAG answers more accurate, and vision projectors are needed for image understanding in chats and channels.
 3. Once the models are ready, go to **Settings → System** and set the important parameters (such as the default vision model).
 4. Run a few tests.
@@ -218,7 +218,7 @@ It is also important not to expose more models to users than the system RAM/VRAM
 - Live GPUs usage shows up right in the dashboard, alongside CPU/RAM/disk.
 
 **One place to switch engines**
-- llama.cpp, Matricxon and every cloud connector sit in the same **Active engine** picker (Settings → Inference engines): change it and the whole app follows, with no reinstall and nothing lost.
+- llama.cpp, Matricxon and every cloud connector sit in the same **Active engine** picker (Settings → Inference → Engine): change it and the whole app follows, with no reinstall and nothing lost.
 
 **Load balancing**
 - Point at extra ML engine (llama-server or Matricxon) servers (more GPUs, more machines) and this app spreads requests across them, with automatic failover if one goes down.
@@ -258,7 +258,7 @@ Setup, limits and privacy notes for each: [pAIring connectors](https://bytepenny
 
 **Image generation**
 - Basic text-to-image on the **Images** page via [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) (plain CPU or GPU), with a progress bar, Cancel and generation history. Image generation isn't our focus right now — it's deliberately basic and we'll improve it later.
-- Install it with one click from **Settings → Inference engines → Image Engine** (picks a Vulkan GPU or CPU build), build the newest version from source on Linux (needs `git`, `cmake` and a C++ compiler; takes a while on an old CPU; the source stays in `external/stable-diffusion.cpp/src`, so rebuilds only recompile what changed), or point it at remote sd-server hosts.
+- Install it with one click from **Settings → Inference → Engine → Image Engine** (picks a Vulkan GPU or CPU build), build the newest version from source on Linux (needs `git`, `cmake` and a C++ compiler; takes a while on an old CPU; the source stays in `external/stable-diffusion.cpp/src`, so rebuilds only recompile what changed), or point it at remote sd-server hosts.
 - Diffusion models (SD-Turbo built in, more from Hugging Face) are managed under **Settings → Models → Diffusion models**.
 
 **Nothing exotic to run**

@@ -46,12 +46,19 @@ async def test_admin_settings_has_the_admin_tabs_and_the_admin_models_page(db, a
     response = await pages.admin_settings_page(_request(admin_user.id), db=db)
     html = response.body.decode()
 
-    system = ["system-service", "system-database", "system-proxy", "system-rag", "system-chat"]
-    rest = ["external-servers", "mcp-servers", "users", "channels", "skills", "update"]
-    admin_tabs = ["model", "default-models", *system, *rest]
+    system = ["system-service", "system-database", "system-proxy", "system-chat"]
+    inference = ["external-servers", "mcp-servers", "system-rag"]  # the Inference group: Engine, MCP servers, RAG
+    rest = ["users", "channels", "skills", "update"]
+    admin_tabs = ["model", "default-models", *system, *inference, *rest]
     assert _tabs(response) == admin_tabs
-    for page in [*system, "default-models"]:  # one panel per page
+    for page in [*system, *inference, "default-models"]:  # one panel per page
         assert f'id="tab-{page}"' in html
+    group = html[html.index(">\n            Inference\n") :]
+    assert [label for label in ("Engine", "MCP servers", "RAG") if label in group[: group.index("</details>")]] == [
+        "Engine",
+        "MCP servers",
+        "RAG",
+    ]
     assert 'id="hf-search-input"' in html and 'id="mcp-panel"' in html
     assert "will not affect other users" not in html
     # truly separate: none of the user-level panels or controls are in this page
