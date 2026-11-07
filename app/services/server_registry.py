@@ -5,6 +5,7 @@ gone offline, and forgets servers offline for FORGET_SECONDS.
 
 import logging
 import subprocess
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -50,7 +51,24 @@ class ServerRegistry:
         self.server_id = server_id
         self._is_primary = is_primary
         self._session_factory = session_factory
-        self._commit = local_commit()
+        self._commit = local_commit()  # what this process runs: read once, at start
+        self._checkout: tuple[float, str | None] = (0.0, None)
+
+    CHECKOUT_SECONDS = 60
+
+    def checkout(self) -> str | None:
+        """The checkout's commit now (git rev-parse, re-read at most every CHECKOUT_SECONDS): newer than the running
+        one after a pull or a commit made here without a restart."""
+        read_at, commit = self._checkout
+        if time.monotonic() - read_at >= self.CHECKOUT_SECONDS:
+            commit = local_commit()
+            self._checkout = (time.monotonic(), commit)
+        return commit
+
+    def restart_pending(self) -> bool:
+        """The code on disk is another commit than this process started with: a restart runs it."""
+        checkout = self.checkout()
+        return bool(checkout and self._commit and checkout != self._commit)
 
     async def heartbeat(self, db: AsyncSession, details: dict | None = None) -> None:
         """`details`: what server_facts.py reports, compared by servers_check.py."""
@@ -59,7 +77,8 @@ class ServerRegistry:
             "git_commit": self._commit,
             "is_primary": self._is_primary,
             "last_seen": await db_epoch(db),
-            "details": details,
+            # The checkout too, so Cluster > Servers can tell a server that needs a restart (servers_check.py).
+            "details": {**details, "checkout": self.checkout()} if details is not None else None,
         }
         found = await db.execute(update(Server).where(Server.server_id == self.server_id).values(**values))
         if found.rowcount == 0:

@@ -5,6 +5,7 @@ https://bytepenny.com/rss/
 
 ## Unreleased
 
+- Update all also restarts a server that was updated without a restart (a pull or commit by hand), instead of calling it up to date; the version check names it.
 - `scripts/start.sh` refuses to run as root with a clear message naming the user to start it as (`PAIRING_ALLOW_ROOT=1` for containers).
 - The repository now ships its `.gitignore`: a server's clone no longer lists `.env`, caches and data as new files.
 - Cluster > Servers: the last "Update all" box can be dismissed once it has ended.

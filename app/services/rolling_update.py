@@ -168,8 +168,9 @@ class RollingUpdate:
             elif self._track(event) and throttle.due():
                 async with self._session_factory() as db:
                     await self._registry.set_update_progress(db, self.progress())
-        if not done or not done.get("changed"):
+        if (not done or not done.get("changed")) and not self._registry.restart_pending():
             return "up_to_date"
+        # Pulled something new, or the checkout was already newer than what runs (a pull or commit without restart).
         info = self._pairing.restart_info()
         return "restarting" if info.can_restart else f"needs_restart: {info.hint}"
 

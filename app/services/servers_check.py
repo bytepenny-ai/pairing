@@ -34,7 +34,10 @@ class ServersCheck:
             self._secret(reports),
             *[self._folder(name, reports, markers) for name in SHARED_FOLDERS],
             await self._matricxon_mode(db, primaries),
-            self._versions({r.server_id: f"{r.version} {r.git_commit or ''}".strip() for r in online}),
+            self._versions(
+                {r.server_id: f"{r.version} {r.git_commit or ''}".strip() for r in online},
+                [r.server_id for r in online if (r.details or {}).get("checkout") not in (None, r.git_commit)],
+            ),
         ]
         return ServerChecks(shared_database=True, checks=checks, folders=self._folders(reports, markers))
 
@@ -103,16 +106,20 @@ class ServersCheck:
         )
 
     @staticmethod
-    def _versions(versions: dict[str, str]) -> ServerCheck:
-        if len(set(versions.values())) <= 1:
+    def _versions(versions: dict[str, str], restart: list[str] | None = None) -> ServerCheck:
+        """`restart`: servers whose checkout is newer than what they run (updated without a restart)."""
+        restart = sorted(restart or [])
+        if len(set(versions.values())) <= 1 and not restart:
             return ServerCheck(id="versions", ok=True, title="Same pAIring version on every server")
         detail = ", ".join(f"{sid}: {v}" for sid, v in sorted(versions.items()))
+        if restart:
+            detail += f". Updated but not restarted yet: {', '.join(restart)}"
         return ServerCheck(
             id="versions",
             ok=False,
             title="Same pAIring version on every server",
             detail=detail,
-            fix="Use Update all servers.",
+            fix="Use Update all servers (it also restarts a server that was updated without a restart).",
         )
 
     @staticmethod
