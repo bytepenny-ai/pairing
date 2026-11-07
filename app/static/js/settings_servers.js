@@ -104,7 +104,7 @@ class ServersPanel {
     const count = s.instanceCount ? `${s.instanceCount + 1} processes` : "";
     const badges = [s.leader ? "leader" : "", s.this_server ? "this server" : "", count, !s.is_primary && !nested ? "local instance" : ""]
       .filter(Boolean)
-      .map((b) => `<span class="ml-1 rounded-full border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-400">${b}</span>`)
+      .map((b) => `<span class="ml-1 inline-block whitespace-nowrap rounded-full border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-400">${b}</span>`)
       .join("");
     const status = s.online
       ? '<span class="text-emerald-400">online</span>'
@@ -118,9 +118,9 @@ class ServersPanel {
       ? `<span class="text-slate-600">${last ? "└" : "├"}─</span> <span class="text-slate-400">instance</span> <span class="font-mono">${escapeHtml(s.server_id.split(":").pop())}</span>`
       : `<span class="font-mono">${escapeHtml(s.server_id)}</span>`;
     return `<tr class="${nested ? "bg-slate-950/40" : ""}">
-      <td class="px-3 ${nested ? "py-1.5 pl-6" : "py-2"}">${name}${badges}</td>
+      <td class="break-words px-3 ${nested ? "py-1.5 pl-6" : "py-2"}">${name}${badges}</td>
       <td class="px-3 py-2">${version}</td>
-      <td class="px-3 py-2">${status}</td>
+      <td class="whitespace-nowrap px-3 py-2 tabular-nums">${status}</td>
       <td class="px-3 py-2">${escapeHtml(this.stateText(s.update_state))}</td>
       <td class="px-3 py-2 text-right">${forget}</td>
     </tr>`;

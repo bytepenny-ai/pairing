@@ -11,6 +11,7 @@ import sys
 import time
 from pathlib import Path
 
+from app import database
 from app.config import APP_PORT, BASE_DIR, DATA_DIR, INSTANCE_INDEX
 
 logger = logging.getLogger("llama_chat")
@@ -86,9 +87,22 @@ def is_alive(pid: int) -> bool:
     return comm.startswith("pAIring-server")
 
 
+def sibling_env(index: int, port: int) -> dict[str, str]:
+    """This process's env with the sibling's port and index. DATABASE_URL is the database in use now, not the one
+    at startup: after a live switch (db_config_service) os.environ still holds the old one, and a sibling started
+    on it would answer from another database."""
+    return {
+        **os.environ,
+        "DATABASE_URL": database.live_database_url,
+        "APP_PORT": str(port),
+        "AUTO_MIGRATE": "false",
+        "PAIRING_INSTANCE_INDEX": str(index),
+    }
+
+
 def spawn_sibling(index: int) -> int | None:
-    """Launches sibling `index` detached, sharing this machine's DB/models/knowledge (same env and cwd); only
-    APP_PORT/AUTO_MIGRATE/PAIRING_INSTANCE_INDEX differ. AUTO_MIGRATE=false reuses the multi-instance safety net
+    """Launches sibling `index` detached, sharing this machine's DB/models/knowledge (same env and cwd, see
+    sibling_env). AUTO_MIGRATE=false reuses the multi-instance safety net
     (app.config.AUTO_MIGRATE): the primary migrated, and a sibling racing to migrate is the failure it avoids.
 
     start_new_session=True detaches it (like scripts/start.sh's `nohup... & disown`) so it survives the primary
@@ -99,7 +113,7 @@ def spawn_sibling(index: int) -> int | None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"app-instance-{index}.log"
     log_file = open(log_path, "ab")
-    env = {**os.environ, "APP_PORT": str(port), "AUTO_MIGRATE": "false", "PAIRING_INSTANCE_INDEX": str(index)}
+    env = sibling_env(index, port)
     proc = subprocess.Popen(
         [sys.executable, str(BASE_DIR / "run.py")],
         env=env,

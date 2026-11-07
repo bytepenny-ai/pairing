@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import User
-from app.services.avatar_service import give_default_avatar
 from app.services.reasoning_setting import reasoning_setting
 from app.services.theme_service import start_ui_theme
 
@@ -159,8 +158,7 @@ async def seed_default_users(db: AsyncSession) -> User:
             last_name="Demo",
         )
         db.add(admin)
-        await db.flush()  # gives admin.id, which names the picture file
-        give_default_avatar(admin)
+        await db.flush()  # gives admin.id, which start_ui_theme needs
         start_ui_theme(db, admin)
         if fresh_install:
             await reasoning_setting.start_off(db)  # slow on most CPUs; an admin can turn it on

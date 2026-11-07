@@ -190,14 +190,7 @@ async def test_page_auth_fails_closed_without_resolve(db, admin_user):
 
 
 @pytest.mark.asyncio
-async def test_the_starter_admin_gets_the_default_picture_once(db):
-    from app.services import avatar_service
-
+async def test_the_starter_admin_has_no_picture(db):
+    """New accounts show initials; the starter admin no longer gets a default picture."""
     admin = await auth_service.seed_default_users(db)
-    stored = avatar_service.AVATARS_DIR / admin.avatar_path
-    assert admin.avatar_path.startswith(f"{admin.id}-") and admin.avatar_path.endswith(".png")
-    assert stored.read_bytes() == avatar_service.DEFAULT_ADMIN_AVATAR.read_bytes()
-
-    await avatar_service.delete_avatar(admin)  # removed by the admin: a restart doesn't bring it back
-    await db.commit()
-    assert (await auth_service.seed_default_users(db)).avatar_path is None
+    assert admin.avatar_path is None

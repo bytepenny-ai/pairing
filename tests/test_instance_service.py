@@ -202,3 +202,13 @@ async def test_terminate_all_siblings_clears_tracking_and_terminates_each(db, mo
 
     assert sorted(terminated) == [1001, 1002]
     assert instance_process.read_tracking() == {}
+
+
+def test_a_new_instance_gets_the_database_in_use_not_the_startup_one(monkeypatch):
+    from app import database
+
+    monkeypatch.setenv("DATABASE_URL", "sqlite:////old/pAIring.db")
+    monkeypatch.setattr(database, "live_database_url", "mysql+pymysql://u:p@db/pairing")
+    env = instance_process.sibling_env(2, 8002)
+    assert env["DATABASE_URL"] == "mysql+pymysql://u:p@db/pairing"
+    assert (env["APP_PORT"], env["PAIRING_INSTANCE_INDEX"], env["AUTO_MIGRATE"]) == ("8002", "2", "false")
