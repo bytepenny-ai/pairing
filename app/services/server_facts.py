@@ -8,10 +8,12 @@ the current or previous id reads the same folder.
 
 import hashlib
 import hmac
+import ipaddress
 import secrets
 import socket
 from pathlib import Path
 
+import psutil
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ATTACHMENTS_DIR, AVATARS_DIR, IMAGES_DIR, KNOWLEDGE_DIR, SECRET_KEY, SECRET_KEY_IS_SET
@@ -29,6 +31,20 @@ MARKER_FILE = ".pairing_share_id"  # no document extension: the knowledge sync i
 MARKERS_KEY = "shared_folder_markers"
 
 
+def machine_addresses() -> list[str]:
+    """This machine's IPv4 addresses (no loopback or link-local), for the server list; several on a machine with
+    more than one network (e.g. a LAN and a VM bridge)."""
+    found = set()
+    for addrs in psutil.net_if_addrs().values():
+        for addr in addrs:
+            if addr.family != socket.AF_INET:
+                continue
+            ip = ipaddress.ip_address(addr.address)
+            if not (ip.is_loopback or ip.is_link_local):
+                found.add(addr.address)
+    return sorted(found, key=ipaddress.ip_address)
+
+
 def secret_fingerprint(key: str = SECRET_KEY) -> str:
     """Equal on two servers exactly when their SECRET_KEY is; reveals nothing usable about the key."""
     return hmac.new(key.encode(), b"pairing-secret-fingerprint", hashlib.sha256).hexdigest()[:12]
@@ -44,6 +60,7 @@ class ServerFacts:
     def report(self) -> dict:
         return {
             "machine": socket.gethostname(),  # groups a server's local instances in the list
+            "addresses": machine_addresses(),
             "secret": secret_fingerprint(),
             "secret_set": SECRET_KEY_IS_SET,
             "folders": {

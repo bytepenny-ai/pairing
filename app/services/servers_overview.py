@@ -12,6 +12,7 @@ from app.schemas.servers import RolloutOut, ServerOut, ServersOverview
 from app.services import instance_process
 from app.services.db_clock import shared_database
 from app.services.rolling_update import RollingUpdate, RolloutError, rolling_update
+from app.services.server_facts import machine_addresses
 from app.services.server_registry import ServerRegistry, local_commit, server_registry
 
 
@@ -29,7 +30,8 @@ class ServersOverviewService:
         servers = [
             ServerOut(
                 server_id=row.server_id,
-                machine=(row.details or {}).get("machine") or row.server_id.rsplit(":", 1)[0],
+                machine=ServerRegistry.machine_of(row),
+                addresses=(row.details or {}).get("addresses") or [],
                 version=row.version,
                 git_commit=row.git_commit,
                 is_primary=row.is_primary,
@@ -56,6 +58,10 @@ class ServersOverviewService:
         await self._rollout.cancel(db)
         return await self.overview(db)
 
+    async def dismiss_update_all(self, db: AsyncSession) -> ServersOverview:
+        await self._rollout.dismiss(db)
+        return await self.overview(db)
+
     @staticmethod
     def _local_servers() -> list[ServerOut]:
         """The primary and its running local instances; all online (the primary is the leader)."""
@@ -72,6 +78,7 @@ class ServersOverviewService:
                 ServerOut(
                     server_id=server_id,
                     machine=socket.gethostname(),
+                    addresses=machine_addresses(),
                     version=APP_VERSION,
                     git_commit=commit,
                     is_primary=index == 0,

@@ -84,6 +84,12 @@ default), so both come back after a restart or a reboot.
 
 Supports MySQL migration and multi-server deployment.
 
+**Fresh server, nothing on it yet:** two parts. As root, once: `wget https://raw.githubusercontent.com/bytepenny-ai/pairing/main/scripts/bootstrap_server.sh && bash bootstrap_server.sh`
+(package sources, every package, the `pairing` user, the clone, the systemd service). Then as `pairing`, no root:
+`cd /opt/pairing && bash scripts/setup_server.sh`. It asks whether this is the first pAIring or one joining existing
+pAIring servers; to join, it checks the shared MySQL database, the `SECRET_KEY`, the shared folders and the Matricxon
+engine before installing. Checklist: [docs/new_server_checklist.md](docs/new_server_checklist.md).
+
 **After install, open the UI and configure the essentials to get started:**
 
 1. Go to **Settings → Inference engines** and choose your inference engine. llama.cpp and Matricxon are supported (Matricxon has many more options — see the Matricxon repository for details). Both can be installed directly from there: llama.cpp from its official prebuilt release (CPU by default, or a Vulkan/CUDA build). By default both use one shared models folder, so a model downloaded under either engine is stored once and is ready for both. Prefer the cloud? Set up a connector on the **Connectors** page and pick it here instead; switching back is just as quick.

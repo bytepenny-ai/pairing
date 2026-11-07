@@ -7,6 +7,8 @@ class ServerOut(BaseModel):
     server_id: str
     # The machine it runs on: a primary and its local instances share it (the list shows them as one server).
     machine: str = ""
+    # The machine's IPv4 addresses, as it reports them (empty for a server older than this field).
+    addresses: list[str] = Field(default_factory=list)
     version: str
     git_commit: str | None = None
     is_primary: bool

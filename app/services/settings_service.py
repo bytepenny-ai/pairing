@@ -11,11 +11,11 @@ from app.config import DEFAULT_GENERATION_PARAMS, DEFAULT_MODEL
 from app.models import SYSTEM_OWNER_ID, AppSetting, User
 from app.schemas import LlamaCppServerConfig, MatricxonServerConfig, RagLimits
 from app.services import engine_service, secret_crypto
+from app.services.instance_count import InstanceCount
 
 DEFAULTS_KEY = "default_generation_params"
 DEFAULT_MODEL_KEY = "default_model"
 RAG_LIMITS_KEY = "rag_limits"
-INSTANCE_COUNT_KEY = "instance_count"
 PROXY_MODE_KEY = "proxy_mode"
 LLAMACPP_SERVER_CONFIG_KEY = "llamacpp_server_config"
 MATRICXON_SERVER_CONFIG_KEY = "matricxon_server_config"
@@ -24,8 +24,6 @@ MATRICXON_SERVER_CONFIG_KEY = "matricxon_server_config"
 _DEFAULT_MAX_FILE_MB = 5.0
 _DEFAULT_MAX_USER_SPACE_MB = 1024.0
 
-# Local app instances to run (instance_service): 1 (just the primary) until raised in Settings > System.
-DEFAULT_INSTANCE_COUNT = 1
 
 # Whether the app load-balances across local instances itself ("local", default; instance_pool/instance_proxy)
 # or leaves it to an external reverse proxy ("proxy"). Inert with one instance.
@@ -111,24 +109,14 @@ async def set_rag_limits(db: AsyncSession, limits: RagLimits) -> None:
 
 
 async def get_instance_count(db: AsyncSession) -> int:
-    """Local app instances to run (read by instance_service.reconcile_on_startup and the Settings page). System-wide,
-    admin-set in Settings > System; not in .env, as nothing needs it before the DB is up (unlike
-    DATABASE_URL/AUTO_MIGRATE).
+    """Local app instances to run on THIS machine (instance_service, the Settings page): each server sets its own
+    (instance_count.py). Not in .env, as nothing needs it before the DB is up (unlike DATABASE_URL/AUTO_MIGRATE).
     """
-    row = await db.get(AppSetting, (SYSTEM_OWNER_ID, INSTANCE_COUNT_KEY))
-    if row and isinstance(row.value.get("count"), int):
-        return row.value["count"]
-    return DEFAULT_INSTANCE_COUNT
+    return await InstanceCount(db).get()
 
 
 async def set_instance_count(db: AsyncSession, count: int) -> None:
-    row = await db.get(AppSetting, (SYSTEM_OWNER_ID, INSTANCE_COUNT_KEY))
-    value = {"count": count}
-    if row is None:
-        db.add(AppSetting(owner_id=SYSTEM_OWNER_ID, key=INSTANCE_COUNT_KEY, value=value))
-    else:
-        row.value = value
-    await db.commit()
+    await InstanceCount(db).set(count)
 
 
 async def get_proxy_mode(db: AsyncSession) -> str:

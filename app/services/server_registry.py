@@ -115,15 +115,28 @@ class ServerRegistry:
         await db.commit()
 
     async def forget(self, db: AsyncSession, server_id: str) -> bool:
-        """Removes an offline server from the list; False when it is online (it would come back)."""
+        """Removes an offline server from the list, a primary with its offline local instances; False when it is
+        online (it would come back)."""
         server = await db.get(Server, server_id)
         if server is None:
             return True
-        if self.online(server, await db_epoch(db)):
+        now = await db_epoch(db)
+        if self.online(server, now):
             return False
-        await db.delete(server)
+        gone = [server]
+        if server.is_primary:
+            others = (await db.execute(select(Server).where(Server.is_primary.is_(False)))).scalars()
+            machine = self.machine_of(server)
+            gone += [s for s in others if self.machine_of(s) == machine and not self.online(s, now)]
+        for row in gone:
+            await db.delete(row)
         await db.commit()
         return True
+
+    @staticmethod
+    def machine_of(server: Server) -> str:
+        """The machine a server row runs on (as the list groups them)."""
+        return (server.details or {}).get("machine") or server.server_id.rsplit(":", 1)[0]
 
 
 server_registry = ServerRegistry()

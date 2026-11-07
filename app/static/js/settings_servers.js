@@ -11,6 +11,8 @@ class ServersPanel {
     this.cancelButton = root.querySelector('[data-action="cancel"]');
     this.updateButton.addEventListener("click", () => this.startUpdate());
     this.cancelButton.addEventListener("click", () => this.post("/update-all/cancel"));
+    this.dismissButton = root.querySelector('[data-action="dismiss"]');
+    this.dismissButton.addEventListener("click", () => this.post("/update-all/dismiss"));
     this.field("rows").addEventListener("click", (event) => this.onRowClick(event));
     this.rollout = new RolloutProgress(this.field("rollout"));
     this.refresh();
@@ -46,7 +48,9 @@ class ServersPanel {
 
   async onRowClick(event) {
     const button = event.target.closest('[data-action="forget"]');
-    if (!button || !confirm(`Remove ${button.dataset.id} from the list?`)) return;
+    if (!button) return;
+    const what = button.dataset.group ? `${button.dataset.id} and its offline instances` : button.dataset.id;
+    if (!confirm(`Remove ${what} from the list?`)) return;
     try {
       await api(`${ServersPanel.URL}/${encodeURIComponent(button.dataset.id)}`, { method: "DELETE" });
       await this.refresh();
@@ -68,6 +72,7 @@ class ServersPanel {
     this.updateButton.disabled = running;
     this.updateButton.classList.toggle("hidden", !overview.shared_database);
     this.cancelButton.classList.toggle("hidden", !running);
+    this.dismissButton.classList.toggle("hidden", !overview.rollout || running); // an ended update's box
     this.rollout.render(overview.rollout, overview.servers, overview.server_time);
     this.field("single").classList.toggle("hidden", overview.shared_database);
     this.field("source-wrap").classList.toggle("hidden", !overview.shared_database); // one server: the Update tab has it
@@ -100,6 +105,12 @@ class ServersPanel {
     ];
   }
 
+  // The machine's IP addresses under its name (a server older than this field reports none).
+  addresses(s) {
+    const list = s.addresses || [];
+    return list.length ? `<div class="font-mono text-[11px] text-slate-500">${list.map(escapeHtml).join(", ")}</div>` : "";
+  }
+
   row(s, nested = false, last = false) {
     const count = s.instanceCount ? `${s.instanceCount + 1} processes` : "";
     const badges = [s.leader ? "leader" : "", s.this_server ? "this server" : "", count, !s.is_primary && !nested ? "local instance" : ""]
@@ -110,13 +121,14 @@ class ServersPanel {
       ? '<span class="text-emerald-400">online</span>'
       : `<span class="text-slate-500">offline ${this.ago(s.seconds_since_seen)}</span>`;
     const version = `${escapeHtml(s.version)}${s.git_commit ? ` <span class="font-mono text-slate-500">${escapeHtml(s.git_commit)}</span>` : ""}`;
+    // Only an offline server can go: a running one sends its heartbeat again and comes back.
     const forget = s.online
-      ? ""
-      : `<button type="button" data-action="forget" data-id="${escapeHtml(s.server_id)}" class="text-slate-500 hover:text-red-400">Remove</button>`;
+      ? '<button type="button" disabled title="It is running: stop it first (it would come back), then remove it." class="cursor-not-allowed text-slate-700">Remove</button>'
+      : `<button type="button" data-action="forget" data-id="${escapeHtml(s.server_id)}" data-group="${s.is_primary && s.instanceCount ? "1" : ""}" class="text-slate-500 hover:text-red-400">Remove</button>`;
     // An instance hangs under its server: a tree line, and "instance" with its port instead of the full name.
     const name = nested
       ? `<span class="text-slate-600">${last ? "└" : "├"}─</span> <span class="text-slate-400">instance</span> <span class="font-mono">${escapeHtml(s.server_id.split(":").pop())}</span>`
-      : `<span class="font-mono">${escapeHtml(s.server_id)}</span>`;
+      : `<span class="font-mono">${escapeHtml(s.server_id)}</span>${this.addresses(s)}`;
     return `<tr class="${nested ? "bg-slate-950/40" : ""}">
       <td class="break-words px-3 ${nested ? "py-1.5 pl-6" : "py-2"}">${name}${badges}</td>
       <td class="px-3 py-2">${version}</td>

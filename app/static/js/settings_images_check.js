@@ -19,3 +19,5 @@ document.addEventListener("DOMContentLoaded", () => {
   const field = document.querySelector('[data-field="images_path"]');
   if (field) field.addEventListener("change", () => setTimeout(refreshImagesFolderWarning, 2500));
 });
+// After a save (settings.js), so the warning matches the folder just saved.
+document.addEventListener("pairing:image-engine-saved", refreshImagesFolderWarning);

@@ -43,7 +43,7 @@ case "$OS_NAME" in
     *) die "This installer targets Linux and macOS (uname reported '$OS_NAME'). On Windows, see README.md." ;;
 esac
 
-printf '\033[1;36m'
+printf '\033[1;38;5;33m'  # blue
 cat << 'EOF'
   ┌────────────────────────┐
   │        pAIring          │
@@ -209,6 +209,7 @@ step "5. Setting up the database"
 # background startup pass.
 if "$APP_DIR/.venv/bin/python" -c "
 import asyncio
+import app.database as database
 from app.database import init_db, AsyncSessionLocal
 from app.services.auth_service import seed_default_users
 
@@ -216,6 +217,8 @@ async def main():
     await init_db()
     async with AsyncSessionLocal() as db:
         await seed_default_users(db)
+    # Closed here, while the loop runs: else MySQL connections print a traceback at exit.
+    await database.engine.dispose()
 
 asyncio.run(main())
 "; then

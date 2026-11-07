@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+.env
+data/
+knowledge/*
+!knowledge/.gitkeep
+/models/
+.venv/
+*.egg-info/
+
+# A local database at the project root (a .env may point DATABASE_URL there instead of data/).
+/pAIring.db
+
+# User-generated content: uploaded files, not project source.
+attachments/
+avatars/
+generated_images/
+
+# Engines installed from Settings > Inference engines (llama.cpp, Matricxon, stable-diffusion.cpp).
+external/
+
+# Tool/editor caches and local Claude Code config.
+.pytest_cache/
+.ruff_cache/
+.claude/
+
+# Primary server PID file (scripts/start.sh, stop.sh, status.sh)
+/run/

@@ -38,6 +38,14 @@ async def cancel_update_all(
     return await servers_overview.cancel_update_all(db)
 
 
+@router.post("/update-all/dismiss", response_model=ServersOverview)
+async def dismiss_update_all(
+    db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)
+) -> ServersOverview:
+    """Hides the last update's box once it has ended (a running one stays)."""
+    return await servers_overview.dismiss_update_all(db)
+
+
 @router.get("/checks", response_model=ServerChecks)
 async def checks(db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)) -> ServerChecks:
     return await servers_check.run(db)

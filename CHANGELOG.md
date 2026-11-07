@@ -5,6 +5,16 @@ https://bytepenny.com/rss/
 
 ## Unreleased
 
+- `scripts/start.sh` refuses to run as root with a clear message naming the user to start it as (`PAIRING_ALLOW_ROOT=1` for containers).
+- The repository now ships its `.gitignore`: a server's clone no longer lists `.env`, caches and data as new files.
+- Cluster > Servers: the last "Update all" box can be dismissed once it has ended.
+- Cluster > Servers: removing an offline server also removes its offline instances; a running server's Remove is greyed out and says why. An ended "Update all" can be dismissed.
+- Cluster > Servers shows each server's IP addresses under its name.
+- With several local instances, saving from a browser on another machine no longer fails now and then with "Request blocked ... (CSRF check)".
+- Local instances are set per server: a server sharing the database no longer runs another server's count (a new one starts with 1).
+- With several local instances, a page load sent to one still starting is retried on another instead of failing with an error 500.
+- A fresh install no longer fails at "Setting up the database" (No module named 'greenlet'): SQLAlchemy 2.1+ needs `sqlalchemy[asyncio]`.
+- New server setup in two parts: `scripts/bootstrap_server.sh` once as root, then `scripts/setup_server.sh` as the pairing user, for a first pAIring or one joining existing pAIring servers (shared MySQL, SECRET_KEY, shared folders and Matricxon checked before install), with a checklist.
 - The image engine shows "loading the model…" while it starts, and image requests wait for it instead of failing.
 - A saved image model that was moved or deleted no longer shows as a stale entry on the engine page.
 - Re-adding a model that is already listed points to its row instead of failing.

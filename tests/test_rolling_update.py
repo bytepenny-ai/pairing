@@ -178,3 +178,17 @@ async def test_the_updating_server_shares_its_step_and_percent_then_clears_it(db
     await _settle(rollout)
     await db.refresh(row)
     assert rollout.progress() is None and "update_progress" not in (row.details or {})
+
+
+@pytest.mark.asyncio
+async def test_dismiss_clears_an_ended_update_but_not_a_running_one(db):
+    registries = await _servers(db, "a:1")
+    rollout = _rollout(registries["a:1"], _FakePairing(), db)
+    await rollout.start(db)
+
+    await rollout.dismiss(db)  # still running: its box stays
+    assert (await rollout.get(db))["status"] == "running"
+
+    await rollout.cancel(db)
+    await rollout.dismiss(db)
+    assert await rollout.get(db) is None

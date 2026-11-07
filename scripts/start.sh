@@ -13,6 +13,20 @@ if [ -t 1 ]; then G=$'\033[32m'; R=$'\033[31m'; N=$'\033[0m'; else G=""; R=""; N
 info() { printf '%sINFO:%s %s\n' "$G" "$N" "$*"; }
 err() { printf '%sERROR:%s %s\n' "$R" "$N" "$*"; }
 
+# Not as root: its database, logs and uploads would then belong to root, and its own user could no longer write them
+# (the Matricxon it starts refuses root too). PAIRING_ALLOW_ROOT=1 for a container that runs everything as root.
+if [ "$(id -u)" -eq 0 ] && [ "${PAIRING_ALLOW_ROOT:-}" != 1 ]; then
+    OWNER="$(stat -c %U "$APP_DIR" 2>/dev/null || stat -f %Su "$APP_DIR")"
+    err "pAIring must not run as root."
+    if [ "$OWNER" != root ]; then
+        info "Start it as the user this folder belongs to ($OWNER):  su - $OWNER -c '$APP_DIR/scripts/start.sh'"
+        info "On a server installed by scripts/bootstrap_server.sh: sudo systemctl start pairing (as $OWNER)."
+    else
+        info "Give this folder to a normal user (chown -R <user>: $APP_DIR), then start it as that user."
+    fi
+    exit 1
+fi
+
 PID_FILE="${PAIRING_PID_FILE:-$APP_DIR/run/pairing.pid}"
 # shellcheck source=own_processes.sh
 source "$APP_DIR/scripts/own_processes.sh"

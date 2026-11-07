@@ -85,6 +85,13 @@ class RollingUpdate:
             await self._save(db, rollout)
         return rollout
 
+    async def dismiss(self, db: AsyncSession) -> None:
+        """Clears the record of an update that has ended (its box on the page); a running one stays."""
+        row = await db.get(AppSetting, (SYSTEM_OWNER_ID, ROLLOUT_KEY))
+        if row is not None and row.value.get("status") != "running":
+            await db.delete(row)
+            await db.commit()
+
     async def leader_step(self, db: AsyncSession) -> None:
         rollout = await self.get(db)
         if not rollout or rollout["status"] != "running":

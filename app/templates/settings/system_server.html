@@ -39,7 +39,8 @@
         <h2 class="text-sm font-semibold text-slate-200">Local instances</h2>
         <p class="text-xs text-slate-500 -mt-2">
           How many local {{ app_name }} processes should be running on this machine, sharing the same
-          database/models/knowledge base — takes effect immediately, no restart needed. A single
+          database/models/knowledge base — takes effect immediately, no restart needed. Each server sets its
+          own (servers sharing a database each keep their own count). A single
           instance (the default) is a plain-text answer to "no scaling"; anything above that only
           does something once combined behind one URL — either your own external reverse proxy
           (Nginx/HAProxy), or the built-in "Local {{ app_name }} server mode" option above. See ROADMAP.md's "Concurrency"

@@ -55,3 +55,17 @@ async def test_only_an_offline_server_can_be_removed_from_the_list(db):
     assert await registry.forget(db, "a:8000") is False
     assert await registry.forget(db, "gone:8000") is True
     assert await db.get(Server, "gone:8000") is None
+
+
+@pytest.mark.asyncio
+async def test_removing_a_server_also_removes_its_offline_instances(db):
+    registry = _registry(db, "a:8000")
+    await registry.heartbeat(db)
+    db.add(Server(server_id="gone:8000", version="1", is_primary=True, last_seen=0))
+    db.add(Server(server_id="gone:8001", version="1", is_primary=False, last_seen=0))
+    db.add(Server(server_id="other:8001", version="1", is_primary=False, last_seen=0))
+    await db.commit()
+
+    assert await registry.forget(db, "gone:8000") is True
+    assert await db.get(Server, "gone:8001") is None
+    assert await db.get(Server, "other:8001") is not None  # another machine's instance stays
