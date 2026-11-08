@@ -25,6 +25,10 @@
 
   <div class="flex-1 overflow-y-auto">
     <div class="mx-auto max-w-3xl px-4 py-8 space-y-6">
+      {% if image_gen_off %}
+      <!-- image_gen_ring.py; while shown, image_generation.js keeps the engine error below hidden and Generate off. -->
+      <p id="image-gen-off" class="rounded-lg border border-amber-700/60 bg-amber-900/20 px-4 py-3 text-sm text-amber-200">{{ image_gen_off_reason }}</p>
+      {% endif %}
       <div id="image-engine-unavailable" class="hidden text-xs text-warning-400 bg-slate-900 border border-warning-500/50 rounded-lg px-3 py-2">
         System is not configured for images yet, ask your admin.
       </div>

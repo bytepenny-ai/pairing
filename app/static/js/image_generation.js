@@ -1,5 +1,8 @@
 /* Image generation page controller: submits a prompt to the active image engine (app/routers/image_generation.py), then polls each job until complete/errored/cancelled, with a gallery tile per generation. Plain polling (no websocket); an in-progress tile shows a progress bar and a Cancel button. */
 
+// Off on every server (image_gen_ring.py): the notice explains it and the server would refuse the request.
+const IMAGE_GEN_OFF = Boolean(document.getElementById("image-gen-off"));
+
 const galleryEl = document.getElementById("gen-gallery");
 const galleryEmptyEl = document.getElementById("gen-gallery-empty");
 const generateBtn = document.getElementById("gen-generate-btn");
@@ -182,8 +185,14 @@ async function loadCheckpoints() {
     checkpointSelect.innerHTML = checkpoints.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
     document.getElementById("image-engine-unavailable")?.classList.add("hidden");
   } catch (_) {
-    document.getElementById("image-engine-unavailable")?.classList.remove("hidden");
+    // The Off notice (more than one pAIring server, local mode) already says why: no second error.
+    if (!IMAGE_GEN_OFF) document.getElementById("image-engine-unavailable")?.classList.remove("hidden");
   }
+}
+
+if (IMAGE_GEN_OFF) {
+  generateBtn.disabled = true;
+  generateBtn.title = document.getElementById("image-gen-off").textContent.trim();
 }
 
 generateBtn.addEventListener("click", async () => {

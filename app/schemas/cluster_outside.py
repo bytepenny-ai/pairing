@@ -4,8 +4,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import MAX_REMOTE_HOSTS
-
 # Where pAIring keeps a host: the Matricxon it runs, remote hosts, Cluster page nodes, voter list, remembered ids.
 HostPlace = Literal["local", "remote", "cluster", "voter", "remembered"]
 
@@ -25,7 +23,7 @@ class OutsideHostList(BaseModel):
 
 
 class OutsideRemove(BaseModel):
-    hosts: list[str] = Field(min_length=1, max_length=4 * MAX_REMOTE_HOSTS)
+    hosts: list[str] = Field(min_length=1)
     reset: bool = False  # also reset the reachable ones to a fresh install
 
 

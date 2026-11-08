@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import IMAGES_DIR
 from app.database import get_db
 from app.models import ImageGenerationJob, User
+from app.routers.image_gen_guard import image_gen_on
 from app.schemas import CheckpointList, ImageGenerationJobOut, ImageGenerationRequest, OkResponse
 from app.services import image_engine_service, image_generation_service, sdcpp_client, sdcpp_progress
 from app.services.auth_service import get_current_user
@@ -33,6 +34,7 @@ async def create_job(
     body: ImageGenerationRequest,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
+    _on: None = Depends(image_gen_on),
 ):
     return await image_generation_service.create_job(db, user.id, body)
 

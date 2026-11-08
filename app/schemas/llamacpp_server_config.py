@@ -5,14 +5,14 @@ load-balanced), which this config only chooses between.
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.schemas.common import MAX_REMOTE_HOSTS, ServerMode
+from app.schemas.common import ServerMode
 
 
 class LlamaCppServerConfig(BaseModel):
     """Admin-configured. Local-mode fields are optional: None = llama-server's own default."""
 
     mode: ServerMode = "local"
-    remote_hosts: list[str] = Field(default_factory=list, max_length=MAX_REMOTE_HOSTS)
+    remote_hosts: list[str] = Field(default_factory=list)
     # A llama-server installed elsewhere; checked before PATH and the managed install. None = auto-detect.
     binary_path: str | None = None
     # The GGUF models folder. None = share Matricxon's folder (llamacpp_models_dir), so each model is stored once.

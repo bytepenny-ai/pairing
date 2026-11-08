@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import SDCPP_GITHUB_REPO, SDCPP_PINNED_VERSION
 from app.database import get_db
 from app.models import User
+from app.routers.image_gen_guard import no_local_in_ring, refuse_loopback_in_ring
 from app.schemas import (
     AvailableVersions,
     HostHealthCheck,
@@ -34,6 +35,7 @@ from app.services import (
 )
 from app.services.auth_service import require_admin
 from app.services.cluster_service import ClusterService
+from app.services.image_gen_ring import REASON, image_gen_ring
 
 logger = logging.getLogger("llama_chat")
 
@@ -83,7 +85,8 @@ async def update_config(
     _admin: User = Depends(require_admin),
 ):
     """Persists the config; does not restart a running sd-server (POST /apply does). 400 if the images folder is missing
-    or not writable."""
+    or not writable; 409 for a localhost remote server in a ring (image_gen_ring.py)."""
+    await refuse_loopback_in_ring(db, body.mode, body.remote_hosts)
     _check_images_folder(body)
     await _save_and_broadcast(db, body)
     return body
@@ -96,9 +99,15 @@ async def apply_config(
     _admin: User = Depends(require_admin),
 ):
     """Restarts a running sd-server on the new config and saves only if that works; a model that cannot
-    load is a 400 with the reason, nothing saved, the previous model back.
+    load is a 400 with the reason, nothing saved, the previous model back. In a ring (image_gen_ring.py) no local
+    sd-server runs, so it is only saved: Remote with servers turns image generation on, none (saved as local) off;
+    a localhost server is refused there (each server's own machine).
     """
+    await refuse_loopback_in_ring(db, body.mode, body.remote_hosts)
     _check_images_folder(body)
+    if await image_gen_ring.in_ring(db):
+        await _save_and_broadcast(db, body)
+        return await sdcpp_service.get_status(db)
     try:
         status = await sdcpp_service.apply(db, body)
     except ValueError as exc:
@@ -125,11 +134,16 @@ async def check_host(host: str, _admin: User = Depends(require_admin)):
 
 @router.get("/status", response_model=SdCppStatus)
 async def get_status(db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)):
-    return await sdcpp_service.get_status(db)
+    status = await sdcpp_service.get_status(db)
+    ring = await image_gen_ring.in_ring(db)
+    off = ring and await image_gen_ring.is_off(db)
+    return status.model_copy(update={"off_reason": REASON if off else None, "ring": ring})
 
 
 @router.post("/start", response_model=SdCppStatus)
-async def start(db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin)):
+async def start(
+    db: AsyncSession = Depends(get_db), _admin: User = Depends(require_admin), _local: None = Depends(no_local_in_ring)
+):
     try:
         return await sdcpp_service.start(db)
     except ValueError as exc:
@@ -162,6 +176,7 @@ async def install(
     build: SdCppBuild | None = None,
     db: AsyncSession = Depends(get_db),
     _admin: User = Depends(require_admin),
+    _local: None = Depends(no_local_in_ring),
 ):
     """Clones stable-diffusion.cpp's pinned tag (or the override) and installs it, streaming SSE like
     /api/settings/pull-model (sdcpp_installer).

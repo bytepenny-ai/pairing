@@ -63,6 +63,7 @@
           <path d="M21 15l-5-5L5 21"/>
         </svg>
         Images Gen
+        {% if image_gen_off %}<span title="{{ image_gen_off_reason }}" class="ml-auto rounded-full border border-slate-600 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">Off</span>{% endif %}
       </a>
       <a href="/notes"
          class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 transition-colors">

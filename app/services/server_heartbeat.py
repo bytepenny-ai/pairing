@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import IS_PRIMARY
 from app.database import AsyncSessionLocal
 from app.services.db_clock import shared_database
+from app.services.image_gen_ring import ImageGenRing, image_gen_ring
 from app.services.leader_lease import leader_lease
 from app.services.rolling_update import RollingUpdate, rolling_update
 from app.services.server_facts import ServerFacts, server_facts
@@ -28,7 +29,9 @@ class ServerHeartbeat:
         session_factory: Callable[[], AsyncSession] = AsyncSessionLocal,
         shared: Callable[[AsyncSession], bool] = shared_database,
         facts: ServerFacts = server_facts,
+        ring: ImageGenRing = image_gen_ring,
     ) -> None:
+        self._ring = ring
         self._shared = shared
         self._facts = facts
         self._registry = registry
@@ -47,6 +50,7 @@ class ServerHeartbeat:
             await self._registry.heartbeat(db, details)
             if self._is_primary:
                 await self._rollout.server_step(db)
+                await self._ring.enforce(db)  # a ring: this machine's image engine off
             if leader_lease.is_leader:
                 await self._registry.sweep_offline(db)
                 await self._rollout.leader_step(db)

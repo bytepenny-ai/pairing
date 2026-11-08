@@ -2010,7 +2010,6 @@ if (httpProxySaveBtn) {
 // drives them all. installServer is where their local-mode "Install" buttons differ (what happens after each install).
 
 const EXTERNAL_SERVERS = ["llamacpp", "matricxon", "sdcpp"];
-const MAX_REMOTE_HOSTS = 120;
 
 function serverSectionEl(server) {
   return document.querySelector(`[data-server="${server}"]`);
@@ -2027,7 +2026,6 @@ const REMOTE_HOST_EXAMPLE = {
 
 function addRemoteHostRow(section, value = "") {
   const listEl = section.querySelector('[data-field="remote-hosts-list"]');
-  if (listEl.children.length >= MAX_REMOTE_HOSTS) return;
   const example = REMOTE_HOST_EXAMPLE[section.dataset.server] || REMOTE_HOST_EXAMPLE.llamacpp;
   const row = document.createElement("div");
   row.className = "flex items-center gap-2";
@@ -2169,6 +2167,20 @@ function renderServerStatus(section, status) {
     const health = status.loading ? "loading the model…" : status.healthy === null ? "checking…" : status.healthy ? "healthy" : "not responding";
     const version = status.version ? ` · v${status.version}` : "";
     line.textContent = (status.pid ? `Running (pid ${status.pid}) — ${health}` : `Running — ${health}`) + version;
+  }
+  // Image engine only: with more than one pAIring server on the database only Remote mode is allowed
+  // (status.ring), and in Local mode image generation is off everywhere (status.off_reason). A saved Local shows as
+  // Remote (its fields to fill in), saved only with Save; before applyServerVisibility, which follows the selector.
+  const ringOff = section.querySelector('[data-field="ring-off"]');
+  if (ringOff) {
+    const note = status.off_reason
+      || (status.ring ? "More than one pAIring server shares this database: Remote mode only, and every server uses this remote image server." : "");
+    ringOff.textContent = note;
+    ringOff.classList.toggle("hidden", !note);
+    const modeSelect = section.querySelector('[data-field="mode"]');
+    const local = modeSelect?.querySelector('option[value="local"]');
+    if (local) local.disabled = Boolean(status.ring);
+    if (status.ring && modeSelect?.value === "local") modeSelect.value = "remote";
   }
   applyServerVisibility(server, section);
   // Re-check until the model has loaded (minutes on a slow disk), so the line turns "healthy" without a reload.

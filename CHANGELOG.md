@@ -5,6 +5,8 @@ https://bytepenny.com/rss/
 
 ## Unreleased
 
+- No limit of 120 remote servers per engine any more: a Matricxon cluster can have hundreds of nodes. A remote image server in a server ring must be an address every server reaches (not localhost).
+- With more than one pAIring server on the database, the image engine runs only in remote mode, one image server every pAIring uses; in local mode image generation is off on every server (the Images Gen link shows Off) and local image engines are stopped, not uninstalled.
 - Admin settings: a new Inference group holds Engine (was Inference engines), MCP servers and RAG (was under System).
 - A server run by systemd restarts itself after an update when its user may run `sudo systemctl restart` (servers set up by `scripts/bootstrap_server.sh`), instead of asking for a manual restart.
 - Update all also restarts a server that was updated without a restart (a pull or commit by hand), instead of calling it up to date; the version check names it.

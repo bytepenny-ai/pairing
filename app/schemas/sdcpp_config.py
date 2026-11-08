@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.common import MAX_REMOTE_HOSTS, ServerMode
+from app.schemas.common import ServerMode
 
 ImageEngineName = Literal["sdcpp"]
 # Which prebuilt release to fetch ("auto" picks Vulkan with a GPU + Vulkan loader), or "source": build with
@@ -20,7 +20,7 @@ class SdCppConfig(BaseModel):
     """Admin-configured; saved even when incomplete (sdcpp_service.start validates)."""
 
     mode: ServerMode = "local"
-    remote_hosts: list[str] = Field(default_factory=list, max_length=MAX_REMOTE_HOSTS)
+    remote_hosts: list[str] = Field(default_factory=list)
     # Local mode only:
     binary_path: str | None = None
     model_path: str | None = None  # .gguf/.safetensors/.ckpt loaded at launch
@@ -55,6 +55,10 @@ class SdCppStatus(BaseModel):
     loading: bool = False
     # Build tools missing for "Build from source" (empty = usable).
     source_build_missing: list[str] = Field(default_factory=list)
+    # More than one pAIring server shares the database (image_gen_ring.py): only remote mode is allowed (`ring`);
+    # in local mode image generation is off everywhere (`off_reason`).
+    ring: bool = False
+    off_reason: str | None = None
 
 
 class ImageEngineConfig(BaseModel):

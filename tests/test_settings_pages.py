@@ -120,3 +120,17 @@ async def test_the_empty_chat_says_local_only_for_a_self_hosted_engine(db, user)
     assert "Everything here runs locally" in local
     assert "Everything here runs locally" not in cloud
     assert "Answers come from OpenRouter, a cloud service" in cloud
+
+
+@pytest.mark.asyncio
+async def test_the_images_link_shows_off_while_image_generation_is_off(db, admin_user, monkeypatch):
+    async def off(_db):
+        return True
+
+    html = (await pages.chat_page(_request(admin_user.id), db=db)).body.decode()
+    assert ">Off</span>" not in html  # one server: no badge
+    monkeypatch.setattr(pages.image_gen_ring, "is_off", off)
+    html = (await pages.chat_page(_request(admin_user.id), db=db)).body.decode()
+    assert ">Off</span>" in html
+    images = (await pages.image_generation_page(_request(admin_user.id), db=db)).body.decode()
+    assert "Image generation is off" in images

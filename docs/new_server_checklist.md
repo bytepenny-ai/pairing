@@ -83,6 +83,11 @@ cd /opt/pairing && bash scripts/setup_server.sh
     admin secret), then Cluster → **API key**.
 - Joining: log in with your existing account (the users are shared).
   - [ ] Cluster → Servers: the new server is listed with its IP addresses, its key and folder checks green.
+  - Image generation, with more than one server on the database: its engine (stable-diffusion.cpp) runs only in
+    **remote** mode there, one image server every pAIring reaches, not `localhost` (Inference → Engine; set once,
+    shared by all).
+    In local mode it is off on every server (the Images Gen link shows **Off**); a local engine is stopped on
+    every server (not uninstalled).
 
 ## 5. Check
 

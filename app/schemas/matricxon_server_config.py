@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.common import MAX_REMOTE_HOSTS, ServerMode
+from app.schemas.common import ServerMode
 
 
 class MatricxonServerConfig(BaseModel):
@@ -16,7 +16,7 @@ class MatricxonServerConfig(BaseModel):
     Settings)."""
 
     mode: ServerMode = "local"
-    remote_hosts: list[str] = Field(default_factory=list, max_length=MAX_REMOTE_HOSTS)
+    remote_hosts: list[str] = Field(default_factory=list)
     # Matricxon checkout (with scripts/start.sh): a directory, unlike llama.cpp's binary_path.
     # matricxon_process._find_project_dir checks it before the sibling "../matricxon". None = auto-detect.
     project_dir: str | None = None
@@ -72,7 +72,7 @@ class MatricxonServerConfig(BaseModel):
     # moved.
     prompt_cache_path: str | None = None
     # Joiner nodes added on the Cluster page; the host pool uses them with the local or remote host(s).
-    cluster_hosts: list[str] = Field(default_factory=list, max_length=MAX_REMOTE_HOSTS)
+    cluster_hosts: list[str] = Field(default_factory=list)
     # How other nodes reach THIS Matricxon (MATRICXON_ADVERTISE_URL, e.g. "http://10.0.0.5:8420"). With cluster
     # mode on, it makes this node the first voter.
     advertise_url: str | None = None
@@ -93,7 +93,7 @@ class MatricxonServerConfig(BaseModel):
     # to Matricxon's .env). None = no key. Encrypted at rest like admin_secret; never sent to the browser.
     api_key: str | None = None
     # Nodes that only vote (Matricxon node_kind "voter"): listed with the other nodes but never given chats.
-    voter_hosts: list[str] = Field(default_factory=list, max_length=MAX_REMOTE_HOSTS)
+    voter_hosts: list[str] = Field(default_factory=list)
     # Overrides for matricxon_installer.install_stream; kept for parity with llama.cpp but not functional
     # yet (Matricxon isn't published on GitHub).
     install_repo: str | None = None
