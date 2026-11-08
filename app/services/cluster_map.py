@@ -3,10 +3,11 @@
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.cluster import ClusterHost, ClusterMap, ClusterState, MapLink, MapNode
+from app.schemas.cluster import ClusterHost, ClusterMap, ClusterState, MapLink, MapNode, MapServer
 from app.services import matricxon_pool
 from app.services.cluster_known_nodes import KnownNodes
 from app.services.cluster_map_consensus import ConsensusLinks, short_address
+from app.services.cluster_map_ring import RING_NAME, PairingRing, pairing_ring
 from app.services.cluster_map_storage import StorageNode
 from app.services.cluster_map_version import NodeVersionReader
 from app.services.cluster_nodes import ClusterNodes
@@ -27,11 +28,16 @@ _consensus_links = ConsensusLinks()
 
 class ClusterMapBuilder:
     def __init__(
-        self, db: AsyncSession, service: ClusterService, transport: httpx.AsyncBaseTransport | None = None
+        self,
+        db: AsyncSession,
+        service: ClusterService,
+        transport: httpx.AsyncBaseTransport | None = None,
+        ring: PairingRing = pairing_ring,
     ) -> None:
         self._db = db
         self._service = service
         self._transport = transport
+        self._ring = ring
 
     async def build(self, compact: bool = False) -> ClusterMap:
         """The whole map. `compact` keeps only what is drawn and voter links; details load on click (`node`)."""
@@ -39,7 +45,8 @@ class ClusterMapBuilder:
         if not state.supported:
             return ClusterMap(enabled=state.enabled, supported=False, nodes=[], links=[])
         known = await KnownNodes(self._db).update(state.hosts)
-        return self._map(state, self._statuses(state.hosts), compact, known)
+        ring = await self._ring.members(self._db)
+        return self._map(state, self._statuses(state.hosts), compact, known, ring)
 
     async def node(self, node_id: str) -> MapNode | None:
         """One node's full record (one readiness + one status call)."""
@@ -70,8 +77,10 @@ class ClusterMapBuilder:
     def _statuses(hosts: list[ClusterHost]) -> dict[str, dict]:
         return {h.host: h.consensus for h in hosts if h.consensus}
 
-    def _map(self, state, consensus: dict, compact: bool, known: dict | None = None) -> ClusterMap:
-        nodes = [self._app_node(state)]
+    def _map(
+        self, state, consensus: dict, compact: bool, known: dict | None = None, ring: list | None = None
+    ) -> ClusterMap:
+        nodes = [self._app_node(state, ring or [])]
         links: list[MapLink] = []
         log_total = LogReplay.total(list(consensus.values()))
         members = {v for status in consensus.values() for v in (*status.get("voters", []), *status.get("nodes", {}))}
@@ -90,7 +99,7 @@ class ClusterMapBuilder:
         nodes += ghosts
         links += consensus_links
         if compact:
-            nodes = [n.model_copy(update={"details": {}, "checks": []}) for n in nodes]
+            nodes = [n.model_copy(update={"details": {}, "checks": [], "servers": []}) for n in nodes]
             if len(matricxon) > _DETAIL_SERVERS:  # small map: every link; big: voters only
                 links = [link for link in links if link.kind == "consensus"]
         return ClusterMap(
@@ -116,16 +125,20 @@ class ClusterMapBuilder:
 
     # nodes
 
-    def _app_node(self, state: ClusterState) -> MapNode:
+    def _app_node(self, state: ClusterState, ring: list[MapServer]) -> MapNode:
+        """One box even in a ring (several pAIring machines): then named so, listing every machine."""
         failing = [c for c in state.app_checks if c.status != "ok"]
+        details = {"Role": "control plane (this app)", "Cluster mode": "on" if state.enabled else "off"}
         return MapNode(
             id="app",
             kind="app",
-            name="pAIring",
+            name=RING_NAME if ring else "pAIring",
             subtitle="control",
             status="warn" if failing else "up",
-            details={"Role": "control plane (this app)", "Cluster mode": "on" if state.enabled else "off"},
+            badges=["ring"] if ring else [],
+            details=details | ({"Ring": f"{len(ring)} pAIring servers share the database"} if ring else {}),
             checks=state.app_checks,
+            servers=ring,
         )
 
     @staticmethod

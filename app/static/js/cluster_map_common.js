@@ -75,3 +75,15 @@ function mapShapePath(ctx, kind, x, y, r) {
     ctx.arc(x, y, r, 0, 2 * Math.PI);
   }
 }
+
+/** The pAIring box in a ring: every pAIring server, name and IP in two aligned columns (under the checklist). */
+function clusterServersList(servers) {
+  if (!servers || !servers.length) return "";
+  const rows = servers
+    .map((s) => `<tr><td class="px-3 py-2 text-slate-200">${escapeHtml(s.name)}</td><td class="px-3 py-2 font-mono text-slate-400">${escapeHtml(s.addresses)}</td></tr>`)
+    .join("");
+  return `<div><p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">pAIring servers</p>
+    <div class="overflow-hidden rounded-lg border border-slate-800 bg-slate-950"><table class="w-full table-fixed text-xs">
+      <thead><tr class="border-b border-slate-800 text-left text-slate-500"><th class="w-1/2 px-3 py-1.5 font-medium">Name</th><th class="w-1/2 px-3 py-1.5 font-medium">IP</th></tr></thead>
+      <tbody class="divide-y divide-slate-800 break-all">${rows}</tbody></table></div></div>`;
+}

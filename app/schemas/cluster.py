@@ -127,6 +127,13 @@ class ClusterUpdate(BaseModel):
     enabled: bool
 
 
+class MapServer(BaseModel):
+    """One pAIring machine of a ring, listed in the pAIring box's panel."""
+
+    name: str
+    addresses: str
+
+
 class MapNode(BaseModel):
     """One box on the Nodes map."""
 
@@ -144,6 +151,7 @@ class MapNode(BaseModel):
     action_notes: dict[str, str] = {}  # why an action is unavailable
     details: dict[str, Any] = {}
     checks: list[ClusterCheck] = []
+    servers: list[MapServer] = []  # pAIring box in a ring: every machine
 
 
 class PeerAddress(BaseModel):

@@ -102,6 +102,7 @@ class ClusterNodePanel {
       ${badges ? `<div class="flex flex-wrap gap-1.5">${badges}</div>` : ""}
       <dl class="divide-y divide-slate-800 rounded-lg border border-slate-800 bg-slate-950">${details}</dl>
       ${checks}
+      ${clusterServersList(node.servers)}
       <div class="flex flex-wrap gap-2 pt-1">${this._actions(node)}</div>
       <p data-field="message" class="hidden rounded-lg border px-3 py-2 text-xs"></p>
       ${this._debugButton(node)}`;
