@@ -136,7 +136,7 @@ class ClusterMapBuilder:
             subtitle="control",
             status="warn" if failing else "up",
             badges=["ring"] if ring else [],
-            details=details | ({"Ring": f"{len(ring)} pAIring servers share the database"} if ring else {}),
+            details=details | ({"Ring": f"{sum(s.online for s in ring)} pAIring servers online"} if ring else {}),
             checks=state.app_checks,
             servers=ring,
         )

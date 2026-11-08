@@ -1,7 +1,7 @@
 <!-- Settings > Image > stable-diffusion.cpp: same DOM contract as the llama.cpp and Matricxon sections, driven by the generic Inference-engines controller in app/static/js/settings.js (data-server="sdcpp"). -->
       <section class="space-y-3" data-server="sdcpp">
         <!-- Shown while more than one pAIring server shares the database (status.off_reason, image_gen_ring.py). -->
-        <p data-field="ring-off" class="hidden rounded-md border border-amber-700/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-200"></p>
+        <p data-field="ring-off" class="hidden text-xs text-warning-400 bg-slate-900 border border-warning-500/50 rounded-lg px-3 py-2"></p>
         <h2 class="text-sm font-semibold text-slate-200">stable-diffusion.cpp</h2>
         <p class="text-xs text-slate-500 -mt-2">
           A light image engine that runs on a plain CPU (no GPU or PyTorch needed). <span class="font-mono">Local</span>

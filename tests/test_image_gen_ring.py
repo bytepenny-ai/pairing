@@ -190,3 +190,35 @@ async def test_a_localhost_remote_server_is_off_in_a_ring_and_refused_on_save(db
         await image_gen_guard.refuse_loopback_in_ring(db, "remote", ["http://localhost:8189"])
     assert exc.value.status_code == 409 and exc.value.detail == ring_module.LOOPBACK_REFUSED
     await image_gen_guard.refuse_loopback_in_ring(db, "remote", ["http://192.168.122.1:8189"])  # allowed
+
+
+def test_admins_get_the_fix_and_users_a_short_note() -> None:
+    assert ring_module.off_reason(True) == REASON
+    assert ring_module.off_reason(False) == ring_module.USER_REASON
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("in_ring", "off"), [(False, False), (True, False), (True, True)])
+async def test_engine_status_carries_both_ring_texts(db, monkeypatch, in_ring: bool, off: bool):
+    """The engine page shows status.off_reason or status.ring_note; neither text lives in settings.js."""
+    from pathlib import Path
+
+    from app.routers import sdcpp_admin
+
+    async def status(_db):
+        return SdCppStatus(running=False)
+
+    async def ring(_db):
+        return in_ring
+
+    async def is_off(_db):
+        return off
+
+    monkeypatch.setattr(sdcpp_admin.sdcpp_service, "get_status", status)
+    monkeypatch.setattr(sdcpp_admin.image_gen_ring, "in_ring", ring)
+    monkeypatch.setattr(sdcpp_admin.image_gen_ring, "is_off", is_off)
+    got = await sdcpp_admin.get_status(db=db, _admin=None)
+    assert got.off_reason == (REASON if off else None)
+    assert got.ring_note == (ring_module.REMOTE_NOTE if in_ring and not off else None)
+    js = (Path(__file__).parent.parent / "app" / "static" / "js" / "settings.js").read_text()
+    assert "Remote mode only" not in js and "status.ring_note" in js

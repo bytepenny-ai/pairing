@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models import User
 from app.services.auth_service import PageAuth
 from app.services.engines.registry import registry
-from app.services.image_gen_ring import REASON as IMAGE_GEN_OFF_REASON, image_gen_ring
+from app.services.image_gen_ring import image_gen_ring, off_reason
 from app.services.theme_service import get_ui_theme
 from app.services.workflow_view_setting import get_workflow_view
 from app.templates_env import templates
@@ -34,7 +34,7 @@ async def _profile_context(db: AsyncSession, user: User) -> dict:
         "ui_themes": UI_THEMES,
         # More than one pAIring server on this database: image generation is off (image_gen_ring.py).
         "image_gen_off": await image_gen_ring.is_off(db),
-        "image_gen_off_reason": IMAGE_GEN_OFF_REASON,
+        "image_gen_off_reason": off_reason(user.role == "admin"),
     }
 
 

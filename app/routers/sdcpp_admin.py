@@ -35,7 +35,7 @@ from app.services import (
 )
 from app.services.auth_service import require_admin
 from app.services.cluster_service import ClusterService
-from app.services.image_gen_ring import REASON, image_gen_ring
+from app.services.image_gen_ring import REASON, REMOTE_NOTE, image_gen_ring
 
 logger = logging.getLogger("llama_chat")
 
@@ -137,7 +137,8 @@ async def get_status(db: AsyncSession = Depends(get_db), _admin: User = Depends(
     status = await sdcpp_service.get_status(db)
     ring = await image_gen_ring.in_ring(db)
     off = ring and await image_gen_ring.is_off(db)
-    return status.model_copy(update={"off_reason": REASON if off else None, "ring": ring})
+    note = REMOTE_NOTE if ring and not off else None
+    return status.model_copy(update={"off_reason": REASON if off else None, "ring": ring, "ring_note": note})
 
 
 @router.post("/start", response_model=SdCppStatus)

@@ -2173,8 +2173,7 @@ function renderServerStatus(section, status) {
   // Remote (its fields to fill in), saved only with Save; before applyServerVisibility, which follows the selector.
   const ringOff = section.querySelector('[data-field="ring-off"]');
   if (ringOff) {
-    const note = status.off_reason
-      || (status.ring ? "More than one pAIring server shares this database: Remote mode only, and every server uses this remote image server." : "");
+    const note = status.off_reason || status.ring_note || "";  // both texts from image_gen_ring.py
     ringOff.textContent = note;
     ringOff.classList.toggle("hidden", !note);
     const modeSelect = section.querySelector('[data-field="mode"]');

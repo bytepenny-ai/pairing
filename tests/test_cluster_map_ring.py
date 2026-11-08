@@ -14,8 +14,9 @@ def _row(server_id: str, machine: str, addresses: list[str], primary: bool = Tru
 
 
 class _Registry:
-    def __init__(self, rows: list) -> None:
+    def __init__(self, rows: list, server_id: str = "main:8000") -> None:
         self.rows = rows
+        self.server_id = server_id
 
     async def servers(self, _db) -> tuple[list, int]:
         return self.rows, 100
@@ -36,7 +37,17 @@ async def test_two_machines_make_a_ring() -> None:
         _row("old:8000", "old", ["10.0.0.9"], seen=0),  # offline
     ]
     members = await _ring(rows).members(None)
-    assert [(m.name, m.addresses) for m in members] == [("bp-1", "10.0.0.2"), ("main", "10.0.0.1, 192.168.1.5")]
+    got = [(m.name, m.addresses, m.online, m.this_server) for m in members]
+    assert got == [  # online first, offline kept (greyed in the panel), this machine marked
+        ("bp-1", "10.0.0.2", True, False),
+        ("main", "10.0.0.1, 192.168.1.5", True, True),
+        ("old", "10.0.0.9", False, False),
+    ]
+
+
+async def test_one_online_with_offline_is_no_ring() -> None:
+    rows = [_row("main:8000", "main", ["10.0.0.1"]), _row("old:8000", "old", ["10.0.0.9"], seen=0)]
+    assert await _ring(rows).members(None) == []
 
 
 async def test_one_machine_or_sqlite_is_no_ring() -> None:
@@ -52,7 +63,7 @@ async def test_map_box_named_ring_with_list(db) -> None:
     app = next(n for n in (await builder.build()).nodes if n.id == "app")
     assert app.name == RING_NAME and "ring" in app.badges
     assert [(s.name, s.addresses) for s in app.servers] == [("a", "10.0.0.1"), ("b", "no address reported")]
-    assert app.details["Ring"] == "2 pAIring servers share the database"
+    assert app.details["Ring"] == "2 pAIring servers online"
     compact = next(n for n in (await builder.build(compact=True)).nodes if n.id == "app")
     assert compact.name == RING_NAME and compact.servers == []  # the list loads on click
 

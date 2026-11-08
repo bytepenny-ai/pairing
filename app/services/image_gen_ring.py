@@ -28,6 +28,20 @@ REASON = (
     "(stable-diffusion.cpp) runs only in remote mode, on a server every pAIring reaches (not localhost). An admin "
     "sets it in Admin settings > Inference > Engine."
 )
+# What users who are not admins see: they cannot change the engine.
+USER_REASON = "Image generation is off for now, ask your admin."
+# The engine page in a ring while remote mode is set (image generation on).
+REMOTE_NOTE = (
+    "More than one pAIring server shares this database: Remote mode only, and every server uses this remote "
+    "image server."
+)
+
+
+def off_reason(is_admin: bool) -> str:
+    """Why image generation is off: how to fix it for an admin, a short note for everyone else."""
+    return REASON if is_admin else USER_REASON
+
+
 LOCAL_REFUSED = (
     "More than one pAIring server shares this database: the image engine runs only in remote mode here "
     "(a stable-diffusion.cpp server every pAIring uses), not locally on one of them."

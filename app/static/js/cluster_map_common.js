@@ -79,9 +79,15 @@ function mapShapePath(ctx, kind, x, y, r) {
 /** The pAIring box in a ring: every pAIring server, name and IP in two aligned columns (under the checklist). */
 function clusterServersList(servers) {
   if (!servers || !servers.length) return "";
-  const rows = servers
-    .map((s) => `<tr><td class="px-3 py-2 text-slate-200">${escapeHtml(s.name)}</td><td class="px-3 py-2 font-mono text-slate-400">${escapeHtml(s.addresses)}</td></tr>`)
-    .join("");
+  // Offline: greyed with a grey dot; this pAIring: marked "this server".
+  const row = (s) => {
+    const dot = `<span class="mr-1.5 inline-block h-2 w-2 rounded-full ${s.online ? "bg-emerald-500" : "bg-slate-600"}" title="${s.online ? "online" : "offline"}"></span>`;
+    const label = s.this_server ? "this server" : s.online ? "" : "offline";
+    const mark = label ? ` <span class="text-[10px] uppercase tracking-wide text-slate-500">${label}</span>` : "";
+    return `<tr class="${s.online ? "" : "opacity-50"}"><td class="px-3 py-2 text-slate-200">${dot}${escapeHtml(s.name)}${mark}</td>
+      <td class="px-3 py-2 font-mono text-slate-400">${escapeHtml(s.addresses)}</td></tr>`;
+  };
+  const rows = servers.map(row).join("");
   return `<div><p class="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">pAIring servers</p>
     <div class="overflow-hidden rounded-lg border border-slate-800 bg-slate-950"><table class="w-full table-fixed text-xs">
       <thead><tr class="border-b border-slate-800 text-left text-slate-500"><th class="w-1/2 px-3 py-1.5 font-medium">Name</th><th class="w-1/2 px-3 py-1.5 font-medium">IP</th></tr></thead>

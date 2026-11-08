@@ -1,6 +1,7 @@
 """The map's pAIring box in a ring: more than one machine runs pAIring on the shared database.
 
-The map keeps one pAIring box; in a ring it is named "pAIring (ring mode)" and its panel lists every machine.
+The map keeps one pAIring box; in a ring it is named "pAIring (ring mode)" and its panel lists every machine
+(offline ones greyed, this one marked).
 """
 
 from collections.abc import Callable
@@ -24,18 +25,25 @@ class PairingRing:
         self._shared = shared
 
     async def members(self, db: AsyncSession) -> list[MapServer]:
-        """Each machine with an online pAIring (name, addresses); empty unless it is a ring (2+)."""
+        """Every known pAIring machine (offline ones too), when 2+ are online (a ring); else empty."""
         if not self._shared(db):
             return []
         rows, now = await self._registry.servers(db)
-        machines: dict[str, str] = {}
+        own = next((r for r in rows if r.server_id == self._registry.server_id), None)
+        here = ServerRegistry.machine_of(own) if own else None
+        machines: dict[str, MapServer] = {}
         for row in rows:
-            if row.is_primary and self._registry.online(row, now):
-                addresses = (row.details or {}).get("addresses") or []
-                machines[ServerRegistry.machine_of(row)] = ", ".join(addresses) or "no address reported"
-        if len(machines) < 2:
+            if not row.is_primary:
+                continue
+            name = ServerRegistry.machine_of(row)
+            online = self._registry.online(row, now)
+            if name in machines and not online:
+                continue  # an older offline row of a machine that is listed
+            addresses = ", ".join((row.details or {}).get("addresses") or []) or "no address reported"
+            machines[name] = MapServer(name=name, addresses=addresses, online=online, this_server=name == here)
+        if sum(m.online for m in machines.values()) < 2:
             return []
-        return [MapServer(name=name, addresses=addresses) for name, addresses in sorted(machines.items())]
+        return sorted(machines.values(), key=lambda m: (not m.online, m.name))
 
 
 pairing_ring = PairingRing()

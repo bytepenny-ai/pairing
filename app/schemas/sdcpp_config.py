@@ -59,6 +59,7 @@ class SdCppStatus(BaseModel):
     # in local mode image generation is off everywhere (`off_reason`).
     ring: bool = False
     off_reason: str | None = None
+    ring_note: str | None = None  # in a ring with remote mode set (image_gen_ring.REMOTE_NOTE)
 
 
 class ImageEngineConfig(BaseModel):

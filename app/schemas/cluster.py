@@ -132,6 +132,8 @@ class MapServer(BaseModel):
 
     name: str
     addresses: str
+    online: bool = True
+    this_server: bool = False  # the pAIring that drew the map
 
 
 class MapNode(BaseModel):
