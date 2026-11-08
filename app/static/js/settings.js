@@ -319,10 +319,14 @@ async function uninstallModel(entry, button, progressEl, onDone = refreshCatalog
   progressEl.textContent = "";
 
   try {
-    await api(entry.is_image ? "/api/settings/image-models/delete" : "/api/settings/delete-model", {
+    const result = await api(entry.is_image ? "/api/settings/image-models/delete" : "/api/settings/delete-model", {
       method: "POST",
       body: JSON.stringify({ tag: entry.tag }),
     });
+    // Cluster nodes that could not drop the model's pin or unload it (memory_pins_cleanup.py): the delete is done.
+    if (result && result.warnings && result.warnings.length) {
+      alert(`${entry.tag} was uninstalled, but not cleaned up everywhere:\n\n${result.warnings.join("\n")}`);
+    }
     // If the removed model was selected for the current target, fall back to no selection instead of a phantom choice.
     if (selectedModelTag === entry.tag) selectedModelTag = null;
     await onDone();
@@ -1662,7 +1666,7 @@ const saveBarHomeParent = saveBarEl?.parentNode;
 const saveBarHomeNextSibling = saveBarEl?.nextSibling;
 // System is split into five pages; Default models sits under Models (settings/system.html), each its own tab.
 const SYSTEM_TABS = ["system-service", "system-database", "system-proxy", "system-rag", "system-chat"];
-const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "my-skills", "account", "default-models", ...SYSTEM_TABS, "external-servers", "mcp-servers", "users", "channels", "skills", "update"];
+const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "my-skills", "account", "default-models", ...SYSTEM_TABS, "external-servers", "memory-pinning", "mcp-servers", "users", "channels", "skills", "update"];
 
 let activeTabName = "model";
 
@@ -1699,6 +1703,11 @@ function activateTab(name) {
     }
   }
   activeTabName = name;
+  // In the address too (as stats.js and cluster.js): a reload reopens this page (restoreTabAfterReload).
+  history.replaceState(null, "", `#${name}`);
+  PageViews.changed(); // parts of this page load on its first showing (page_views.js)
+  // Memory pinning animates and polls only while shown (memory_pin_page.js, loaded after this file).
+  if (typeof memoryPinPage !== "undefined" && memoryPinPage) memoryPinPage.setActive(name === "memory-pinning");
   updateSaveBarVisibility();
   if (hasUserTabs) applyRagAvailabilityToKnowledgeTab();
 }
@@ -4252,23 +4261,6 @@ if (addChannelBtn) {
   });
 }
 
-// Boot
-
-(async function init() {
-  // Each step runs independently: a failure in one (e.g. the engine unreachable breaking populateConversationSelect's
-  // model-catalog fetch) must not stop the unrelated steps after it, as a sequential await chain would.
-  const steps = hasUserTabs
-    ? [initModelTab, populateConversationSelect, loadRagAvailability, loadEmbeddingCatalog, loadKnowledgeSummary, loadDocumentLists]
-    : [initModelTab, loadEmbeddingCatalog];
-  for (const step of steps) {
-    try {
-      await step();
-    } catch (err) {
-      console.error("Settings page init step failed:", err);
-    }
-  }
-})();
-
 // Restores the tab a reload was asked to land on (SETTINGS_TAB_STORAGE_KEY), at the end of the file so every
 // function/const its loaders reach (e.g. loadTabData("external-servers") needs EXTERNAL_SERVERS) is defined.
 (function restoreTabAfterReload() {
@@ -4283,7 +4275,31 @@ if (addChannelBtn) {
   savedTab = savedTab || decodeURIComponent(location.hash.slice(1));
   if (savedTab && document.querySelector(`[data-tab="${savedTab}"]`)) {
     activateTab(savedTab);
-    loadTabData(savedTab);
+    if (savedTab !== "model") loadTabData(savedTab); // Models: init below loads it (once)
+  }
+})();
+
+// Boot, after the restore above: only the open page loads now (page_views.js). Models loads its list here when it is
+// the open page (its tab button reloads it otherwise); the embedding list and the Knowledge page's lists load the
+// first time their page is shown. Each step runs on its own: one failing (e.g. the engine unreachable breaking
+// populateConversationSelect's model-catalog fetch) must not stop the others, as a sequential await chain would.
+(async function init() {
+  PageViews.whenShown(embeddingModelCatalogEl, loadEmbeddingCatalog);
+  if (hasUserTabs) {
+    const knowledgeTab = document.getElementById("tab-knowledge");
+    PageViews.whenShown(knowledgeTab, loadKnowledgeSummary);
+    PageViews.whenShown(knowledgeTab, loadDocumentLists);
+  }
+  const steps = [
+    ...(PageViews.isShown(document.getElementById("tab-model")) ? [initModelTab] : []),
+    ...(hasUserTabs ? [populateConversationSelect, loadRagAvailability] : []),
+  ];
+  for (const step of steps) {
+    try {
+      await step();
+    } catch (err) {
+      console.error("Settings page init step failed:", err);
+    }
   }
 })();
 

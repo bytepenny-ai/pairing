@@ -194,4 +194,4 @@ class DiffusionModelsSection {
 }
 
 const diffusionModelsRoot = document.getElementById("diffusion-models-section");
-if (diffusionModelsRoot) new DiffusionModelsSection(diffusionModelsRoot);
+PageViews.whenShown(diffusionModelsRoot, () => new DiffusionModelsSection(diffusionModelsRoot)); // on its page's first showing

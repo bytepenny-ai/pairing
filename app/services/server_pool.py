@@ -33,9 +33,11 @@ async def ping_host(host: str, timeout: httpx.Timeout, path: str = "/") -> bool:
 class RouteInfo:
     """What the hosts report about themselves (cluster_routing.NodeLoads), for one request: `warm` have its model
     loaded, `active` counts each host's replies from every client, `capacity` is its compute relative to the
-    biggest host (1.0), and `no_room` lack the free memory to load the model."""
+    biggest host (1.0), and `no_room` lack the free memory to load the model. `pinned` keep the model loaded
+    (Matricxon pins): preferred before the other warm hosts."""
 
     warm: frozenset[str] = frozenset()
+    pinned: frozenset[str] = frozenset()
     active: dict[str, int] = field(default_factory=dict)
     capacity: dict[str, float] = field(default_factory=dict)
     no_room: frozenset[str] = frozenset()
@@ -114,13 +116,14 @@ class HostPool:
             # (more than `slack` extra requests in flight); then load wins.
             if prefer in healthy and busy(prefer) <= busy(best) + slack:
                 return prefer
-            # Then a host that already has the model loaded, but only up to `warm_slack` extra requests: past that the
-            # least busy host gets it, so load keeps spreading and cold hosts join in.
-            warm_healthy = [h for h in healthy if h in info.warm]
-            if warm_healthy:
-                best_warm = min(warm_healthy, key=busy)
-                if busy(best_warm) <= busy(best) + warm_slack:
-                    return best_warm
+            # Then a host that has the model pinned, then one that has it loaded, but only up to `warm_slack` extra
+            # requests: past that the least busy host gets it, so load keeps spreading and cold hosts join in.
+            for group in (info.pinned, info.warm):
+                ready = [h for h in healthy if h in group]
+                if ready:
+                    best_ready = min(ready, key=busy)
+                    if busy(best_ready) <= busy(best) + warm_slack:
+                        return best_ready
             return best
         fallback = [h for h in self._hosts if h not in exclude] or list(self._hosts)
         return min(fallback, key=lambda h: self._states[h].cooldown_until)

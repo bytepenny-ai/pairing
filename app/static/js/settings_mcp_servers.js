@@ -291,13 +291,12 @@ class McpLimits {
 
 document.addEventListener("DOMContentLoaded", () => {
   const limitsRoot = document.getElementById("mcp-limits-panel");
-  if (limitsRoot) {
-    new McpLimits(limitsRoot).load().catch((error) => {
-      limitsRoot.querySelector("#mcp-limits-status").textContent = `Couldn't load the saved values (${error.message}); restart the app if it was just updated.`;
-    });
-  }
+  // Each on its page's first showing (page_views.js).
+  PageViews.whenShown(limitsRoot, () => new McpLimits(limitsRoot).load().catch((error) => {
+    limitsRoot.querySelector("#mcp-limits-status").textContent = `Couldn't load the saved values (${error.message}); restart the app if it was just updated.`;
+  }));
   const root = document.getElementById("mcp-panel");
-  if (root) new McpServersPanel(root).load().catch((error) => (root.querySelector("#mcp-status").textContent = error.message));
+  PageViews.whenShown(root, () => new McpServersPanel(root).load().catch((error) => (root.querySelector("#mcp-status").textContent = error.message)));
   const globalRoot = document.getElementById("mcp-global-panel");
-  if (globalRoot) new McpGlobalSwitch(globalRoot).load().catch((error) => (globalRoot.querySelector("#mcp-global-status").textContent = error.message));
+  PageViews.whenShown(globalRoot, () => new McpGlobalSwitch(globalRoot).load().catch((error) => (globalRoot.querySelector("#mcp-global-status").textContent = error.message)));
 });

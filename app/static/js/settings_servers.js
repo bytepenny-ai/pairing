@@ -155,4 +155,4 @@ function setHtml(el, html) {
 }
 
 const serversPanelEl = document.getElementById("servers-panel");
-if (serversPanelEl) new ServersPanel(serversPanelEl);
+PageViews.whenShown(serversPanelEl, () => new ServersPanel(serversPanelEl)); // on its view's first showing (page_views.js)

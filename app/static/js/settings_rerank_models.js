@@ -78,4 +78,4 @@ class RerankModelCatalog {
 }
 
 const rerankModelsSectionEl = document.getElementById("rerank-models-section");
-if (rerankModelsSectionEl) new RerankModelCatalog(rerankModelsSectionEl);
+PageViews.whenShown(rerankModelsSectionEl, () => new RerankModelCatalog(rerankModelsSectionEl)); // on its page's first showing

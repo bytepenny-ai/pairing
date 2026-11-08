@@ -74,9 +74,13 @@ class MatricxonCachePanel {
   }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
+  // On its page's first showing (page_views.js).
+  PageViews.whenShown(document.getElementById("matricxon-cache-panel"), showMatricxonCachePanel);
+});
+
+async function showMatricxonCachePanel() {
   const root = document.getElementById("matricxon-cache-panel");
-  if (!root) return;
   // Matricxon-only feature: with llama.cpp (or anything else) as the active engine the panel stays hidden.
   const { active_engine: activeEngine } = await api("/health");
   if (activeEngine !== "matricxon") return;
@@ -91,4 +95,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   root.classList.remove("hidden");
   new MatricxonCachePanel(root).load();
-});
+}

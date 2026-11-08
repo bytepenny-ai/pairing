@@ -64,14 +64,18 @@ class MatricxonApiKeyPanel {
   }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
+  // Each on its page's first showing (page_views.js).
   const card = document.getElementById("cluster-api-key-form");
   if (card) {
-    new MatricxonApiKeyPanel(card, "/api/cluster/api-key").load();
+    PageViews.whenShown(card, () => new MatricxonApiKeyPanel(card, "/api/cluster/api-key").load());
     return;
   }
+  PageViews.whenShown(document.getElementById("matricxon-api-key-panel"), showMatricxonApiKeyPanel);
+});
+
+async function showMatricxonApiKeyPanel() {
   const root = document.getElementById("matricxon-api-key-panel");
-  if (!root) return;
   const { active_engine: activeEngine } = await api("/health");
   if (activeEngine !== "matricxon") return;
   const state = await api("/api/settings/matricxon/api-key").catch(() => null);
@@ -84,4 +88,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   root.classList.remove("hidden");
   new MatricxonApiKeyPanel(root, "/api/settings/matricxon/api-key").show(state ?? { set: false });
-});
+}

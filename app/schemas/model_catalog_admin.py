@@ -27,6 +27,8 @@ class HideModelResponse(BaseModel):
 
 class DeleteModelResponse(BaseModel):
     deleted: str
+    # Cluster nodes that could not drop the model's pin or unload it (memory_pins_cleanup.py); the delete is done.
+    warnings: list[str] = []
 
 
 class ExtendedModelCatalogResponse(BaseModel):

@@ -24,9 +24,9 @@
     </div>
   </header>
 
-  <!-- Left sidebar, like stats.html: /settings (every account, admins too) has Models, Behavior, Knowledge, Skills and Account; /admin-settings (admins only) has Models (Manage models, Default models), System (four pages), Inference (Engine, MCP servers, RAG), Users, Channels, Skills and Update. Panels not listed for a page stay in the DOM, hidden and unreachable, so settings.js still finds the elements it binds. On narrow screens the sidebar is a scrolling row above the content. -->
+  <!-- Left sidebar, like stats.html: /settings (every account, admins too) has Models, Behavior, Knowledge, Skills and Account; /admin-settings (admins only) has Models (Manage models, Default models), System (four pages), Inference (Engine, Memory pinning, MCP servers, RAG), Users, Channels, Skills and Update. Panels not listed for a page stay in the DOM, hidden and unreachable, so settings.js still finds the elements it binds. On narrow screens the sidebar is a scrolling row above the content. -->
   {% set system_pages = [("system-service", "Service"), ("system-database", "Database"), ("system-proxy", "HTTP proxy"), ("system-chat", "Chat")] %}
-  {% set inference_pages = [("external-servers", "Engine"), ("mcp-servers", "MCP servers"), ("system-rag", "RAG")] %}
+  {% set inference_pages = [("external-servers", "Engine"), ("memory-pinning", "Memory pinning"), ("mcp-servers", "MCP servers"), ("system-rag", "RAG")] %}
   {% set model_pages = [("model", "Manage models"), ("default-models", "Default models")] %}
   {% set tabs = [("model", "Models")] + ([("system", "System"), ("inference", "Inference"), ("users", "Users"), ("channels", "Channels"), ("skills", "Skills"), ("update", "Update")] if admin_page else [("behavior", "Behavior"), ("knowledge", "Knowledge"), ("my-skills", "Skills"), ("account", "Account")]) %}
   {# Admin settings groups, folding like the cluster page's categories: a heading and one page per entry. #}
@@ -97,6 +97,8 @@
       {% include "settings/skills_admin.html" %}
     </div>
 
+    {% include "settings/memory_pinning.html" %}
+
     <!-- Update tab: admin-only, updates pAIring and a local Matricxon from GitHub (_update_panel.html). -->
     <div id="tab-update" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
       {% include "_update_panel.html" %}
@@ -115,6 +117,7 @@
 </div>
 
 <script src="/static/js/app.js?v={{ static_version }}"></script>
+<script src="/static/js/page_views.js?v={{ static_version }}"></script>
 <script src="/static/js/theme.js?v={{ static_version }}"></script>
 <script src="/static/js/engine_down_reason.js?v={{ static_version }}"></script>
 <script src="/static/js/settings.js?v={{ static_version }}"></script>
@@ -136,6 +139,13 @@
 <script src="/static/js/settings_skills_editor.js?v={{ static_version }}"></script>
 {% if admin_page %}<script src="/static/js/settings_skills_admin.js?v={{ static_version }}"></script>{% else %}<script src="/static/js/settings_skills_user.js?v={{ static_version }}"></script>{% endif %}
 {% if admin_page %}<script src="/static/js/settings_engine_token.js?v={{ static_version }}"></script>{% endif %}
+{% if admin_page %}
+<script src="/static/js/memory_pin_common.js?v={{ static_version }}"></script>
+<script src="/static/js/memory_pin_grid.js?v={{ static_version }}"></script>
+<script src="/static/js/memory_pin_live.js?v={{ static_version }}"></script>
+<script src="/static/js/memory_pin_panel.js?v={{ static_version }}"></script>
+<script src="/static/js/memory_pin_page.js?v={{ static_version }}"></script>
+{% endif %}
 {% if admin_page %}<script src="/static/js/settings_rerank.js?v={{ static_version }}"></script>{% endif %}
 {% if admin_page %}<script src="/static/js/settings_rerank_models.js?v={{ static_version }}"></script>{% endif %}
 <script src="/static/js/settings_diffusion_models.js?v={{ static_version }}"></script>

@@ -179,6 +179,17 @@ It is also important not to expose more models to users than the system RAM/VRAM
   tools (up to 5 rounds per reply) and each call is shown under the reply. Works with Matricxon
   (Qwen, Mistral, Llama 3.x and Gemma 4 templates) and with llama.cpp for models whose chat template supports tools.
 
+**Memory pinning (Matricxon)**
+- Keep chosen models loaded on each Matricxon server, so their chats never wait for a model to
+  load. Admin settings → Inference → Memory pinning shows the RAM and GPU VRAM of one computer or a
+  whole cluster on a live memory grid, with moving dots as models load and unload, and each
+  server's pinned and on-demand models.
+- Pin a model to CPU RAM, GPU VRAM or auto, on one server or on every cluster node at once. When
+  pAIring picks a server for a chat, it prefers one that has the model pinned, while a chat still
+  returns to the server holding its conversation and busy servers still share the load. Pins live
+  on each server, survive restarts and count toward its model slots; uninstalling a model removes
+  its pins everywhere.
+
 **Live dashboards**
 - A real usage overview (conversations, messages, users, knowledge
   base).

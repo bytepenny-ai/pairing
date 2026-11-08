@@ -59,4 +59,4 @@ class RerankSetting {
 }
 
 const rerankPanelEl = document.getElementById("rerank-panel");
-if (rerankPanelEl) new RerankSetting(rerankPanelEl);
+PageViews.whenShown(rerankPanelEl, () => new RerankSetting(rerankPanelEl)); // on its page's first showing (page_views.js)

@@ -34,4 +34,4 @@ class ReasoningSwitchForm {
 }
 
 const reasoningSection = document.getElementById("reasoning-section");
-if (reasoningSection) new ReasoningSwitchForm(reasoningSection);
+PageViews.whenShown(reasoningSection, () => new ReasoningSwitchForm(reasoningSection)); // on its page's first showing

@@ -3,7 +3,12 @@
  * settings_cache_persistence.js). The fields stay in the form with their loaded values: saving the rest of
  * the form changes nothing about them. The nodes are shown read-only instead of the host editor. */
 
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
+  // On its page's first showing (page_views.js).
+  PageViews.whenShown(document.querySelector('[data-server="matricxon"]'), applyClusterManaged);
+});
+
+async function applyClusterManaged() {
   try {
     const config = await api("/api/settings/matricxon/config");
     const managed = config.cluster_role !== "off";
@@ -13,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (_err) {
     /* not an admin: nothing to hide */
   }
-});
+}
 
 /** The nodes, read-only, in place of the host editor of the Matricxon form (see collectRemoteHosts). The editor is
  * hidden at once, from the saved config; /health (which pings every host, so it can be slow) is asked only when

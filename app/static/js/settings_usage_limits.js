@@ -90,4 +90,4 @@ class UserLimitsPanel {
 }
 
 const usageLimitsBox = document.getElementById("usage-limits-defaults");
-if (usageLimitsBox) new UsageLimitsDefaults(usageLimitsBox).load();
+PageViews.whenShown(usageLimitsBox, () => new UsageLimitsDefaults(usageLimitsBox).load()); // on its page's first showing (page_views.js)

@@ -38,4 +38,4 @@ class EngineTokenField {
   }
 }
 
-document.querySelectorAll("[data-engine-token]").forEach((root) => new EngineTokenField(root));
+document.querySelectorAll("[data-engine-token]").forEach((root) => PageViews.whenShown(root, () => new EngineTokenField(root)));

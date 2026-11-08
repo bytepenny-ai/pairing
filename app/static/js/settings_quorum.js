@@ -15,5 +15,10 @@ async function refreshModelQuorumWarning() {
   }
 }
 
-refreshModelQuorumWarning();
-setInterval(refreshModelQuorumWarning, MODEL_QUORUM_REFRESH_MS);
+// Only while its page is shown (page_views.js): no polling for a page nobody looks at.
+let _modelQuorumTimer = null;
+PageViews.whileShown(document.getElementById("model-quorum-warning"), (shown) => {
+  clearInterval(_modelQuorumTimer);
+  _modelQuorumTimer = shown ? setInterval(refreshModelQuorumWarning, MODEL_QUORUM_REFRESH_MS) : null;
+  if (shown) refreshModelQuorumWarning();
+});

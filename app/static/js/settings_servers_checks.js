@@ -164,4 +164,4 @@ ServersChecks.waitForRestart = async () => {
 
 const serversChecksEl = document.getElementById("servers-checks");
 const serversThisEl = document.getElementById("servers-this");
-if (serversChecksEl && serversThisEl) new ServersChecks(serversChecksEl, serversThisEl);
+if (serversChecksEl && serversThisEl) PageViews.whenShown(serversChecksEl, () => new ServersChecks(serversChecksEl, serversThisEl)); // on first showing

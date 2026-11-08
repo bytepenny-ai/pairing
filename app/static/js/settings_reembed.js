@@ -52,4 +52,4 @@ class ReembedPanel {
 }
 
 const reembedRoot = document.getElementById("rag-reembed-panel");
-if (reembedRoot) new ReembedPanel(reembedRoot);
+PageViews.whenShown(reembedRoot, () => new ReembedPanel(reembedRoot)); // on its page's first showing (page_views.js)

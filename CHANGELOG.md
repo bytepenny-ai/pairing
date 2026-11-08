@@ -3,8 +3,10 @@
 Notable changes in each pAIring release. Security fixes are marked **Security**. Full release notes and news:
 https://bytepenny.com/rss/
 
-## Unreleased
+## 2.1.2 (2026-11-08)
 
+- Memory pinning (Admin settings > Inference > Memory pinning): keep chosen models loaded on each Matricxon server. A square memory grid shows every server's RAM and GPU VRAM (a whole cluster at once), with moving dots for loads and unloads; pins are set per server or on every server that has the model, and chats prefer a server that has the model pinned (a chat still returns to the server holding its conversation, and busy servers still share the load). Each pin can choose RAM, GPU VRAM or auto. Uninstalling a model in a cluster removes its pin and unloads it on every node, and names any node that could not be cleaned. Needs the matching Matricxon.
+- The cluster map shows "pAIring (ring mode)" when several pAIring servers share the database, with each server's name, IP and status in its panel.
 - No limit of 120 remote servers per engine any more: a Matricxon cluster can have hundreds of nodes. A remote image server in a server ring must be an address every server reaches (not localhost).
 - With more than one pAIring server on the database, the image engine runs only in remote mode, one image server every pAIring uses; in local mode image generation is off on every server (the Images Gen link shows Off) and local image engines are stopped, not uninstalled.
 - Admin settings: a new Inference group holds Engine (was Inference engines), MCP servers and RAG (was under System).

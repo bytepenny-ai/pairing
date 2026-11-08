@@ -46,6 +46,7 @@ from app.routers import (
     matricxon_update_admin,
     mcp_admin,
     mcp_tools,
+    memory_pins_admin,
     model_capabilities,
     model_catalog_admin,
     notes,
@@ -188,6 +189,7 @@ app.include_router(telemetry.router)
 app.include_router(system_metrics.router)
 app.include_router(theme.router)
 app.include_router(update_admin.router)
+app.include_router(memory_pins_admin.router)
 app.include_router(servers_admin.router)
 app.include_router(skills.router)
 app.include_router(chat_export.router)

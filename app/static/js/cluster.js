@@ -10,6 +10,7 @@ const CLUSTER_REFRESH_MS = 15000;
 let _clusterTimer = null;
 
 function activateClusterView(name) {
+  history.replaceState(null, "", `#${name}`); // a reload reopens this view (as stats.js)
   document.querySelectorAll(".cluster-nav-btn").forEach((btn) => {
     const active = btn.dataset.view === name;
     btn.classList.toggle("bg-slate-800", active);
@@ -20,6 +21,7 @@ function activateClusterView(name) {
     document.getElementById(`cluster-view-${view}`).classList.toggle("hidden", view !== name);
   }
   clusterMap.setActive(name === "nodes");  // the map only polls while it is on screen
+  PageViews.changed(); // the other views load on their first showing (page_views.js)
 }
 
 function _clusterShowError(message) {
@@ -265,7 +267,7 @@ document.addEventListener("visibilitychange", () => {
   _clusterStartRefresh();
 });
 
-activateClusterView("overview");
+activateClusterView(CLUSTER_VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "overview");
 loadCluster();
 _clusterStartRefresh();
 

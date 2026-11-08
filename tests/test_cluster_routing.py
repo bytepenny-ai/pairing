@@ -155,3 +155,24 @@ class TestWarmUp:
         clock.now += 601
         assert warm_up.start_if_needed(pool, "m", _warm(A)) == B
         await asyncio.gather(*warm_up._tasks)
+
+
+class TestPinnedFirst:
+    def test_a_pinned_node_wins_over_a_warm_one(self) -> None:
+        assert _pool(0, 0, 0).pick_host(info=_warm(B, C, pinned=frozenset({C}))) == C
+
+    def test_a_busy_pinned_node_still_spreads_the_load(self) -> None:
+        assert _pool(0, 0, 2).pick_host(info=_warm(B, C, pinned=frozenset({C}))) == B
+
+
+@pytest.mark.asyncio
+async def test_node_loads_read_the_pinned_models() -> None:
+    a = _node({"llama:3b": 2 * GB}, active=0, threads=8, free=6 * GB)
+    a["models"][0]["pinned"] = True
+    nodes = {"a": a, "b": _node({"llama:3b": 2 * GB}, active=0, threads=8, free=6 * GB)}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=nodes[request.url.host])
+
+    info = await NodeLoads(_client_factory(handler, [])).route_info([A, B], "llama:3b")
+    assert info.pinned == {A} and info.warm == {A, B}

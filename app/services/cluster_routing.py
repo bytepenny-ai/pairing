@@ -28,6 +28,7 @@ class NodeLoad:
     active: int = 0
     threads: int = 0  # 0: unknown (an older node answering only /api/ps)
     free_memory: int | None = None
+    pinned: frozenset[str] = frozenset()  # models kept loaded (Matricxon pins, state loaded)
 
 
 class NodeLoads:
@@ -56,6 +57,7 @@ class NodeLoads:
         most = max((load.threads for load in loads.values()), default=0)
         return RouteInfo(
             warm=frozenset(h for h, load in loads.items() if model in load.models),
+            pinned=frozenset(h for h, load in loads.items() if model in load.pinned),
             active={h: load.active for h, load in loads.items()},
             capacity={h: load.threads / most for h, load in loads.items() if load.threads and most},
             no_room=frozenset(
@@ -68,7 +70,7 @@ class NodeLoads:
     def note(self, host: str, model: str) -> None:
         at, load = self._seen.get(host, (self._clock(), NodeLoad(models={})))
         self._seen[host] = (at, NodeLoad({**load.models, model: load.models.get(model, 0)}, load.active,
-                                         load.threads, load.free_memory))  # fmt: skip
+                                         load.threads, load.free_memory, load.pinned))  # fmt: skip
 
     @staticmethod
     async def _read(client: httpx.AsyncClient, host: str) -> NodeLoad:
@@ -77,8 +79,9 @@ class NodeLoads:
             if resp.status_code == 200:
                 body = resp.json()
                 models = {m["name"]: int(m.get("size_bytes", 0)) for m in body.get("models", [])}
+                pinned = frozenset(m["name"] for m in body.get("models", []) if m.get("pinned"))
                 return NodeLoad(models, int(body.get("active", 0)), int(body.get("threads", 0)),
-                                body.get("free_memory_bytes"))  # fmt: skip
+                                body.get("free_memory_bytes"), pinned)  # fmt: skip
             resp = await client.get(f"{host}/api/ps")  # an older node
             entries = resp.json().get("models", []) if resp.status_code == 200 else []
             return NodeLoad({m.get("name") or m.get("model"): int(m.get("size", 0)) for m in entries})

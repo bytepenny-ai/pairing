@@ -39,6 +39,7 @@ from app.services.embedding_model_catalog_service import EmbeddingModelCatalogSe
 from app.services.engines.registry import registry
 from app.services.extended_model_catalog_service import ExtendedModelCatalog
 from app.services.inference_client import InferenceError, delete_model, pull_model_stream
+from app.services.memory_pins_cleanup import PinCleanup
 from app.services.model_catalog_service import ChatModelCatalogBuilder, HiddenModelTags, get_default_embedding_model
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -148,7 +149,8 @@ async def delete_model_endpoint(
     except InferenceError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     await ExtendedModelCatalog(db).remove(body.tag)  # an uninstalled model must not come back as a suggestion
-    return DeleteModelResponse(deleted=body.tag)
+    warnings = await PinCleanup(db).after_delete(body.tag)  # no cluster node keeps it pinned or loaded
+    return DeleteModelResponse(deleted=body.tag, warnings=warnings)
 
 
 @router.get("/rag-availability", response_model=RagAvailability)

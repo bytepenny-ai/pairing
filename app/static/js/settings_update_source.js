@@ -60,4 +60,4 @@ class UpdateSourceForm {
   }
 }
 
-document.querySelectorAll("[data-update-source]").forEach((root) => new UpdateSourceForm(root));
+document.querySelectorAll("[data-update-source]").forEach((root) => PageViews.whenShown(root, () => new UpdateSourceForm(root)));

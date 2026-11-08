@@ -15,7 +15,8 @@ async function refreshImagesFolderWarning() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(refreshImagesFolderWarning, 1500); // after the form has loaded its saved folder
+  // On its page's first showing (page_views.js), after the form has loaded its saved folder.
+  PageViews.whenShown(document.querySelector('[data-field="images-warning"]'), () => setTimeout(refreshImagesFolderWarning, 1500));
   const field = document.querySelector('[data-field="images_path"]');
   if (field) field.addEventListener("change", () => setTimeout(refreshImagesFolderWarning, 2500));
 });

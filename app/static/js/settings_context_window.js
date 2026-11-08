@@ -11,12 +11,13 @@
   // anything is saved or if loading fails.
   slider.addEventListener("input", () => (valueEl.textContent = slider.value));
 
-  api("/api/settings/context-window")
+  // On its page's first showing (page_views.js).
+  PageViews.whenShown(section, () => api("/api/settings/context-window")
     .then(({ num_ctx }) => {
       slider.value = num_ctx;
       valueEl.textContent = slider.value;
     })
-    .catch((err) => (status.textContent = `Could not load: ${err.message}`));
+    .catch((err) => (status.textContent = `Could not load: ${err.message}`)));
 
   saveBtn.addEventListener("click", async () => {
     saveBtn.disabled = true;
