@@ -176,3 +176,12 @@ dimmer than code text: comments 6.6:1, numbers 5.2:1 (was 4.4:1). Same in every 
   .wf-node.wf-live-active .wf-live-halo { opacity: 0.45; }
   .wf-live-flow, .wf-live-flow.on { stroke-dasharray: none; stroke-width: 2.5; }
 }
+
+/* Chat file viewer (chat_file_viewer.js): a soft fade and zoom, a blurred backdrop, no hard edges. */
+.chat-viewer { background: rgb(var(--color-slate-950, 2 6 23) / 0.4); backdrop-filter: blur(6px); opacity: 0; transition: opacity 180ms ease; }
+.chat-viewer.chat-viewer-shown { opacity: 1; }
+.chat-viewer-panel { width: 75vw; height: 75vh; box-shadow: 0 24px 64px rgb(0 0 0 / 0.28), 0 0 0 1px rgb(var(--color-slate-700, 51 65 85) / 0.25); transform: scale(0.97); transition: transform 180ms ease; }
+.chat-viewer-shown .chat-viewer-panel { transform: scale(1); }
+/* Phones: nearly full width; a picture's window only as tall as the picture. */
+@media (max-width: 640px) { .chat-viewer-panel { width: 92vw; } .chat-viewer-panel[data-kind="image"] { height: auto; max-height: 75vh; } .chat-viewer-panel .chat-viewer-img { max-height: calc(75vh - 4.5rem); } }
+@media (prefers-reduced-motion: reduce) { .chat-viewer, .chat-viewer-panel { transition: none; } }

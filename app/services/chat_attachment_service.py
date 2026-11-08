@@ -7,6 +7,7 @@ message), an attachment belongs to one message, is saved and read once, and is n
 """
 
 import base64
+import mimetypes
 import shutil
 import uuid
 from dataclasses import dataclass
@@ -34,6 +35,24 @@ class AttachmentInfo:
     path: Path
     filename: str
     type: str
+
+
+@dataclass(frozen=True)
+class AttachmentServing:
+    """How GET /api/chat/attachments/{id} sends a file: raster images and PDFs inline (the chat's viewer shows them),
+    everything else as a non-executable download (an .html or .svg opened in a tab would run scripts)."""
+
+    media_type: str
+    disposition: str
+
+    @classmethod
+    def for_file(cls, attachment_type: str, filename: str | None) -> "AttachmentServing":
+        suffix = Path(filename or "").suffix.lower()
+        if attachment_type == "image" and suffix in SUPPORTED_IMAGE_EXTENSIONS:
+            return cls(mimetypes.guess_type(f"x{suffix}")[0] or "application/octet-stream", "inline")
+        if suffix == ".pdf":
+            return cls("application/pdf", "inline")  # shown by the browser's own PDF viewer
+        return cls("application/octet-stream", "attachment")
 
 
 def _classify(filename: str) -> str:

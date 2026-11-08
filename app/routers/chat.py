@@ -6,7 +6,6 @@ SSE over WebSockets: simpler for one-way streams, survives proxies, and chat.js 
 """
 
 import json
-import mimetypes
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
@@ -14,9 +13,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ATTACHMENTS_DIR
 from app.database import get_db
-from app.models import Message, MessageAttachment, User
+from app.models import User
+from app.schemas.chat import AttachmentPreviewOut
 from app.services import chat_attachment_service, conversation_service, reply_broadcast_service
 from app.services.auth_service import get_current_user
+from app.services.chat_attachment_preview import AttachmentPreviewer, get_accessible_attachment
 from app.services.chat_service import build_reply_stream
 from app.services.model_catalog_service import HiddenModelTags
 from app.services.usage_limits import UsageLimitService
@@ -81,24 +82,28 @@ async def get_attachment(
     attachment_id: str,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
-):
-    """The only way attachments are served (not under /static), so the same access check applies
-    (conversation_service.get_accessible_conversation_or_404).
-    """
-    attachment = await db.get(MessageAttachment, attachment_id)
-    if attachment is None:
-        raise HTTPException(status_code=404, detail="Attachment not found")
-    # Look up by attachment.message_id: `attachment.message` lacks lazy="selectin" and would crash
-    # outside an awaited context (MissingGreenlet).
-    message = await db.get(Message, attachment.message_id)
-    await conversation_service.get_accessible_conversation_or_404(db, message.conversation_id, user)
-    # "text" attachments may be.html/.htm; guessing Content-Type could return text/html, which a
-    # browser would run. Force a generic non-executable type (Content-Disposition: attachment is only a second layer).
-    # Images keep their real type for chat.js's <img>.
-    media_type = mimetypes.guess_type(attachment.filename or "")[0] or "application/octet-stream"
-    if attachment.type != "image":
-        media_type = "application/octet-stream"
-    return FileResponse(ATTACHMENTS_DIR / attachment.path, filename=attachment.filename, media_type=media_type)
+) -> FileResponse:
+    """The only way attachments are served (not under /static), so the same access check applies."""
+    attachment = await get_accessible_attachment(db, attachment_id, user)
+    serving = chat_attachment_service.AttachmentServing.for_file(attachment.type, attachment.filename)
+    return FileResponse(
+        ATTACHMENTS_DIR / attachment.path,
+        filename=attachment.filename,
+        media_type=serving.media_type,
+        content_disposition_type=serving.disposition,
+        headers={"X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.get("/attachments/{attachment_id}/preview", response_model=AttachmentPreviewOut)
+async def preview_attachment(
+    attachment_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> AttachmentPreviewOut:
+    """A document attachment as text, for the chat's file viewer."""
+    attachment = await get_accessible_attachment(db, attachment_id, user)
+    return await AttachmentPreviewer().preview(attachment)
 
 
 @router.get("/{conversation_id}/subscribe")

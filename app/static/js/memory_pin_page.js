@@ -14,6 +14,11 @@ class MemoryPinPage {
     this.panel = new MemoryPinPanel(root.querySelector("#pin-node"));
     this.panel.refresh = () => this.render();
     this.live = new MemoryPinLive();
+    this.byModel = new PinsByModel(root.querySelector("#pin-by-model-rows"));
+    this.byModel.onSelect = (id) => {
+      this.select(id);
+      this.panel.root?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    };
     this.selected = null;
     this.started = false;
     this._timer = null;
@@ -152,7 +157,7 @@ class MemoryPinPage {
     this._renderTiles(snap);
     const node = snap.nodes.find((n) => n.id === this.selected) || snap.nodes[0];
     this.panel.render(node, snap.scope);
-    if (many) this._renderByModel(snap);
+    if (many) this.byModel.render(snap);
   }
 
   _renderTiles(snap) {
@@ -185,24 +190,6 @@ class MemoryPinPage {
         ? tile("Servers", `${up.length} of ${snap.nodes.length} up`, `${sum((n) => n.slots.max)} model slots in all`)
         : tile("Model slots", first ? `${first.slots.used} of ${first.slots.max} used` : "server down", "pinned chat models count"),
     ].join("");
-  }
-
-  _renderByModel(snap) {
-    const rows = {};
-    for (const node of snap.nodes) {
-      for (const m of node.models.filter((x) => x.pinned)) {
-        const r = (rows[m.tag] ||= { tag: m.tag, bytes: m.bytes, on: 0, loaded: 0, vram: 0, missing: 0 });
-        r.on += 1;
-        if (node.status === "up" && m.state === "loaded") r.loaded += 1; else r.missing += 1;
-        if (m.memory === "vram" && m.state === "loaded") r.vram += 1;
-      }
-    }
-    const sorted = Object.values(rows).sort((a, b) => b.on - a.on);
-    this.root.querySelector("#pin-by-model-rows").innerHTML = sorted.length
-      ? sorted.map((r) => `<tr><td class="px-3 py-2 text-slate-200" title="${escapeHtml(r.tag)}">${escapeHtml(pinShortName(r.tag))}</td><td class="px-3 py-2 text-slate-400">${pinGb(r.bytes)}</td>
-          <td class="px-3 py-2 text-slate-300">${r.on} server${r.on === 1 ? "" : "s"}</td><td class="px-3 py-2 text-emerald-400">${r.loaded}</td>
-          <td class="px-3 py-2 text-slate-400">${r.vram}</td><td class="px-3 py-2 ${r.missing ? "text-warning-400" : "text-slate-500"}">${r.missing}</td></tr>`).join("")
-      : `<tr><td colspan="6" class="px-3 py-3 text-slate-500">No pins yet.</td></tr>`;
   }
 }
 

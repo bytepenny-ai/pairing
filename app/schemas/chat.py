@@ -1,6 +1,7 @@
 """Request/response shapes for app/routers/chat.py and the message list in app/routers/conversations.py."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -13,6 +14,15 @@ class AttachmentOut(BaseModel):
     filename: str
     # "image"/"text": how chat.js renders it.
     type: str
+
+
+class AttachmentPreviewOut(BaseModel):
+    """A document attachment as text, for the chat's file viewer (GET /api/chat/attachments/{id}/preview)."""
+
+    filename: str
+    format: Literal["markdown", "text"]
+    text: str
+    truncated: bool
 
 
 class ReplyStatsOut(BaseModel):

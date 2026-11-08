@@ -361,7 +361,7 @@ function bubbleFor(role, senderLabel, avatarUrl, initials, senderId) {
   if (role === "user") {
     // Bubble and avatar side by side, avatar last so it sits on the text's side (right, matching items-end).
     const row = document.createElement("div");
-    row.className = "flex items-end gap-2";
+    row.className = "flex max-w-full items-end justify-end gap-2";
     const avatar = document.createElement("div");
     avatar.className = "message-avatar h-6 w-6 shrink-0 rounded-full overflow-hidden text-[10px] leading-none";
     renderAvatar(avatar, avatarUrl, initials);
@@ -473,7 +473,7 @@ function renderReplyBody(bubble, content, status, sources, errorText) {
   ToolBlocks.render(bubble);
 }
 
-/* Appends a message's attachments (image, or a download chip for other files) to `bubble` (MessageOut.attachments/AttachmentOut in app/schemas/chat.py); no-op if none. Call it after each renderReplyBody on the same bubble, since that replaces bubble.innerHTML. */
+/* Appends a message's attachments (image, or a file chip for other files; a click opens either in chat_file_viewer.js) to `bubble` (MessageOut.attachments/AttachmentOut in app/schemas/chat.py); no-op if none. Call it after each renderReplyBody on the same bubble, since that replaces bubble.innerHTML. */
 function renderAttachment(bubble, message) {
   if (!message || !message.attachments) return;
   for (const attachment of message.attachments) {
@@ -481,11 +481,20 @@ function renderAttachment(bubble, message) {
       const img = document.createElement("img");
       img.src = attachment.url;
       img.alt = attachment.filename || "attachment";
-      img.className = "mt-2 max-w-full rounded-lg";
+      // Fits the bubble's width and 60% of the screen's height; a click enlarges it.
+      img.className = "max-h-[60vh] max-w-full w-auto rounded-lg object-contain";
       // An <img> has no height until it loads, so callers' scrollTop=scrollHeight undershoots; re-scroll once the real
       // size is known, whichever caller (send, poll, reload) rendered it.
       img.addEventListener("load", () => chatScroll.settle());
-      bubble.appendChild(img);
+      const link = document.createElement("a");
+      link.href = attachment.url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.title = "Click to enlarge";
+      link.dataset.chatFile = img.alt;
+      link.className = "mt-2 block w-fit cursor-zoom-in";
+      link.appendChild(img);
+      bubble.appendChild(link);
     } else {
       const chip = document.createElement("a");
       chip.href = attachment.url;
@@ -493,6 +502,10 @@ function renderAttachment(bubble, message) {
       chip.rel = "noopener";
       chip.className = "mt-2 flex items-center gap-1.5 text-xs underline decoration-dotted";
       chip.textContent = "📎 " + (attachment.filename || "attachment");
+      if (ChatFileViewer.canShow(attachment.filename)) {
+        chip.dataset.chatFile = attachment.filename;
+        chip.title = "Click to view";
+      }
       bubble.appendChild(chip);
     }
   }

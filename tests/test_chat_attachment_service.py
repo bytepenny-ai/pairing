@@ -214,3 +214,21 @@ def test_empty_turn_context_changes_nothing():
     prepend_turn_context(history, "")
 
     assert history == [{"role": "user", "content": "now"}]
+
+
+@pytest.mark.parametrize(
+    ("attachment_type", "filename", "media_type", "disposition"),
+    [
+        ("image", "photo.PNG", "image/png", "inline"),
+        ("image", "photo.jpg", "image/jpeg", "inline"),
+        ("image", "anim.webp", "image/webp", "inline"),
+        ("image", "drawing.svg", "application/octet-stream", "attachment"),
+        ("text", "page.html", "application/octet-stream", "attachment"),
+        ("image", None, "application/octet-stream", "attachment"),
+    ],
+)
+def test_attachment_serving_opens_only_raster_images_inline(
+    attachment_type: str, filename: str | None, media_type: str, disposition: str
+) -> None:
+    serving = chat_attachment_service.AttachmentServing.for_file(attachment_type, filename)
+    assert (serving.media_type, serving.disposition) == (media_type, disposition)
