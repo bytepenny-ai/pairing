@@ -119,3 +119,8 @@ async def set_vision_reply_timeout_seconds(db: AsyncSession, timeout_seconds: in
     else:
         row.value = value
     await db.commit()
+
+
+async def reply_timeout_seconds(db: AsyncSession, vision: bool) -> int:
+    """The vision timeout for a reply that may read an image, else the text one."""
+    return await (get_vision_reply_timeout_seconds(db) if vision else get_reply_timeout_seconds(db))

@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import ATTACHMENTS_DIR, MAX_ATTACHMENT_DOCUMENTS, MAX_ATTACHMENT_IMAGES, MAX_ATTACHMENT_MB
 from app.models import Message
 from app.services import model_catalog_service
+from app.services.chat_attachment_memory import AttachmentMemory
 from app.services.document_extract import SUPPORTED_EXTENSIONS, extract_text
 from app.services.document_retrieval import build_attachment_system_prompt
 from app.services.document_upload import safe_filename
@@ -114,7 +115,9 @@ async def delete_attachment_files(db: AsyncSession, message: Message) -> None:
     """
     await db.refresh(message, attribute_names=["attachments"])
     for attachment in list(message.attachments):
-        (ATTACHMENTS_DIR / attachment.path).unlink(missing_ok=True)
+        path = ATTACHMENTS_DIR / attachment.path
+        for file in (path, *AttachmentMemory.sidecars(path)):
+            file.unlink(missing_ok=True)
         await db.delete(attachment)
 
 
@@ -144,6 +147,8 @@ def fold_text_attachments_into_prompt(
             text = extract_attachment_text(attachment.path)
             if fit is not None:
                 text = fit.cut(attachment.filename, text)
+            # What the model got, so later turns can show it again (chat_attachment_memory.py).
+            AttachmentMemory.remember(attachment.path, text)
             if text:
                 system_prompt = build_attachment_system_prompt(system_prompt, attachment.filename, text)
     return system_prompt

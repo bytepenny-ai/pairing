@@ -3,6 +3,7 @@
 """
 
 import itertools
+from collections.abc import Callable
 
 from app.models import Message
 from app.services.chat_commands import ChatCommand
@@ -30,43 +31,58 @@ def without_failed_replies(messages: list[Message]) -> list[Message]:
 # Trimming advances in steps of this fraction of the budget (see trim_history).
 _TRIM_STEPS = 4
 
+TextOf = Callable[[Message], str]
 
-def trim_history(messages: list[Message], num_ctx: int, reserved_tokens: int = 512) -> list[dict]:
+
+def _plain_text(message: Message) -> str:
+    """A user's /describe or /summarize becomes its full instruction (chat_commands.py); the chat shows the command."""
+    return ChatCommand.expand(message.content) if message.role == "user" else message.content
+
+
+def trim_history(
+    messages: list[Message], num_ctx: int, reserved_tokens: int = 512, text_of: TextOf = _plain_text
+) -> list[dict]:
     """Keeps only the recent history that fits the context window, so long chats don't overflow num_ctx.
-    `reserved_tokens` leaves room for the system prompt, RAG context and the reply.
+    `reserved_tokens` leaves room for the system prompt, RAG context and the reply. `text_of` gives a message as the
+    model reads it (chat_attachment_memory.py adds earlier files).
+    """
+    texts = [text_of(m) for m in messages]
+    start = _window_start(texts, num_ctx, reserved_tokens)
+    return _merge_consecutive_same_role(messages[start:], texts[start:])
 
-    Oldest messages go first, in steps: the history starts only where the running character count crosses a
+
+def window_start(
+    messages: list[Message], num_ctx: int, reserved_tokens: int = 512, text_of: TextOf = _plain_text
+) -> int:
+    """Index of the first message trim_history keeps."""
+    return _window_start([text_of(m) for m in messages], num_ctx, reserved_tokens)
+
+
+def _window_start(texts: list[str], num_ctx: int, reserved_tokens: int) -> int:
+    """Oldest messages go first, in steps: the history starts only where the running character count crosses a
     multiple of a quarter of the budget. Start points depend only on earlier messages, so a growing chat keeps
     the same first message for many turns. The prompt cache matches from the start, and a sliding window made
-    it re-read the whole chat every turn.
+    it re-read the whole chat every turn. Failing all steps: the newest messages within the budget, at least one.
     """
     budget_chars = max(num_ctx - reserved_tokens, 256) * _CHARS_PER_TOKEN
     step = max(budget_chars // _TRIM_STEPS, 1)
-    sizes = [len(m.content) for m in messages]
+    sizes = [len(t) for t in texts]
     total = sum(sizes)
     before = 0
-    for index in range(len(messages)):
+    for index in range(len(texts)):
         starts_step = index == 0 or before // step > (before - sizes[index - 1]) // step
         if starts_step and total - before <= budget_chars:
-            return _merge_consecutive_same_role(messages[index:])
+            return index
         before += sizes[index]
-    return _merge_consecutive_same_role(_newest_that_fit(messages, budget_chars))
-
-
-def _newest_that_fit(messages: list[Message], budget_chars: int) -> list[Message]:
-    """The newest messages within the budget; always at least the last one."""
-    kept: list[Message] = []
     used = 0
-    for message in reversed(messages):
-        used += len(message.content)
-        if used > budget_chars and kept:
-            break
-        kept.append(message)
-    kept.reverse()
-    return kept
+    for index in range(len(texts) - 1, -1, -1):
+        used += sizes[index]
+        if used > budget_chars and index < len(texts) - 1:
+            return index + 1
+    return 0
 
 
-def _merge_consecutive_same_role(messages: list[Message]) -> list[dict]:
+def _merge_consecutive_same_role(messages: list[Message], texts: list[str]) -> list[dict]:
     """Folds runs of same-role messages into one turn. A channel can hold several "user" messages in a row
     (ask_ai=False; the AI replies only when asked), which strict chat templates (Mistral/Ministral, used by
     llama.cpp and Matricxon) reject: "conversation roles must alternate" (seen in Ollama's logs). Personal chats
@@ -75,13 +91,12 @@ def _merge_consecutive_same_role(messages: list[Message]) -> list[dict]:
     Assistant/system messages stay plain.
     """
     merged: list[dict] = []
-    for role, group in itertools.groupby(messages, key=lambda m: m.role):
+    pairs = list(zip(messages, texts, strict=True))
+    for role, group in itertools.groupby(pairs, key=lambda pair: pair[0].role):
         group = list(group)
-        # A user's /describe or /summarize becomes its full instruction (chat_commands.py); the chat shows the command.
-        text = (lambda m: ChatCommand.expand(m.content)) if role == "user" else (lambda m: m.content)
         if len(group) == 1:
-            merged.append({"role": role, "content": text(group[0])})
+            merged.append({"role": role, "content": group[0][1]})
             continue
-        lines = [f"{m.sender_display_name}: {text(m)}" if m.sender_display_name else text(m) for m in group]
+        lines = [f"{m.sender_display_name}: {text}" if m.sender_display_name else text for m, text in group]
         merged.append({"role": role, "content": "\n".join(lines)})
     return merged

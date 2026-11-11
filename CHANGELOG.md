@@ -3,6 +3,13 @@
 Notable changes in each pAIring release. Security fixes are marked **Security**. Full release notes and news:
 https://bytepenny.com/rss/
 
+## Unreleased
+
+- Chats remember earlier attachments: a follow-up question still sees a file's text (exactly as first sent, so the prompt cache keeps matching) and knows an image was attached, answering from the reply that described it.
+- Long files in a chat are searched instead of repeated: a file over a share of the context window (Admin settings > System > Chat > Files in a chat, 25% by default) is split and embedded in the background after the first reply, for that chat only, and each later question gets the parts that match it. Needs a default embedding model; without one, files stay whole.
+- When a long chat outgrows the context window, each file that leaves it keeps the reply about it as a summary, and the user is told once.
+- Admin settings > System > Chat > Files in a chat > "Questions about an earlier image": **Answer from the description** (the default, fastest); **Show the image again** to the vision model, for any question within three messages of the image ("what kind of bird is that?") and later ones that mention a picture or photo; or **Description first, image if needed**: the chat's model answers from the earlier reply and hands over to the vision model ("Looking at the image again…") only when that description doesn't say.
+
 ## 2.1.3 (2026-11-11)
 
 - Every log line starts with the date and time (`data/logs/app.log` and each instance's log), in the same format as Matricxon; the start-up database migration no longer swaps in a format without one.

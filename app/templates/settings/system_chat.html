@@ -157,6 +157,43 @@
         </div>
       </section>
 
+      <!-- Earlier attachments in later messages (settings_chat_file_memory.js, /api/settings/chat-file-memory). -->
+      <section id="chat-file-memory-panel" class="space-y-3">
+        <h2 class="text-sm font-semibold text-slate-200">Files in a chat</h2>
+        <p class="text-xs text-slate-500 -mt-2">
+          Files attached to a chat stay in its memory for the questions that follow. A file up to this share of the
+          context window stays whole; a longer one is searched instead, and each question gets the parts that match
+          (this needs a default embedding model). When a long chat outgrows the context window, the reply about each
+          file is kept as its summary.
+        </p>
+        <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-3">
+          <label class="block">
+            <span class="text-xs text-slate-400">Keep a file whole up to this % of the context window (5 to 90)</span>
+            <input type="number" id="chat-file-whole-percent" min="5" max="90" step="1"
+              class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-400">Questions about an earlier image</span>
+            <select id="chat-file-image-follow-up"
+              class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+              <option value="off">Answer from the description (fastest, the default)</option>
+              <option value="again">Show the image again (within three messages, or when a picture is mentioned)</option>
+              <option value="fallback">Description first, image if needed</option>
+            </select>
+            <span class="mt-1 block text-xs text-slate-500">"Show the image again" reads the image for each such
+              question: slower on a CPU. "Description first" lets the chat's model answer from the earlier reply and
+              hands over to the vision model only when the description doesn't say; then that answer takes longer.</span>
+          </label>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="chat-file-memory-save-btn" type="button"
+            class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+            Save
+          </button>
+          <span id="chat-file-memory-status" class="text-xs text-slate-500"></span>
+        </div>
+      </section>
+
       <section class="space-y-3">
         <h2 class="text-sm font-semibold text-slate-200">Data retention</h2>
         <p class="text-xs text-slate-500 -mt-2">

@@ -29,22 +29,21 @@ from app.services import (
     tool_event_service,
     tool_loop_service,
 )
+from app.services.image_fallback_stream import ImageFallback
 from app.services.inference_client import InferenceError, chat_stream, stop_model
 from app.services.live_workflow_bus import live_workflow
 from app.services.reply_side_events import ReplySideEvents
 
 logger = logging.getLogger("llama_chat")
 
-# Batches how often streaming content is committed to the DB, not per token: pollers and late /subscribe
-# joiners don't need finer. Every chunk still reaches the hub at once, so live viewers never see the batching.
+# DB commits of streamed text are batched; every chunk still reaches the hub (live viewers) at once.
 _FLUSH_CHARS = 200
 _FLUSH_INTERVAL_SECONDS = 0.4
 
 # How often stream_reply's relay also reads the DB, not just the queue (reply_cross_instance_service).
 _CROSS_INSTANCE_POLL_SECONDS = 3.0
 
-# As title_service._background_title_tasks: asyncio keeps only a weak reference to a bare create_task result, so it
-# could be garbage-collected mid-run.
+# Strong refs: asyncio keeps only a weak one to a bare create_task result (as title_service._background_title_tasks).
 _background_generation_tasks: set[asyncio.Task] = set()
 
 # delete_message's way of stopping a streaming reply: lives in reply_cancellation_service, re-exported here.
@@ -63,6 +62,7 @@ async def stream_reply(
     model: str | None = None,
     has_image: bool = False,
     params: dict | None = None,
+    fallback: ImageFallback | None = None,  # may hand the reply to the vision model (image_fallback_stream.py)
 ) -> AsyncIterator[dict]:
     """Yields events for routers/chat.py to SSE-encode ({"chunk"} / {"error"} / {"done", "sources"} / {"deleted"},
     see reply_broadcast_service.publish_deleted), each with "message_id" so the frontend knows the bubble (see
@@ -95,6 +95,7 @@ async def stream_reply(
         conversation.params if params is None else params,
         source_filenames,
         has_image,
+        fallback,
     )
 
     _state, queue = reply_broadcast_service.subscribe(conversation.id)
@@ -130,13 +131,14 @@ def _schedule_generation(
     params: dict,
     source_filenames: list[str],
     has_image: bool,
+    fallback: ImageFallback | None = None,
 ) -> asyncio.Task:
     """Starts generation detached from the request, with the strong-ref set + done-callback pattern of
     title_service.schedule_smart_title_generation. Registers with reply_cancellation_service so
     stream_reply/cancel_generation can cancel it, and spawns reply_cross_instance_service's watchdog beside it
     (needed even with cancel_generation; see that function).
     """
-    work = _run_generation(message_id, model, chat_messages, params, source_filenames, has_image)
+    work = _run_generation(message_id, model, chat_messages, params, source_filenames, has_image, fallback)
     task = asyncio.create_task(live_workflow.track(work, "run_generation_task"))
     _background_generation_tasks.add(task)
     task.add_done_callback(_background_generation_tasks.discard)
@@ -155,6 +157,7 @@ async def _run_generation(
     params: dict,
     source_filenames: list[str],
     has_image: bool,
+    fallback: ImageFallback | None = None,
 ) -> None:
     """Runs on its own AsyncSessionLocal: the request's session may be gone by then."""
     conversation_id = None
@@ -166,12 +169,7 @@ async def _run_generation(
                 return  # conversation (and placeholder) deleted from under this generation
             conversation_id = message.conversation_id
             # Read fresh so a change applies to the next message. 0 means no timeout (asyncio.timeout(None)).
-            get_timeout = (
-                chat_settings_service.get_vision_reply_timeout_seconds
-                if has_image
-                else chat_settings_service.get_reply_timeout_seconds
-            )
-            timeout_seconds = await get_timeout(db)
+            timeout_seconds = await chat_settings_service.reply_timeout_seconds(db, vision=has_image or bool(fallback))
             effective_timeout = timeout_seconds if timeout_seconds > 0 else None
 
             unflushed = ""
@@ -184,7 +182,9 @@ async def _run_generation(
                         gen_params["model_role"] = "vision"
                     tools = await tool_loop_service.tool_stream_or_none(db, model, chat_messages, gen_params)
                     side_events = ReplySideEvents(db, message, conversation_id)
-                    async for chunk in tools if tools is not None else chat_stream(model, chat_messages, gen_params):
+                    stream = tools or (fallback.stream if fallback else chat_stream)(model, chat_messages, gen_params)
+                    async for chunk in stream:
+                        model = (fallback.model if fallback else "") or model  # the one streaming, for stop_model
                         if isinstance(chunk, dict):  # an MCP tool call or reasoning (reply_side_events.py)
                             if await side_events.handle(chunk):
                                 await stop_model(model, request_id=message_id)

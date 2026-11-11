@@ -25,6 +25,7 @@ from app.routers import (
     channels,
     chat,
     chat_export,
+    chat_file_memory_admin,
     cluster_admin,
     cluster_outside,
     connectors,
@@ -182,6 +183,7 @@ app.include_router(channel_history_admin.router)
 app.include_router(workflow_view_admin.router)
 app.include_router(context_window_admin.router)
 app.include_router(vision_reply_admin.router)
+app.include_router(chat_file_memory_admin.router)
 app.include_router(reasoning_admin.router)
 app.include_router(mcp_admin.router)
 app.include_router(mcp_admin.enabled_router)
