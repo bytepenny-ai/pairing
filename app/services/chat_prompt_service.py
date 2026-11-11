@@ -13,6 +13,7 @@ from app.services.inference_client import InferenceError
 from app.services.live_workflow_bus import live_workflow
 from app.services.note_service import build_pinned_system_prompt, resolve_conversation_notes
 from app.services.turn_context_fit import TurnContextFit
+from app.services.vision_reply_setting import VisionReplyContextSetting
 
 
 async def build_system_prompt(
@@ -43,10 +44,13 @@ async def build_system_prompt(
     """
     live_workflow.enter("chat_prompt_service")
     system_prompt = ""
-    notes_by_type = await resolve_conversation_notes(db, conversation, user.id)
+    # A reply to an image may leave notes and skills out (Default models > Replies to an image include).
+    has_image = any(attachment.type == "image" for attachment in attachments)
+    with_notes, with_skills = await VisionReplyContextSetting(db).includes(has_image)
+    notes_by_type = await resolve_conversation_notes(db, conversation, user.id) if with_notes else {}
     if any(notes_by_type.values()):
         system_prompt = build_pinned_system_prompt(notes_by_type)
-    skills = await conversation_skills.active_skills(db, conversation)
+    skills = await conversation_skills.active_skills(db, conversation) if with_skills else []
     if skills:
         system_prompt = "\n\n".join(p for p in (system_prompt, conversation_skills.build_skills_prompt(skills)) if p)
 

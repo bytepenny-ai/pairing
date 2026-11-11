@@ -96,3 +96,16 @@ class ShareMessageRequest(BaseModel):
     """Body of POST /api/conversations/{id}/messages/{message_id}/share."""
 
     channel_id: str
+
+
+class AttachmentVerdictOut(BaseModel):
+    """One file's answer from POST /api/chat/attachments/check (chat_attachment_check.py)."""
+
+    filename: str
+    kind: str | None  # "image" or "text"; None for a type chats don't take
+    ok: bool
+    reason: str | None = None  # why a model can't read it, in plain words
+
+
+class AttachmentCheckOut(BaseModel):
+    files: list[AttachmentVerdictOut]

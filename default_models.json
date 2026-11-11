@@ -236,5 +236,39 @@
       "embedding_dim": null,
       "note": "ggml-org's official llama.cpp conversion: arch \"qwen3\" with rank pooling and a yes/no scoring head (cls.output.weight). Checked 2026-10-15 against llama.cpp's own reranking on this exact file: identical tokens, scores within 0.01 (matricxon tools/oracle/validate_qwen3_reranker.py). Runs on Matricxon and llama.cpp. Multilingual, 0.6B: a fair CPU cost per passage."
     }
+  ],
+  "forecast_models": [
+    {
+      "family": "TimesFM 2.5",
+      "vendor": "Google (amaye15 GGUF)",
+      "tag": "hf.co/amaye15/timesfm-gguf:q8",
+      "parameter_size": "200M",
+      "context_length": 16384,
+      "download_gb": 0.25,
+      "min_ram_gb": 2,
+      "locally_runnable": true,
+      "architecture": "timesfm25",
+      "quantizations": ["Q8_0"],
+      "vision": false,
+      "unavailable_reason": null,
+      "embedding_dim": null,
+      "note": "Google's TimesFM 2.5 time-series forecaster (Apache-2.0), converted by zsfm (arch \"timesfm25\"). Matricxon only. Checked 2026-11-10 against HF transformers: within 6% of the series' spread, median within 2% (matricxon tools/oracle/validate_timesfm25.py)."
+    },
+    {
+      "family": "TimesFM 2.5",
+      "vendor": "Google (amaye15 GGUF)",
+      "tag": "hf.co/amaye15/timesfm-gguf:f32",
+      "parameter_size": "200M",
+      "context_length": 16384,
+      "download_gb": 0.93,
+      "min_ram_gb": 3,
+      "locally_runnable": true,
+      "architecture": "timesfm25",
+      "quantizations": ["F32"],
+      "vision": false,
+      "unavailable_reason": null,
+      "embedding_dim": null,
+      "note": "Full-precision TimesFM 2.5: matches HF transformers within 1e-5. Larger download, same speed (Matricxon computes in float32 either way)."
+    }
   ]
 }

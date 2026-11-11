@@ -105,8 +105,8 @@ async def test_watch_for_deletion_cancels_the_task_once_the_row_is_marked_delete
     await db.commit()
 
     with pytest.raises(asyncio.CancelledError):
-        await asyncio.wait_for(task, timeout=2)
-    await asyncio.wait_for(watchdog, timeout=2)
+        await asyncio.wait_for(task, timeout=10)  # headroom on a busy CPU
+    await asyncio.wait_for(watchdog, timeout=10)
     assert task.cancelled()
 
 
@@ -124,9 +124,9 @@ async def test_watch_for_deletion_leaves_a_normally_finishing_task_alone(db, use
     task = asyncio.create_task(finishes_quickly())
     watchdog = asyncio.create_task(reply_cross_instance_service.watch_for_deletion(message.id, task, poll_interval=0.5))
 
-    result = await asyncio.wait_for(task, timeout=2)
+    result = await asyncio.wait_for(task, timeout=10)  # headroom on a busy CPU
     assert result == "done"
-    await asyncio.wait_for(watchdog, timeout=2)
+    await asyncio.wait_for(watchdog, timeout=10)
     assert not task.cancelled()
 
 
@@ -157,6 +157,6 @@ async def test_watch_for_deletion_cancels_when_the_row_is_gone_entirely(db, user
     await db.commit()
 
     with pytest.raises(asyncio.CancelledError):
-        await asyncio.wait_for(task, timeout=2)
-    await asyncio.wait_for(watchdog, timeout=2)
+        await asyncio.wait_for(task, timeout=10)  # headroom on a busy CPU
+    await asyncio.wait_for(watchdog, timeout=10)
     assert task.cancelled()

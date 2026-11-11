@@ -56,6 +56,29 @@
           </div>
         </div>
 
+        <!-- What the vision model reads besides the image (settings_vision_reply.js, /api/settings/vision-reply-context). -->
+        <div id="vision-reply-panel" class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-brand-500">Replies to an image include</h3>
+          <p class="text-xs text-slate-500 -mt-2">
+            The chat's notes and skills are read before the image. On a CPU without a GPU a long skill can add minutes
+            to every image reply; leaving them out makes those replies much faster. Text replies always include them.
+          </p>
+          <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3">
+            <select id="vision-reply-include" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+              <option value="none">Nothing: just the message and the image (fastest, the default)</option>
+              <option value="notes">Notes only</option>
+              <option value="all">Notes and skills (as for text)</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="vision-reply-save-btn" type="button"
+              class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+              Save
+            </button>
+            <span id="vision-reply-status" class="text-xs text-slate-500"></span>
+          </div>
+        </div>
+
         <div class="border-t border-slate-800"></div>
 
         <div class="space-y-3">
@@ -84,6 +107,10 @@
         <div class="border-t border-slate-800"></div>
 
         {% include "_rerank_model.html" %}
+
+        <div class="border-t border-slate-800"></div>
+
+        {% include "_forecast_model.html" %}
 
         </div>
       </section>

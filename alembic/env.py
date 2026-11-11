@@ -12,9 +12,10 @@ from app.config import DATABASE_URL
 from app.database import Base
 
 config = context.config
-if config.config_file_name is not None:
-    # disable_existing_loggers=False: this runs embedded in the app process (app.database.init_db).
-    # The default True silently disabled every registered logger (app, uvicorn) after a migration.
+# Inside the app (app.database sets keep_app_logging) its own timestamped format stays (app/log_config.py);
+# alembic.ini's logging applies only to the `alembic` command line.
+if config.config_file_name is not None and not config.attributes.get("keep_app_logging"):
+    # disable_existing_loggers=False: the default True silently disabled every registered logger.
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Fall back to DATABASE_URL only if the caller set no URL. The plain CLI never does (alembic.ini

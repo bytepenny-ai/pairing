@@ -14,15 +14,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import ATTACHMENTS_DIR
 from app.database import get_db
 from app.models import User
-from app.schemas.chat import AttachmentPreviewOut
+from app.schemas.chat import AttachmentCheckOut, AttachmentPreviewOut
 from app.services import chat_attachment_service, conversation_service, reply_broadcast_service
 from app.services.auth_service import get_current_user
+from app.services.chat_attachment_check import AttachmentCheck
 from app.services.chat_attachment_preview import AttachmentPreviewer, get_accessible_attachment
 from app.services.chat_service import build_reply_stream
 from app.services.model_catalog_service import HiddenModelTags
 from app.services.usage_limits import UsageLimitService
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+@router.post("/attachments/check", response_model=AttachmentCheckOut)
+async def check_attachments(
+    files: list[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_user),
+) -> AttachmentCheckOut:
+    """Whether a model can read each picked file, before the message is sent (the chat composer calls it)."""
+    return AttachmentCheckOut(files=await AttachmentCheck(db).check_uploads(files))
 
 
 @router.post("/{conversation_id}/stream")
@@ -55,6 +66,9 @@ async def stream_reply(
 
     # Validated and written before streaming starts, so a bad batch gives a clean 400.
     attachments = [a for a in attachments if a.filename]
+    if ask_ai or conversation.channel_id is None:
+        # A file no model can read, or a /describe or /summarize without its file (chat_commands.py).
+        await AttachmentCheck(db).require_readable(content, attachments)
     attachment_infos = (
         await chat_attachment_service.save_attachments(attachments, conversation_id) if attachments else []
     )

@@ -93,6 +93,7 @@ async def pull_model(body: PullModelRequest, db: AsyncSession = Depends(get_db),
         or await ExtendedModelCatalog(db).find(body.tag)
         or model_catalog.CATALOG.find_embedding(body.tag)
         or model_catalog.CATALOG.find_rerank(body.tag)
+        or model_catalog.CATALOG.find_forecast(body.tag)
     )
     if entry is None or not entry.locally_runnable:
         detail = entry.unavailable_reason if entry else "Unknown model tag."

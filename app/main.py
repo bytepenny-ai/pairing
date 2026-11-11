@@ -33,6 +33,7 @@ from app.routers import (
     db_admin,
     documents,
     engine_admin,
+    forecast,
     health,
     http_proxy_admin,
     image_engine_admin,
@@ -66,6 +67,7 @@ from app.routers import (
     update_admin,
     usage_limits_admin,
     users,
+    vision_reply_admin,
     workflow_live,
     workflow_view_admin,
 )
@@ -166,6 +168,7 @@ app.include_router(image_model_admin.router)
 app.include_router(sdcpp_admin.router)
 app.include_router(proxy_admin.router)
 app.include_router(rerank_admin.router)
+app.include_router(forecast.router)
 app.include_router(http_proxy_admin.router)
 app.include_router(llamacpp_admin.router)
 app.include_router(matricxon_admin.router)
@@ -178,6 +181,7 @@ app.include_router(connectors.router)
 app.include_router(channel_history_admin.router)
 app.include_router(workflow_view_admin.router)
 app.include_router(context_window_admin.router)
+app.include_router(vision_reply_admin.router)
 app.include_router(reasoning_admin.router)
 app.include_router(mcp_admin.router)
 app.include_router(mcp_admin.enabled_router)

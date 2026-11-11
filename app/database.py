@@ -93,6 +93,7 @@ def _run_migrations(database_url: str = DATABASE_URL, lock: bool = True) -> None
     from app.config import BASE_DIR
 
     cfg = Config(str(BASE_DIR / "alembic.ini"))
+    cfg.attributes["keep_app_logging"] = True  # alembic/env.py: keep the timestamped app log format
     cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
     cfg.set_main_option("sqlalchemy.url", database_url)
 
@@ -122,6 +123,7 @@ def schema_is_current(database_url: str = DATABASE_URL) -> bool:
     from app.config import BASE_DIR
 
     cfg = Config(str(BASE_DIR / "alembic.ini"))
+    cfg.attributes["keep_app_logging"] = True  # alembic/env.py: keep the timestamped app log format
     cfg.set_main_option("script_location", str(BASE_DIR / "alembic"))
     head_revision = ScriptDirectory.from_config(cfg).get_current_head()
 

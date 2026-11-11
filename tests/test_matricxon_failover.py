@@ -130,3 +130,14 @@ async def test_reranking_fails_over_to_the_node_that_can_answer(monkeypatch, two
 
     assert await MatricxonRerankClient().rerank("q", ["d0"], "rr:latest") == [0.7]
     assert [u.split("/api")[0] for u in two_nodes] == [A, B]
+
+
+@pytest.mark.asyncio
+async def test_forecasting_fails_over_to_the_node_that_can_answer(monkeypatch, two_nodes) -> None:
+    from app.services.matricxon_forecast import MatricxonForecastClient
+
+    forecast = {"point": [1.0], "mean": [1.0], "quantiles": {"0.5": [1.0]}}
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **_kw: _NodeAOutOfMemory({"forecasts": [forecast]}, two_nodes))
+
+    assert await MatricxonForecastClient().forecast("tfm:latest", [[1.0, 2.0]], 1) == [forecast]
+    assert [u.split("/api")[0] for u in two_nodes] == [A, B]

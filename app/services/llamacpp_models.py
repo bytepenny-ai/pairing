@@ -19,6 +19,8 @@ from app.services.matricxon_direct_puller import MatricxonDirectPuller
 # Used only when no Matricxon checkout or override exists to share with.
 FALLBACK_MODELS_DIR = BASE_DIR / "models"
 
+# Time-series forecasters (Matricxon's /api/forecast); llama.cpp can't run them.
+FORECAST_ARCHITECTURES = frozenset({"timesfm25"})
 # Encoder architectures llama.cpp runs as embedding models even if a file lacks `<arch>.pooling_type`.
 _EMBEDDING_ARCHITECTURES = frozenset(
     {"bert", "nomic-bert", "nomic-bert-moe", "jina-bert-v2", "modern-bert", "neo-bert"}
@@ -69,6 +71,8 @@ class LlamaCppCapabilities:
             return []
         if meta.pooling_type == _RANK_POOLING:
             return ["rerank"]
+        if architecture in FORECAST_ARCHITECTURES:
+            return ["forecast"]  # runs on Matricxon only
         if meta.pooling_type or architecture in _EMBEDDING_ARCHITECTURES:
             return ["embedding"]
         capabilities = ["completion"]

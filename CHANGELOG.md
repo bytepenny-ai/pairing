@@ -3,6 +3,16 @@
 Notable changes in each pAIring release. Security fixes are marked **Security**. Full release notes and news:
 https://bytepenny.com/rss/
 
+## 2.1.3 (2026-11-11)
+
+- Every log line starts with the date and time (`data/logs/app.log` and each instance's log), in the same format as Matricxon; the start-up database migration no longer swaps in a format without one.
+- Admin settings > Models > Default models: "Replies to an image include": nothing (the default: just the message and the image), notes only, or notes and skills. Leaving them out makes image replies much faster on a CPU; text replies always include them.
+- Chat attachments: after attaching, the message box fills in `/describe` (an image), `/summarize` (documents) or both for a mix, so a file can be sent without typing; add your own words after the command if you like. Files a model can't read (no vision model, a scanned PDF, an empty or damaged file) are refused when picked, with the reason.
+- Admin settings > Models > Default models: a default forecasting model, preselected on the Forecast page.
+- The Forecast page reads messy files: dates (any common format), newest-first rows, gaps, thousands separators and decimal commas, quoted cells, report lines above the table and older Excel exports. It refuses Excel workbooks, PDFs and pictures with a plain reason, and shows "About this forecast": time step, the dates covered, direction, likely range and any repeating pattern.
+- Matricxon's wider CPU instructions setting is on by default for a new local Matricxon.
+- Forecast page (sidebar, every user): paste numbers or upload a CSV and get the next values with a chart of the likely range, a table and a CSV download. Runs Google's TimesFM 2.5 on Matricxon; admins install it under Admin settings > Models > Forecasting models. Big files are read in the browser with a progress bar and Cancel (never uploaded); long forecasts keep the connection alive with no time limit by default. Max file size and time limit are admin settings shared by every server of a ring. Needs the matching Matricxon.
+
 ## 2.1.2 (2026-11-08)
 
 - Memory pinning (Admin settings > Inference > Memory pinning): keep chosen models loaded on each Matricxon server. A square memory grid shows every server's RAM and GPU VRAM (a whole cluster at once), with moving dots for loads and unloads; pins are set per server or on every server that has the model, and chats prefer a server that has the model pinned (a chat still returns to the server holding its conversation, and busy servers still share the load). Each pin can choose RAM, GPU VRAM or auto. Uninstalling a model in a cluster removes its pin and unloads it on every node, and names any node that could not be cleaned. Needs the matching Matricxon.

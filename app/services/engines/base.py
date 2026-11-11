@@ -57,6 +57,8 @@ class EngineCapabilities:
     vision: bool = False
     # Whether rerank scores documents (Knowledge base reranking); False skips that step.
     rerank: bool = False
+    # Whether forecast runs time-series models (the Forecast page); Matricxon only.
+    forecast: bool = False
 
 
 class InferenceEngine(ABC):
@@ -92,6 +94,12 @@ class InferenceEngine(ABC):
     async def rerank(self, query: str, documents: list[str], model: str) -> list[float]:
         """Relevance of each document to `query`, in input order."""
         raise EngineCapabilityError(f"{self.display_name} does not support reranking.")
+
+    async def forecast(
+        self, model: str, series: list[list[float]], horizon: int, timeout_seconds: float | None = None
+    ) -> list[dict]:
+        """One forecast per series: {"point", "mean", "quantiles"} (Matricxon's /api/forecast). None: no limit."""
+        raise EngineCapabilityError(f"{self.display_name} does not support forecasting.")
 
     async def stop_model(  # noqa: B027 - deliberate no-op default, not abstract
         self, model: str, request_id: str | None = None

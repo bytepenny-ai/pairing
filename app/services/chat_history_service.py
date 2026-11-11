@@ -5,6 +5,7 @@
 import itertools
 
 from app.models import Message
+from app.services.chat_commands import ChatCommand
 
 # Rough characters per token for English. The engine offers no cheap client-side tokenizer, so this only
 # sizes history locally; the engine still enforces num_ctx.
@@ -76,9 +77,11 @@ def _merge_consecutive_same_role(messages: list[Message]) -> list[dict]:
     merged: list[dict] = []
     for role, group in itertools.groupby(messages, key=lambda m: m.role):
         group = list(group)
+        # A user's /describe or /summarize becomes its full instruction (chat_commands.py); the chat shows the command.
+        text = (lambda m: ChatCommand.expand(m.content)) if role == "user" else (lambda m: m.content)
         if len(group) == 1:
-            merged.append({"role": role, "content": group[0].content})
+            merged.append({"role": role, "content": text(group[0])})
             continue
-        lines = [f"{m.sender_display_name}: {m.content}" if m.sender_display_name else m.content for m in group]
+        lines = [f"{m.sender_display_name}: {text(m)}" if m.sender_display_name else text(m) for m in group]
         merged.append({"role": role, "content": "\n".join(lines)})
     return merged

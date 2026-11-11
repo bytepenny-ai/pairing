@@ -2279,7 +2279,7 @@ function collectServerConfig(server, section) {
       torch_threads: isRemote ? kept("torch_threads") : intFieldOrNull(section, "torch_threads"),
       device: isRemote ? kept("device", "cpu") : matricxonDeviceValue(section),
       gpu_weight_mode: isRemote ? kept("gpu_weight_mode", "dequantized") : section.querySelector('[data-field="gpu_weight_mode"]').value,
-      wide_simd: isRemote ? kept("wide_simd", false) : section.querySelector('[data-field="wide_simd"]').checked,
+      wide_simd: isRemote ? kept("wide_simd", true) : section.querySelector('[data-field="wide_simd"]').checked,
       gpu_fused_kernels: isRemote
         ? kept("gpu_fused_kernels", false)
         : section.querySelector('[data-field="gpu_fused_kernels"]').checked,
@@ -2416,7 +2416,7 @@ async function loadServerSection(server) {
     const device = config.device ?? "cpu";
     section.querySelector('[data-field="device"]').value = device.startsWith("cuda") ? "cuda" : device === "mps" ? "mps" : "cpu";
     section.querySelector('[data-field="gpu_weight_mode"]').value = config.gpu_weight_mode ?? "dequantized";
-    section.querySelector('[data-field="wide_simd"]').checked = config.wide_simd ?? false;
+    section.querySelector('[data-field="wide_simd"]').checked = config.wide_simd ?? true;
     section.querySelector('[data-field="gpu_fused_kernels"]').checked = config.gpu_fused_kernels ?? false;
     syncMatricxonKernelSelect(section);
   } else if (server === "sdcpp") {

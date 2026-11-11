@@ -16,6 +16,7 @@ from app.services.inference_client import list_models
 _VISION_KEY = "default_vision_model"
 _EMBEDDING_KEY = "default_embedding_model"
 _RERANK_KEY = "default_rerank_model"
+_FORECAST_KEY = "default_forecast_model"
 
 
 class DefaultModelSettings:
@@ -104,6 +105,18 @@ class DefaultModelSettings:
 
     async def installed_rerankers(self) -> list[str]:
         return await self._installed_with_capability("rerank")
+
+    async def installed_forecasters(self) -> list[str]:
+        return await self._installed_with_capability("forecast")
+
+    async def forecast(self, installed: list[str] | None = None) -> str | None:
+        """The Forecast page's preselected model: the configured one, else the first installed forecaster."""
+        if installed is None:
+            installed = await self.installed_forecasters()
+        return self._configured_or_first(await self._get(_FORECAST_KEY), installed)
+
+    async def set_forecast(self, model: str) -> None:
+        await self._set(_FORECAST_KEY, model)
 
     async def rerank_enabled(self) -> bool:
         row = await self._db.get(AppSetting, (SYSTEM_OWNER_ID, _RERANK_KEY))

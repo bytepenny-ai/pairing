@@ -21,6 +21,7 @@ from app.services import (
     title_service,
 )
 from app.services.chat_attachment_service import AttachmentInfo
+from app.services.chat_commands import ChatCommand
 from app.services.live_workflow_bus import live_workflow
 from app.services.reasoning_setting import reasoning_setting
 
@@ -84,7 +85,9 @@ async def build_reply_stream(
     db.add(user_message)
 
     if title_mode == "simple":
-        title_service.maybe_set_title(conversation, content)
+        title_service.maybe_set_title(
+            conversation, ChatCommand.title_text(content, [(a.filename, a.type) for a in attachments])
+        )
 
     await db.commit()
 
@@ -122,7 +125,7 @@ async def build_reply_stream(
     # Notes/RAG/attachment layering: see chat_prompt_service.build_system_prompt. Excerpts and files get only the room
     # the history leaves; whatever was cut is reported to the sender as a "notice" event.
     system_prompt, turn_context, source_filenames, notices = await chat_prompt_service.build_system_prompt(
-        db, conversation, user, content, params, attachments, history, reserved_tokens
+        db, conversation, user, ChatCommand.expand(content), params, attachments, history, reserved_tokens
     )
     for notice in notices:
         yield {"notice": notice}
@@ -170,4 +173,6 @@ async def build_reply_stream(
         if is_personal and event.get("done") and title_mode == "smart":
             # Scheduled as a detached task (title_service.schedule_smart_title_generation), not awaited: chat.js stops
             # reading after "done" and ASGI then cancels this generator, so an await would silently drop the title.
-            title_service.schedule_smart_title_generation(conversation.id, content)
+            title_service.schedule_smart_title_generation(
+                conversation.id, ChatCommand.title_text(content, [(a.filename, a.type) for a in attachments])
+            )

@@ -1,0 +1,19 @@
+<!-- Admin settings > Models > Default models: the model the Forecast page starts with. Wired by app/static/js/settings_forecast_default.js to /api/settings/forecast-model (app/routers/forecast.py). -->
+<div class="space-y-3" id="forecast-default-panel">
+  <h3 class="text-xs font-semibold uppercase tracking-wide text-brand-500">Default forecasting model</h3>
+  <p class="text-xs text-slate-500 -mt-2">
+    Preselected on the Forecast page for every user; each user can still pick another installed one there.
+  </p>
+  <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-2">
+    <select id="forecast-default-model" title="The forecasting model the Forecast page starts with."
+      class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500"></select>
+    <p id="forecast-default-model-note" class="hidden text-xs text-warning-400"></p>
+  </div>
+  <div class="flex items-center gap-3">
+    <button id="forecast-default-model-save-btn" type="button"
+      class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-40 transition-colors">
+      Save
+    </button>
+    <span id="forecast-default-model-status" class="text-xs text-slate-500"></span>
+  </div>
+</div>

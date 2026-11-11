@@ -48,9 +48,9 @@ class MatricxonServerConfig(BaseModel):
     # Local mode only: MATRICXON_GEMV_BACKEND: "native" (default; C integer kernels compiled with gcc on first
     # start, falls back to numba) or "numba". Needs enable_quantized_native_compute.
     gemv_backend: Literal["numba", "native"] = "native"
-    # Local mode only: MATRICXON_WIDE_SIMD (EXPERIMENTAL): wider integer instructions in the native kernels where
-    # the CPU has them (AVX2, VNNI, ARM NEON dot product); off by default until tested on such hardware.
-    wide_simd: bool = False
+    # Local mode only: MATRICXON_WIDE_SIMD: wider integer instructions in the native kernels where the CPU has
+    # them (AVX2, VNNI, ARM NEON dot product). On for a fresh install; a saved value is kept.
+    wide_simd: bool = True
     # Local mode only, GPU "packed" weights: MATRICXON_GPU_FUSED_KERNELS (EXPERIMENTAL): fused Triton kernels for
     # Q8_0/Q4_K at decode instead of dequantizing on every call; off by default until run on a real GPU.
     gpu_fused_kernels: bool = False

@@ -272,6 +272,10 @@ Setup, limits and privacy notes for each: [pAIring connectors](https://bytepenny
 - Install it with one click from **Settings → Inference → Engine → Image Engine** (picks a Vulkan GPU or CPU build), build the newest version from source on Linux (needs `git`, `cmake` and a C++ compiler; takes a while on an old CPU; the source stays in `external/stable-diffusion.cpp/src`, so rebuilds only recompile what changed), or point it at remote sd-server hosts.
 - Diffusion models (SD-Turbo built in, more from Hugging Face) are managed under **Settings → Models → Diffusion models**.
 
+**Forecasting**
+- The **Forecast** page (every user) predicts the next values of a series of numbers — sales, visits, sensor readings — with a chart of the likely range and a CSV download. Paste numbers or open a CSV and pick the column. Files are read in the browser with a progress bar, never uploaded, so even multi-GB files work; only the latest 16,384 values are sent.
+- Runs Google's TimesFM 2.5 on Matricxon (not llama.cpp), up to 128 steps ahead; install it under **Admin settings → Models → Forecasting models**, where the max file size and the time limit per forecast (none by default) are set for every server of a ring.
+
 **Nothing exotic to run**
 - Plain HTML/CSS/JS + Tailwind's browser build — no Node, no build
   step, no extra services beyond the app itself.

@@ -8,8 +8,13 @@ from pathlib import Path
 import setproctitle
 import uvicorn
 
-from app.config import APP_HOST, APP_PORT, INSTANCE_INDEX
-from app.pid_file import PidFile
+from app.log_config import LogConfig
+
+# Before app.config is imported: it logs its first warnings at import time, and those need the timestamped format too.
+LogConfig.apply()
+
+from app.config import APP_HOST, APP_PORT, INSTANCE_INDEX  # noqa: E402
+from app.pid_file import PidFile  # noqa: E402
 
 if __name__ == "__main__":
     # Every launch path (scripts/start.sh, the Dockerfile, the systemd unit from scripts/install_on_fresh_server.sh)
@@ -27,7 +32,7 @@ if __name__ == "__main__":
     if INSTANCE_INDEX == 0:
         pid_file.write()
     try:
-        uvicorn.run("app.main:app", host=APP_HOST, port=APP_PORT, reload=False)
+        uvicorn.run("app.main:app", host=APP_HOST, port=APP_PORT, reload=False, log_config=LogConfig.as_dict())
     finally:
         if INSTANCE_INDEX == 0:
             pid_file.remove()

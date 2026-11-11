@@ -46,7 +46,7 @@ IS_PRIMARY = INSTANCE_INDEX == 0
 SERVER_ID = os.environ.get("PAIRING_SERVER_ID") or f"{socket.gethostname()}:{APP_PORT}"
 
 # This build's version (a constant); shown in Settings > System and near the logo.
-APP_VERSION = "2.1.2"  # the one place: login form, chat sidebar and Admin settings > System read it
+APP_VERSION = "2.1.3"  # the one place: login form, chat sidebar and Admin settings > System read it
 
 # The display name (a constant): single source for UI/API occurrences of "pAIring". Templates read it
 # via `templates.env.globals["app_name"]`, plain JS via base.html's `window.APP_NAME`.

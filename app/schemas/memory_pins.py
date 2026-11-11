@@ -32,7 +32,7 @@ class PinInstalled(BaseModel):
     tag: str
     bytes: int  # the file
     ram_bytes: int = 0  # Matricxon's estimate of the memory it needs loaded (0: unknown)
-    kind: Literal["chat", "embedding", "rerank"] = "chat"  # only chat models take a model slot
+    kind: Literal["chat", "embedding", "rerank", "forecast"] = "chat"  # only chat models take a model slot
     capabilities: list[str] = []  # e.g. vision, tools, thinking
     family: str = ""
     context_length: int = 0
@@ -44,13 +44,14 @@ class PinInstalled(BaseModel):
         if not caps:
             return None
         details = entry.get("details") or {}
-        kind = "embedding" if "embedding" in caps else "rerank" if "rerank" in caps else "chat"
+        helper_kinds = ("embedding", "rerank", "forecast")
+        kind = next((k for k in helper_kinds if k in caps), "chat")
         return cls(
             tag=entry["name"],
             bytes=int(entry.get("size", 0)),
             ram_bytes=int(float(entry.get("estimated_ram_gb") or 0) * (1 << 30)),
             kind=kind,
-            capabilities=[c for c in caps if c not in ("completion", "embedding", "rerank")],
+            capabilities=[c for c in caps if c not in ("completion", *helper_kinds)],
             family=str(details.get("family") or ""),
             context_length=int(details.get("context_length") or 0),
         )

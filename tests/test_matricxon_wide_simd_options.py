@@ -1,5 +1,5 @@
-"""Inference > Engine > Matricxon: the experimental "wider CPU instructions" and "fused GPU kernels"
-options reach a local Matricxon's environment and .env, and need a restart."""
+"""Inference > Engine > Matricxon: the "wider CPU instructions" (on by default) and experimental "fused GPU
+kernels" options reach a local Matricxon's environment and .env, and need a restart."""
 
 from app.schemas import MatricxonServerConfig
 from app.services import matricxon_process
@@ -7,11 +7,11 @@ from app.services.matricxon_live_settings import MatricxonSettingsPlan
 from tests.test_matricxon_process import _make_checkout
 
 
-def test_both_are_off_by_default_and_passed_when_on():
+def test_wide_simd_is_on_and_fused_kernels_off_by_default_and_both_are_passed():
     env = matricxon_process._build_env(MatricxonServerConfig())
-    assert env["MATRICXON_WIDE_SIMD"] == "false" and env["MATRICXON_GPU_FUSED_KERNELS"] == "false"
-    env = matricxon_process._build_env(MatricxonServerConfig(wide_simd=True, gpu_fused_kernels=True))
-    assert env["MATRICXON_WIDE_SIMD"] == "true" and env["MATRICXON_GPU_FUSED_KERNELS"] == "true"
+    assert env["MATRICXON_WIDE_SIMD"] == "true" and env["MATRICXON_GPU_FUSED_KERNELS"] == "false"
+    env = matricxon_process._build_env(MatricxonServerConfig(wide_simd=False, gpu_fused_kernels=True))
+    assert env["MATRICXON_WIDE_SIMD"] == "false" and env["MATRICXON_GPU_FUSED_KERNELS"] == "true"
 
 
 def test_they_are_written_to_the_checkouts_env_file(tmp_path):
@@ -25,7 +25,7 @@ def test_they_are_written_to_the_checkouts_env_file(tmp_path):
 
 def test_changing_them_asks_for_a_restart():
     old = MatricxonServerConfig()
-    plan = MatricxonSettingsPlan(old, old.model_copy(update={"wide_simd": True, "gpu_fused_kernels": True}))
+    plan = MatricxonSettingsPlan(old, old.model_copy(update={"wide_simd": False, "gpu_fused_kernels": True}))
     assert plan.restart_required
     assert plan.restart_labels == ["Wider CPU instructions", "Fused GPU kernels"]
     assert plan.live_payload() == {}

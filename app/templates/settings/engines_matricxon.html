@@ -165,7 +165,7 @@
                       <option value="numba">Numba (slower, no compiler needed)</option>
                     </select>
                     <span class="h-5 w-px shrink-0 bg-slate-700"></span>
-                    <label for="matricxon-wide-simd" class="flex shrink-0 items-center gap-2 text-sm text-slate-300 cursor-pointer has-[:disabled]:opacity-40 has-[:disabled]:cursor-not-allowed" title="EXPERIMENTAL, not yet tested on such hardware: lets the native C kernels use wider integer instructions where this CPU has them (AVX2, AVX-VNNI / AVX-512 VNNI on x86, the dot-product instructions on ARM such as Apple Silicon). The results are the same; the speed should be higher on those CPUs. Older CPUs without them are unaffected. Needs a Matricxon restart (it rebuilds the kernels).">
+                    <label for="matricxon-wide-simd" class="flex shrink-0 items-center gap-2 text-sm text-slate-300 cursor-pointer has-[:disabled]:opacity-40 has-[:disabled]:cursor-not-allowed" title="On by default: lets the native C kernels use wider integer instructions where this CPU has them (AVX2, AVX-VNNI / AVX-512 VNNI on x86, the dot-product instructions on ARM such as Apple Silicon). The results are the same (checked in emulation); the speed should be higher on those CPUs. Older CPUs without them are unaffected. Needs a Matricxon restart (it rebuilds the kernels).">
                       <input data-field="wide_simd" type="checkbox" id="matricxon-wide-simd"
                         class="rounded border-slate-700 bg-slate-950 text-brand-600 focus:ring-brand-500">
                       Wide SIMD

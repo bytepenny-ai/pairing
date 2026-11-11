@@ -17,6 +17,7 @@ const askAiBtn = document.getElementById("ask-ai-btn");
 const attachBtn = document.getElementById("attach-btn");
 const attachmentInput = document.getElementById("attachment-input");
 const attachmentPreviewEl = document.getElementById("attachment-preview");
+const attachmentNoticeEl = document.getElementById("attachment-notice");
 
 // Emoji picker (chat.html: #emoji-btn/#emoji-picker): 50 common, simple, kid-friendly emoji (faces, gestures, hearts),
 // 8 per row in display order.
@@ -113,11 +114,15 @@ function clearPendingAttachment() {
   attachmentInput.value = "";
   attachmentPreviewEl.replaceChildren();
   attachmentPreviewEl.classList.add("hidden");
+  AttachmentCommands.reset();
+  AttachmentCommands.showNotice(attachmentNoticeEl, [], [], chatInput);
 }
 
 function removePendingAttachment(file) {
   pendingAttachments = pendingAttachments.filter((f) => f !== file);
   renderAttachmentPreview();
+  AttachmentCommands.prefill(chatInput, pendingAttachments); // drops the command if no file is left for it
+  AttachmentCommands.showNotice(attachmentNoticeEl, [], pendingAttachments, chatInput);
 }
 
 /* Rebuilds the pre-send preview chips from `pendingAttachments`, each with an "×" to drop that file. */
@@ -142,12 +147,15 @@ function renderAttachmentPreview() {
 }
 
 attachBtn.addEventListener("click", () => attachmentInput.click());
-attachmentInput.addEventListener("change", () => {
-  // Merged with earlier picks: <input multiple> reports only this dialog's selection, so replacing the list would drop
-  // files attached one at a time.
-  const picked = [...pendingAttachments, ...Array.from(attachmentInput.files || [])];
+attachmentInput.addEventListener("change", async () => {
+  // Only the new picks are checked (earlier ones passed already); a file no model can read is dropped with its reason.
+  const fresh = Array.from(attachmentInput.files || []);
   // Cleared so the input can be reused; pendingAttachments is the source of truth for what is queued.
   attachmentInput.value = "";
+  const { accepted, rejected } = await AttachmentCommands.check(fresh);
+  // Merged with earlier picks: <input multiple> reports only this dialog's selection, so replacing the list would drop
+  // files attached one at a time.
+  const picked = [...pendingAttachments, ...accepted];
   const images = picked.filter((f) => f.type.startsWith("image/"));
   const documents = picked.filter((f) => !f.type.startsWith("image/"));
   if (images.length > MAX_ATTACHMENT_IMAGES || documents.length > MAX_ATTACHMENT_DOCUMENTS) {
@@ -155,6 +163,8 @@ attachmentInput.addEventListener("change", () => {
   }
   pendingAttachments = [...images.slice(0, MAX_ATTACHMENT_IMAGES), ...documents.slice(0, MAX_ATTACHMENT_DOCUMENTS)];
   renderAttachmentPreview();
+  AttachmentCommands.prefill(chatInput, pendingAttachments);
+  AttachmentCommands.showNotice(attachmentNoticeEl, rejected, pendingAttachments, chatInput);
 });
 
 // Whether the user is an admin (data attribute on <body>, see base.html and settings.js). With a channel's is_manager

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Forecast — {{ app_name }}{% endblock %}
+{% block body %}
+<div class="flex h-full flex-col">
+  <header class="flex items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
+    <div class="flex items-center gap-3">
+      <a href="/" class="rounded-lg p-1.5 hover:bg-slate-800 transition-colors" title="Back to chat">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </a>
+      <h1 class="text-sm font-semibold">Forecast</h1>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-xs text-slate-500">{{ username }}</span>
+      <form method="post" action="/logout" class="flex items-center">
+        <button type="submit" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Log out</button>
+      </form>
+      <!-- Opens the slide-in account panel (app/static/js/account_panel.js, _account_panel.html). -->
+      <button id="account-panel-badge" type="button"
+        class="h-7 w-7 shrink-0 rounded-full overflow-hidden bg-slate-800 text-xs font-medium text-slate-300 hover:opacity-80 transition-opacity"
+        title="{{ username }}"></button>
+    </div>
+  </header>
+
+  <div class="flex-1 overflow-y-auto">
+    <div class="mx-auto max-w-5xl px-4 py-8 space-y-6">
+      <!-- Time-series forecasting with a model like TimesFM (forecast.js, forecast_input.js, forecast_chart.js; routers/forecast.py). Numbers stay in this browser until Forecast is pressed. -->
+      <div>
+        <h2 class="text-sm font-semibold text-slate-200">Forecast a series</h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Paste numbers or upload a CSV (sales, visits, sensor readings — oldest first), and the model predicts the
+          next values with a likely range. Works best with at least a few dozen evenly spaced values.
+        </p>
+      </div>
+
+      <section class="space-y-3 rounded-lg bg-slate-900 border border-slate-800 px-4 py-4">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label for="forecast-input" class="text-xs font-medium text-slate-400">Your data</label>
+            <button id="forecast-example" type="button" class="text-xs text-brand-400 hover:text-brand-300">Try an example</button>
+          </div>
+          <textarea id="forecast-input" rows="8" spellcheck="false"
+            placeholder="One number per line, or a CSV table with a header row&#10;e.g.&#10;month,sales&#10;2025-01,210&#10;2025-02,225"
+            class="w-full resize-y rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 font-mono text-xs focus:outline-none focus:border-brand-500"></textarea>
+          <!-- A big file is read in the browser in chunks (forecast_file_reader.js) and shown here instead of in the text box. -->
+          <div id="forecast-file-chip" class="hidden flex items-center justify-between gap-3 rounded-md border border-slate-700 bg-slate-950 px-3 py-2">
+            <span id="forecast-file-name" class="min-w-0 truncate text-xs text-slate-200"></span>
+            <button id="forecast-file-clear" type="button" class="shrink-0 text-xs text-slate-400 hover:text-slate-200">Type or paste instead</button>
+          </div>
+          <div class="mt-1 flex flex-wrap items-center justify-between gap-2">
+            <span id="forecast-input-summary" class="text-xs text-slate-500">No numbers yet</span>
+            <div class="flex items-center gap-2">
+              <span id="forecast-file-limit" class="text-[11px] text-slate-500"></span>
+              <input id="forecast-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain"
+                title="Read in your browser, never uploaded: only the latest values are sent with the forecast."
+                class="block text-xs text-slate-400 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-brand-600 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white hover:file:bg-brand-500 file:transition-colors">
+            </div>
+          </div>
+        </div>
+        <!-- What reading the data found or fixed: gaps, order, dates, decimal commas (forecast_series.js). -->
+        <ul id="forecast-input-notes" class="-mt-1 space-y-0.5 text-xs"></ul>
+        <div id="forecast-column-row" class="hidden">
+          <label for="forecast-column" class="block text-xs font-medium text-slate-400 mb-1">Column to forecast</label>
+          <select id="forecast-column" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500"></select>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_8rem] gap-3">
+          <div>
+            <label for="forecast-model" class="block text-xs font-medium text-slate-400 mb-1">Model</label>
+            <select id="forecast-model" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500"></select>
+          </div>
+          <div title="How many next values to predict (up to 128).">
+            <label for="forecast-horizon" class="block text-xs font-medium text-slate-400 mb-1">Steps ahead</label>
+            <input id="forecast-horizon" type="number" value="12" min="1" max="128" step="1" class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="forecast-run" type="button" disabled
+            class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Forecast</button>
+          <p id="forecast-status" role="status" class="hidden text-xs text-slate-500"></p>
+        </div>
+        <!-- Reading a file (percent) or waiting for the model (timer); Cancel stops either (forecast_progress.js). -->
+        <div id="forecast-progress" class="hidden space-y-1.5" role="progressbar" aria-live="polite">
+          <div class="flex items-center justify-between gap-3 text-xs">
+            <span data-progress-label class="min-w-0 truncate text-slate-300"></span>
+            <span class="flex shrink-0 items-center gap-3">
+              <span data-progress-detail class="font-mono text-slate-500"></span>
+              <button data-progress-cancel type="button" class="text-slate-400 hover:text-red-400">Cancel</button>
+            </span>
+          </div>
+          <style>
+            .forecast-indeterminate { width: 30% !important; animation: forecast-slide 1.4s ease-in-out infinite; }
+            @keyframes forecast-slide { from { margin-left: -30%; } to { margin-left: 100%; } }
+            @media (prefers-reduced-motion: reduce) { .forecast-indeterminate { animation: none; margin-left: 35%; } }
+          </style>
+          <div class="h-1.5 overflow-hidden rounded-full bg-slate-800">
+            <div data-progress-bar class="h-full rounded-full bg-brand-500 transition-[width] duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Result: chart and table, with "About this forecast" on the right on wide screens (forecast_insights.js). -->
+      <div id="forecast-result" class="hidden grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_18rem] gap-4 items-start">
+        <section class="space-y-3 rounded-lg bg-slate-900 border border-slate-800 px-4 py-4 min-w-0">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-sm font-semibold text-slate-200">Forecast</h2>
+            <button id="forecast-download" type="button"
+              class="rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 transition-colors">Download CSV</button>
+          </div>
+          <svg id="forecast-chart" class="w-full h-auto" role="img" aria-label="Past values and forecast"></svg>
+          <p class="text-xs text-slate-500">
+            Gray: your data. Line: the most likely value. Shading: the range the real value should fall in
+            8 times out of 10 (darker: 4 times out of 10).
+          </p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="text-slate-500">
+                <tr><th data-step-head class="py-1 pr-4 font-medium">Step</th><th class="py-1 pr-4 font-medium">Low (10%)</th>
+                  <th class="py-1 pr-4 font-medium">Most likely</th><th class="py-1 font-medium">High (90%)</th></tr>
+              </thead>
+              <tbody id="forecast-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+        <aside id="forecast-insights" class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-4">
+          <h2 class="text-sm font-semibold text-slate-200 mb-2">About this forecast</h2>
+          <dl data-insights-list></dl>
+          <div class="hidden mt-3 border-t border-slate-800 pt-3">
+            <h3 class="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Notes on the data</h3>
+            <ul data-insights-notes class="space-y-1 text-xs"></ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</div>
+{% include "_account_panel.html" %}
+
+<script src="/static/vendor/d3/d3.min.js"></script>
+<script src="/static/js/app.js?v={{ static_version }}"></script>
+<script src="/static/js/theme.js?v={{ static_version }}"></script>
+<script src="/static/js/account_panel.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_dates.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_cells.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_series.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_input.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_file_reader.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_progress.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_result.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_chart.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast_insights.js?v={{ static_version }}"></script>
+<script src="/static/js/forecast.js?v={{ static_version }}"></script>
+{% endblock %}

@@ -114,6 +114,29 @@
         <div id="rerank-model-catalog" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
       </section>
 
+      <!-- Forecasting models: time-series models for the Forecast page (Matricxon only). Wired by app/static/js/settings_forecast_models.js. -->
+      <section id="forecast-models-section" class="space-y-3 border-t border-slate-800 pt-6{% if remote_models %} hidden{% endif %}">
+        <h2 class="text-sm font-semibold text-slate-200">Forecasting models</h2>
+        <p class="text-xs text-slate-500 -mt-2">Predict the next values of a series of numbers on the Forecast page, open to every user — not used for chat.</p>
+        <p id="forecast-model-catalog-note" class="hidden text-xs text-warning-400"></p>
+        <div id="forecast-model-catalog" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+        <!-- Ring-wide limits (stored in the database; settings_forecast_limits.js). -->
+        <form id="forecast-limits-form" class="rounded-lg border border-slate-800 bg-slate-900 px-3 py-3 grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-end gap-3">
+          <div title="The largest file a user can open on the Forecast page. It is read in the user's browser, never uploaded.">
+            <label for="forecast-max-file-mb" class="block text-xs font-medium text-slate-400 mb-1">Max file size (MB)</label>
+            <input id="forecast-max-file-mb" type="number" min="1" max="1048576" step="1" required class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+          </div>
+          <div title="How long one forecast may run before it is stopped. 0 = no limit.">
+            <label for="forecast-time-limit" class="block text-xs font-medium text-slate-400 mb-1">Time limit (seconds, 0 = none)</label>
+            <input id="forecast-time-limit" type="number" min="0" max="86400" step="1" required class="w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+          </div>
+          <div class="flex items-center gap-2">
+            <button type="submit" class="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-500 transition-colors">Save</button>
+            <span id="forecast-limits-status" class="text-xs text-slate-500"></span>
+          </div>
+        </form>
+      </section>
+
       <!-- Diffusion models: image models for the Images page, the same list for either chat engine. They install into the stable-diffusion.cpp models folder, never llama.cpp/Matricxon (app/services/image_model_service.py). Image repos found via "Browse more models" land here. Wired by app/static/js/settings_diffusion_models.js. -->
       <section id="diffusion-models-section" class="space-y-3 border-t border-slate-800 pt-6{% if remote_models %} hidden{% endif %}">
         <h2 class="text-sm font-semibold text-slate-200">Diffusion models</h2>

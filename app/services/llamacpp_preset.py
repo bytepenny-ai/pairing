@@ -23,7 +23,8 @@ class LlamaCppPreset:
     def render(self) -> str:
         lines = ["version = 1", "", "[*]", f"ctx-size = {self._num_ctx * self._slots}", ""]
         for model, projector, capabilities in self._entries:
-            if model.is_projector or not capabilities:
+            # llama.cpp can't load a forecaster (Matricxon only).
+            if model.is_projector or not capabilities or "forecast" in capabilities:
                 continue
             lines += [f"[{LlamaCppModelName.to_router(model.tag)}]", f"model = {model.path}"]
             if "embedding" in capabilities:

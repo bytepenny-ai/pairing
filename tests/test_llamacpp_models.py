@@ -100,3 +100,12 @@ def test_a_thinking_switch_before_the_reply_prompt_means_a_live_chat_is_read_aga
 
     assert "thinking" in gemma and "thinking_rereads" in gemma
     assert "thinking" in qwen and "thinking_rereads" not in qwen
+
+
+def test_a_forecaster_is_never_a_chat_model_and_stays_out_of_the_preset(tmp_path):
+    install_model(tmp_path, _CHAT, {"general.architecture": "timesfm25"})
+    entries = LlamaCppCatalog(GgufModelStore(tmp_path)).entries()
+
+    assert [capabilities for _m, _p, capabilities in entries] == [["forecast"]]
+    assert "timesfm" not in LlamaCppPreset(entries, num_ctx=4096, slots=1).render()
+    assert "chat-Q4_K_M" not in LlamaCppPreset(entries, num_ctx=4096, slots=1).render()

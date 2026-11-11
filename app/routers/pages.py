@@ -99,6 +99,15 @@ async def connectors_page(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse(request, "connectors.html", await _profile_context(db, user))
 
 
+@router.get("/forecast", response_class=HTMLResponse)
+async def forecast_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """The Forecast screen: paste or upload numbers, forecast them with a time-series model (routers/forecast.py)."""
+    auth = await PageAuth(request, db).resolve()
+    if isinstance(user := auth.require_login(), RedirectResponse):
+        return user
+    return templates.TemplateResponse(request, "forecast.html", await _profile_context(db, user))
+
+
 @router.get("/images", response_class=HTMLResponse)
 async def image_generation_page(request: Request, db: AsyncSession = Depends(get_db)):
     """The Image generation screen: prompt, active image engine, past generations
