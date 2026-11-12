@@ -18,7 +18,10 @@ class ChatCommand:
         "describe": Command(
             "describe",
             "image",
-            "Describe the attached image in detail: what it shows, any text in it, and anything notable.",
+            # Short on purpose: on a CPU each word of a reply costs about half a second to write, and the chat's own
+            # model reads the whole description again before the next message (chat_model_warmup.py). Details it
+            # leaves out are fetched later from the image itself (Files in a chat > image follow-ups).
+            "Describe the attached image in 3 to 4 sentences: what it shows, any text in it, and anything notable.",
             "Describe",
         ),
         "summarize": Command(

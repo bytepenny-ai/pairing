@@ -5,6 +5,8 @@ class ChatFileMemorySetting {
   constructor(root) {
     this.percent = root.querySelector("#chat-file-whole-percent");
     this.imageFollowUp = root.querySelector("#chat-file-image-follow-up");
+    this.related = root.querySelector("#chat-file-image-related");
+    this.unrelated = root.querySelector("#chat-file-image-unrelated");
     this.status = root.querySelector("#chat-file-memory-status");
     root.querySelector("#chat-file-memory-save-btn").addEventListener("click", () => this.save());
     this.load();
@@ -13,6 +15,8 @@ class ChatFileMemorySetting {
   show(setting) {
     this.percent.value = setting.whole_file_percent;
     this.imageFollowUp.value = setting.image_follow_up;
+    this.related.value = setting.related_above;
+    this.unrelated.value = setting.unrelated_below;
   }
 
   async load() {
@@ -25,7 +29,12 @@ class ChatFileMemorySetting {
 
   async save() {
     this.status.textContent = "Saving…";
-    const body = { whole_file_percent: Number(this.percent.value), image_follow_up: this.imageFollowUp.value };
+    const body = {
+      whole_file_percent: Number(this.percent.value),
+      image_follow_up: this.imageFollowUp.value,
+      related_above: Number(this.related.value),
+      unrelated_below: Number(this.unrelated.value),
+    };
     try {
       this.show(await api(ChatFileMemorySetting.URL, { method: "PUT", body: JSON.stringify(body) }));
       this.status.textContent = "Saved";

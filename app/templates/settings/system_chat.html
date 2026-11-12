@@ -181,9 +181,27 @@
               <option value="fallback">Description first, image if needed</option>
             </select>
             <span class="mt-1 block text-xs text-slate-500">"Show the image again" reads the image for each such
-              question: slower on a CPU. "Description first" lets the chat's model answer from the earlier reply and
+              question (not for short replies like "OK" or "thanks"): slower on a CPU. "Description first" lets the chat's model answer from the earlier reply and
               hands over to the vision model only when the description doesn't say; then that answer takes longer.</span>
           </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-xs text-slate-400">Related from (0 to 1)</span>
+              <input type="number" id="chat-file-image-related" min="0" max="1" step="0.01"
+                class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+            </label>
+            <label class="block">
+              <span class="text-xs text-slate-400">Unrelated below (0 to 1)</span>
+              <input type="number" id="chat-file-image-unrelated" min="0" max="1" step="0.01"
+                class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+            </label>
+          </div>
+          <p class="text-xs text-slate-500">With a default embedding model, each question is compared in meaning with
+            the earlier image's description and with the best-matching part of each long file (0 unrelated, 1 the
+            same). An image is used from the first mark, never below the second; in between, when the question is
+            within three messages of it or mentions a picture. A long file's matching parts are given unless the
+            question is below the second mark. Short replies like "OK" get neither. The marks suit all-MiniLM-L6-v2;
+            another embedding model may need others.</p>
         </div>
         <div class="flex items-center gap-3">
           <button id="chat-file-memory-save-btn" type="button"

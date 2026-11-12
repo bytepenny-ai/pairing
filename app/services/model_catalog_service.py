@@ -21,7 +21,7 @@ from app.services.default_model_settings import DefaultModelSettings
 from app.services.engine_support_checker import GGUF_RAM_ESTIMATE_MULTIPLIER, EngineSupportSet
 from app.services.engines.registry import registry
 from app.services.extended_model_catalog_enrichment import HuggingFaceModelProbe
-from app.services.inference_client import list_models
+from app.services.inference_client import InferenceError, list_models
 from app.services.installed_projector_catalog import InstalledProjectorCatalog
 
 
@@ -43,10 +43,24 @@ async def installed_vision_models() -> list[str]:
     return [m["name"] for m in installed if "vision" in m.get("capabilities", [])]
 
 
+async def sees_images(model: str) -> bool:
+    """Whether the chat model reads images itself (Matricxon's gemma 4 with its image file). False when the engine
+    can't be asked: the reply then works as before, with the default vision model."""
+    try:
+        return model in await installed_vision_models()
+    except InferenceError:
+        return False
+
+
 async def installed_embedding_models() -> list[str]:
-    """Tags of installed models that can embed text ("embedding"); the analogue of installed_vision_models."""
+    """Tags of installed models that can embed text ("embedding"); the analogue of installed_vision_models. Not one the
+    engine can't run ("tokenizer_unsupported"): it would fail on every search."""
     installed = await list_models()
-    return [m["name"] for m in installed if "embedding" in m.get("capabilities", [])]
+    return [
+        m["name"]
+        for m in installed
+        if "embedding" in m.get("capabilities", []) and "tokenizer_unsupported" not in m.get("capabilities", [])
+    ]
 
 
 async def get_default_model_for_new_users(db: AsyncSession, installed: list[str]) -> str | None:

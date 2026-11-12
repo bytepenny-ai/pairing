@@ -40,15 +40,33 @@ def _plain_text(message: Message) -> str:
 
 
 def trim_history(
-    messages: list[Message], num_ctx: int, reserved_tokens: int = 512, text_of: TextOf = _plain_text
+    messages: list[Message],
+    num_ctx: int,
+    reserved_tokens: int = 512,
+    text_of: TextOf = _plain_text,
+    images_of: Callable[[Message], list[str]] | None = None,
 ) -> list[dict]:
     """Keeps only the recent history that fits the context window, so long chats don't overflow num_ctx.
     `reserved_tokens` leaves room for the system prompt, RAG context and the reply. `text_of` gives a message as the
-    model reads it (chat_attachment_memory.py adds earlier files).
+    model reads it (chat_attachment_memory.py adds earlier files). `images_of`, for a chat model that sees images,
+    gives a message's earlier images (base64), sent with it again so the engine's prompt cache keeps matching.
     """
     texts = [text_of(m) for m in messages]
     start = _window_start(texts, num_ctx, reserved_tokens)
-    return _merge_consecutive_same_role(messages[start:], texts[start:])
+    merged = _merge_consecutive_same_role(messages[start:], texts[start:])
+    if images_of is not None:
+        _add_images(merged, messages[start:], images_of)
+    return merged
+
+
+def _add_images(merged: list[dict], messages: list[Message], images_of: Callable[[Message], list[str]]) -> None:
+    """Puts each message's images on the turn it was merged into (same order as _merge_consecutive_same_role)."""
+    turns = iter(merged)
+    for _role, group in itertools.groupby(messages, key=lambda m: m.role):
+        turn = next(turns)
+        images = [image for message in group for image in images_of(message)]
+        if images:
+            turn["images"] = images
 
 
 def window_start(

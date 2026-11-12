@@ -23,7 +23,8 @@ from app.services import (
 from app.services.chat_attachment_service import AttachmentInfo
 from app.services.chat_commands import ChatCommand
 from app.services.chat_follow_up import ChatFollowUp
-from app.services.image_fallback_stream import ImageFallback
+from app.services.chat_model_warmup import ChatModelWarmUp
+from app.services.image_fallback_stream import ImageFallback, image_question
 from app.services.live_workflow_bus import live_workflow
 from app.services.reasoning_setting import reasoning_setting
 
@@ -122,8 +123,15 @@ async def build_reply_stream(
     reserved_tokens = max(512, params.get("num_predict", 0))
     # Earlier files and images stay in the history while their message does; long ones are searched per question
     # (chat_follow_up.py).
+    # A chat model that reads images itself (Matricxon's gemma 4 with its image file) answers them too: no switch to
+    # the vision model, and earlier images go with their messages, so its prompt cache keeps matching.
+    sees_images = await model_catalog_service.sees_images(conversation.model)
     follow_up = ChatFollowUp(
-        db, [*chat_history_service.without_failed_replies(past), user_message], params["num_ctx"], reserved_tokens
+        db,
+        [*chat_history_service.without_failed_replies(past), user_message],
+        params["num_ctx"],
+        reserved_tokens,
+        sees_images,
     )
     plan = await follow_up.plan(ChatCommand.expand(content), attachments)
     history = plan.history
@@ -133,7 +141,7 @@ async def build_reply_stream(
     # Notes/RAG/attachment layering: see chat_prompt_service.build_system_prompt. Excerpts and files get only the room
     # the history leaves; whatever was cut is reported to the sender as a "notice" event.
     system_prompt, turn_context, source_filenames, notices = await chat_prompt_service.build_system_prompt(
-        db, conversation, user, ChatCommand.expand(content), params, reply_files, history, reserved_tokens
+        db, conversation, user, ChatCommand.expand(content), params, reply_files, history, reserved_tokens, sees_images
     )
     for notice in [*plan.notices, *notices]:
         yield {"notice": notice}
@@ -142,12 +150,20 @@ async def build_reply_stream(
     # whereas omitting it makes some chat-template layers (e.g. Matricxon's VicunaPromptBuilder) substitute their own
     # default.
     chat_messages = [{"role": "system", "content": system_prompt}] + history
+    if plan.image_again:  # the vision model needs the image and the question, not the chat (image_question)
+        chat_messages = image_question(system_prompt, ChatCommand.expand(content))
 
     # None (stream_reply falls back to conversation.model) unless `attachments` has an image, then the
     # default vision model for this reply only (apply_image_attachment). Also the has_image signal below.
-    reply_model = (
-        await chat_attachment_service.apply_image_attachment(db, reply_files, chat_messages) if reply_files else None
-    )
+    if sees_images:
+        chat_attachment_service.attach_image(reply_files, chat_messages)
+        reply_model = None
+    else:
+        reply_model = (
+            await chat_attachment_service.apply_image_attachment(db, reply_files, chat_messages)
+            if reply_files
+            else None
+        )
     if reply_model is None:
         # get_default_vision_model only returns installed models, so only conversation.model needs checking
         # (resolve_installed_model: an engine switch can leave the stored tag unknown to the new engine).
@@ -156,7 +172,11 @@ async def build_reply_stream(
             conversation.model = resolved_model
             await db.commit()
     # "Description first, image if needed": the chat's model may hand over to the vision model (image_fallback_stream).
-    fallback = await ImageFallback.prepare(db, plan.image_if_needed, chat_messages) if plan.image_if_needed else None
+    fallback = None
+    if plan.image_if_needed:
+        vision_system = await chat_prompt_service.notes_and_skills_prompt(db, conversation, user.id, True)
+        vision_messages = image_question(vision_system, ChatCommand.expand(content))
+        fallback = await ImageFallback.prepare(db, plan.image_if_needed, chat_messages, vision_messages)
 
     live_workflow.exit("chat_service_build")
     # Channels always finish generating (other members may rely on it); a personal chat has one viewer, so
@@ -177,6 +197,12 @@ async def build_reply_stream(
         if event.get("done"):
             # Detached, like the smart title below: long files become searchable for the next questions.
             follow_up.schedule_indexing(attachments)
+            # The vision model answered: the chat model reads that reply now, not on the next message.
+            vision_model = reply_model or (
+                fallback.model if fallback and fallback.model == fallback.vision_model else None
+            )
+            if vision_model and vision_model != conversation.model:
+                ChatModelWarmUp.schedule(conversation.id, user.id, conversation.model, params)
         if is_personal and event.get("done"):
             # "Simple" mode: the title was set before streaming, so it is final. "Smart": still the old value
             # (usually "New chat"); chat.js polls for the scheduled result. reply_generation_service knows nothing of

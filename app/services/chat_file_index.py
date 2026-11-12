@@ -53,8 +53,9 @@ class ChatFileIndex:
     @classmethod
     def search(
         cls, files: list[tuple[Path, str]], query_vector: np.ndarray, embedding_model: str, top_k: int
-    ) -> list[tuple[str, str]]:
-        """The `top_k` parts most like the question, best first, as (filename, text). `files`: (path, filename)."""
+    ) -> list[tuple[float, str, str]]:
+        """The `top_k` parts most like the question, best first, as (similarity, filename, text). `files`: (path,
+        filename)."""
         scored: list[tuple[float, str, str]] = []
         query = query_vector / (np.linalg.norm(query_vector) or 1.0)
         for path, filename in files:
@@ -66,7 +67,7 @@ class ChatFileIndex:
             scores = vectors @ query / np.where(norms == 0, 1.0, norms)
             scored += [(float(scores[i]), filename, str(texts[i])) for i in np.argsort(-scores)[:top_k]]
         scored.sort(key=lambda item: -item[0])
-        return [(filename, text) for _score, filename, text in scored[:top_k]]
+        return scored[:top_k]
 
     @classmethod
     async def _build(cls, path: Path, embedding_model: str) -> None:

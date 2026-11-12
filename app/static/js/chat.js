@@ -461,12 +461,18 @@ const REPLY_FAILED_NOTICE = "⚠️ This reply didn't finish — generation fail
  * that never started; see sendMessage's catch), or payload.error for a live SSE event. Falls back to the generic notice
  * otherwise.
  */
+const IMAGE_SWITCH_NOTE = "_Looking at the image again…_"; // image_fallback_stream.SWITCH_NOTE, trimmed
+
 function renderReplyBody(bubble, content, status, sources, errorText) {
-  if (status === "streaming" && !content) {
+  // The chat's model handed over to the vision model (image_fallback_stream.py): a wait, until its words arrive.
+  const lookingAgain = status === "streaming" && content?.trim() === IMAGE_SWITCH_NOTE;
+  if (status === "streaming" && (!content || lookingAgain)) {
     bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
     // Says what the wait is: while reasoning, one word for the current stage (ReasoningSteps.label; "Reasoning…" before
     // the first), else "Thinking…" until the first words arrive.
-    const waiting = ReasoningSteps.label(bubble, thinkingChip.on ? "Reasoning…" : "Thinking…");
+    const waiting = lookingAgain
+      ? "Looking at the image again…"
+      : ReasoningSteps.label(bubble, thinkingChip.on ? "Reasoning…" : "Thinking…");
     bubble.insertAdjacentHTML("beforeend", `<span class="ml-2 text-xs text-slate-400">${waiting}</span>`);
     ToolBlocks.render(bubble);
     return;

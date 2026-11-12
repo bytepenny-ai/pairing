@@ -11,6 +11,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from app.folder_setup import FolderSetup
+
 # Load `.env` into the environment; fills only unset values (no-op under Docker/systemd).
 load_dotenv()
 
@@ -80,10 +82,12 @@ if not SESSION_COOKIE_SECURE:
         "SESSION_COOKIE_SECURE=true once this app is served over HTTPS.",
     )
 
-# Storage
+# Storage. Folders are created here; one that can't be (e.g. the NFS share not mounted yet) stops the start with plain
+# reasons, not a traceback (folder_setup.py), once every folder is checked (after EXTERNAL_DIR).
+_folders = FolderSetup()
 # SQLite file holding conversations, messages, settings and RAG documents; moving servers means copying the folder.
 DATA_DIR = Path(os.environ.get("DATA_DIR", BASE_DIR / "data"))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+_folders.ensure("DATA_DIR", DATA_DIR)
 # DATABASE_URL derives from DATA_DIR only when unset; an explicit one wins. To relocate an instance,
 # override both.
 DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATA_DIR / 'pAIring.db'}")
@@ -100,14 +104,14 @@ MATRICXON_AUTOSTART = os.environ.get("MATRICXON_AUTOSTART", "true").strip().lowe
 # Folder where the admin drops RAG files (.txt/.md/.pdf): the knowledge base's source of truth,
 # synced by app/rag.py on startup and on "Rescan". Top-level so it is easy to find.
 KNOWLEDGE_DIR = Path(os.environ.get("KNOWLEDGE_DIR", BASE_DIR / "knowledge"))
-KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+_folders.ensure("KNOWLEDGE_DIR", KNOWLEDGE_DIR)
 # How often the leader checks knowledge/ for added, edited or removed files (knowledge_watcher.py); 0 turns it off.
 KNOWLEDGE_WATCH_SECONDS = float(os.environ.get("KNOWLEDGE_WATCH_SECONDS", "30"))
 
 # Per-message attachments (images for vision models; text/PDF/docx folded into the prompt, see
 # app/services/chat_attachment_service.py). Separate from KNOWLEDGE_DIR (RAG).
 ATTACHMENTS_DIR = Path(os.environ.get("ATTACHMENTS_DIR", BASE_DIR / "attachments"))
-ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
+_folders.ensure("ATTACHMENTS_DIR", ATTACHMENTS_DIR)
 
 # Fixed for now (unlike RAG's max_file_mb, see settings_service.get_rag_limits).
 MAX_ATTACHMENT_MB = 10
@@ -121,7 +125,7 @@ MAX_SKILLS_PER_CHAT = 2
 
 # Profile pictures from Settings > Account (app/services/avatar_service.py); only the filename is stored.
 AVATARS_DIR = Path(os.environ.get("AVATARS_DIR", BASE_DIR / "avatars"))
-AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+_folders.ensure("AVATARS_DIR", AVATARS_DIR)
 MAX_AVATAR_MB = 2
 
 # stable-diffusion.cpp's `sd-server` (default image engine, app/services/sdcpp_client.py); its port derives from this
@@ -130,7 +134,7 @@ SDCPP_HOST = os.environ.get("SDCPP_HOST", "http://localhost:8189")
 
 # Generated images folder; only relative paths are stored in the DB.
 IMAGES_DIR = Path(os.environ.get("IMAGES_DIR", BASE_DIR / "generated_images"))
-IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+_folders.ensure("IMAGES_DIR", IMAGES_DIR)
 
 # Local-mode auto-install (Settings > Inference > Engine)
 # Tested tags, never "latest": bump them on purpose after verifying. Read only by the installers in app/services/.
@@ -151,7 +155,8 @@ PAIRING_DEFAULT_BRANCH = os.environ.get("PAIRING_DEFAULT_BRANCH", "main")
 
 # Where auto-installed engines go; outside BASE_DIR so git status never sees them.
 EXTERNAL_DIR = Path(os.environ.get("EXTERNAL_DIR", BASE_DIR / "external"))
-EXTERNAL_DIR.mkdir(parents=True, exist_ok=True)
+_folders.ensure("EXTERNAL_DIR", EXTERNAL_DIR)
+_folders.stop_if_any()
 
 # Generation defaults
 # Defaults for the Settings page's adjustable LLM params. New conversations start with them;

@@ -148,8 +148,8 @@ class EmbeddingCatalogEntry(BaseModel):
     tag: str
     parameter_size: str
     context_length: int | None = None
-    # Output vector size (768 nomic-embed-text, 384 MiniLM).
-    embedding_dim: int
+    # Output vector size (768 nomic-embed-text, 384 MiniLM); None for one downloaded outside the catalog.
+    embedding_dim: int | None = None
     download_gb: float | None = None
     min_ram_gb: float
     # See CatalogEntry.engine_support.

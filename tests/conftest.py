@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.database import Base
 from app.models import User
 from app.services import (
+    chat_model_warmup,
     conversation_service,
     default_model_settings,
     image_generation_service,
@@ -201,6 +202,7 @@ async def db(monkeypatch) -> AsyncSession:
     monkeypatch.setattr(reply_model_unload_service, "AsyncSessionLocal", session_factory)
     monkeypatch.setattr(reply_cross_instance_service, "AsyncSessionLocal", session_factory)
     monkeypatch.setattr(image_generation_service, "AsyncSessionLocal", session_factory)
+    monkeypatch.setattr(chat_model_warmup, "AsyncSessionLocal", session_factory)
     monkeypatch.setattr(llamacpp_admin, "AsyncSessionLocal", session_factory)
     monkeypatch.setattr(llamacpp_ps_poller, "AsyncSessionLocal", session_factory)
     monkeypatch.setattr(matricxon_ps_poller, "AsyncSessionLocal", session_factory)

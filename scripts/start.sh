@@ -96,8 +96,15 @@ if [[ ! -f "$PID_FILE" ]]; then
     if kill -0 "$SERVER_PID" 2>/dev/null; then
         err "pAIring did not finish starting within 10s (pid $SERVER_PID still running) - check $LOG_FILE"
     else
-        err "pAIring exited during startup - last lines of $LOG_FILE:"
-        tail -n 5 "$LOG_FILE"
+        # A folder it can't use (e.g. the NFS share not mounted yet): app/folder_setup.py's plain reasons.
+        reasons="$(tail -n 40 "$LOG_FILE" | grep -F 'pAIring cannot start:' | sed 's/.*pAIring cannot start: //' || true)"
+        if [[ -n "$reasons" ]]; then
+            err "pAIring cannot start:"
+            printf '  %s\n' "${reasons//$'\n'/$'\n'  }"
+        else
+            err "pAIring exited during startup - last lines of $LOG_FILE:"
+            tail -n 5 "$LOG_FILE"
+        fi
     fi
     exit 1
 fi

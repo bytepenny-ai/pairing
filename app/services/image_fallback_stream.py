@@ -15,10 +15,19 @@ from app.services.inference_client import chat_stream, stop_model
 
 NEED_IMAGE = "NEED_IMAGE"
 _INSTRUCTION = (
-    "You cannot see images in this chat, only the earlier replies that described them. If answering the question "
-    f"below needs something those descriptions don't say, reply with exactly {NEED_IMAGE} and nothing else.\n\n---\n\n"
+    "You cannot see the image attached earlier in this chat; only the earlier replies describe it. Only if the message "
+    "below asks about a detail of that image which those replies don't mention, reply with exactly "
+    f"{NEED_IMAGE} and nothing else. Otherwise, including thanks, greetings and anything not about the image, answer "
+    "normally.\n\n---\n\n"
 )
 SWITCH_NOTE = "_Looking at the image again…_\n\n"
+
+
+def image_question(system_prompt: str, question: str) -> list[dict]:
+    """What the vision model gets for a question about an earlier image: just the question (the image is added to it),
+    not the chat. A prompt with an image is never reused from the engine's cache, so with the whole chat a CPU spent
+    minutes re-reading it (689 tokens) before the first word."""
+    return [{"role": "system", "content": system_prompt}, {"role": "user", "content": question}]
 
 
 class ImageFallback:
@@ -29,11 +38,11 @@ class ImageFallback:
 
     @classmethod
     async def prepare(
-        cls, db: AsyncSession, image: AttachmentInfo, chat_messages: list[dict]
+        cls, db: AsyncSession, image: AttachmentInfo, chat_messages: list[dict], vision_messages: list[dict]
     ) -> "ImageFallback | None":
-        """Adds the NEED_IMAGE instruction to the newest message of `chat_messages` (in place) and keeps a copy of
-        the messages with the image for the vision model. None when no vision model is installed."""
-        vision_messages = copy.deepcopy(chat_messages)
+        """Adds the NEED_IMAGE instruction to the newest message of `chat_messages` (in place) and the image to
+        `vision_messages` (image_question), for the vision model. None when no vision model is installed."""
+        vision_messages = copy.deepcopy(vision_messages)
         vision_model = await chat_attachment_service.apply_image_attachment(db, [image], vision_messages)
         if vision_model is None:
             return None

@@ -154,6 +154,16 @@ def fold_text_attachments_into_prompt(
     return system_prompt
 
 
+def attach_image(attachments: list[AttachmentInfo], chat_messages: list[dict]) -> bool:
+    """Puts the at-most-one image among `attachments` on the newest message, for a chat model that reads images
+    itself (no switch to the vision model). True when there was one."""
+    image = next((a for a in attachments if a.type == "image"), None)
+    if image is not None:
+        image_b64 = base64.b64encode(image.path.read_bytes()).decode("ascii")
+        chat_messages[-1] = {**chat_messages[-1], "images": [image_b64]}
+    return image is not None
+
+
 async def apply_image_attachment(
     db: AsyncSession, attachments: list[AttachmentInfo], chat_messages: list[dict]
 ) -> str | None:

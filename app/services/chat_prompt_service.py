@@ -25,6 +25,7 @@ async def build_system_prompt(
     attachments: list[AttachmentInfo],
     history: list[dict],
     reserved_tokens: int,
+    sees_images: bool = False,
 ) -> tuple[str, str, list[str], list[str]]:
     """Returns (system_prompt, turn_context, source_filenames, notices) for this turn.
 
@@ -43,16 +44,10 @@ async def build_system_prompt(
     Channels pass user_id=None to retrieve_context so only the global knowledge base is searched.
     """
     live_workflow.enter("chat_prompt_service")
-    system_prompt = ""
-    # A reply to an image may leave notes and skills out (Default models > Replies to an image include).
-    has_image = any(attachment.type == "image" for attachment in attachments)
-    with_notes, with_skills = await VisionReplyContextSetting(db).includes(has_image)
-    notes_by_type = await resolve_conversation_notes(db, conversation, user.id) if with_notes else {}
-    if any(notes_by_type.values()):
-        system_prompt = build_pinned_system_prompt(notes_by_type)
-    skills = await conversation_skills.active_skills(db, conversation) if with_skills else []
-    if skills:
-        system_prompt = "\n\n".join(p for p in (system_prompt, conversation_skills.build_skills_prompt(skills)) if p)
+    # A chat model that sees images keeps notes and skills in image turns too: leaving them out for one turn would
+    # change the prompt's start and spoil the engine's cache for every message after it.
+    has_image = any(attachment.type == "image" for attachment in attachments) and not sees_images
+    system_prompt = await notes_and_skills_prompt(db, conversation, user.id, has_image)
 
     fit = TurnContextFit(params["num_ctx"], reserved_tokens, system_prompt, history)
     turn_context = ""
@@ -79,6 +74,20 @@ async def build_system_prompt(
 
     live_workflow.exit("chat_prompt_service")
     return system_prompt, turn_context, source_filenames, fit.notices
+
+
+async def notes_and_skills_prompt(db: AsyncSession, conversation: Conversation, user_id: str, has_image: bool) -> str:
+    """The system prompt: the chat's notes, then its skills. A reply to an image may leave them out (Default models >
+    Replies to an image include)."""
+    system_prompt = ""
+    with_notes, with_skills = await VisionReplyContextSetting(db).includes(has_image)
+    notes_by_type = await resolve_conversation_notes(db, conversation, user_id) if with_notes else {}
+    if any(notes_by_type.values()):
+        system_prompt = build_pinned_system_prompt(notes_by_type)
+    skills = await conversation_skills.active_skills(db, conversation) if with_skills else []
+    if skills:
+        system_prompt = "\n\n".join(p for p in (system_prompt, conversation_skills.build_skills_prompt(skills)) if p)
+    return system_prompt
 
 
 def prepend_turn_context(history: list[dict], turn_context: str) -> None:

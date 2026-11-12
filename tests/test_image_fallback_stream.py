@@ -16,7 +16,7 @@ from app.services import (
 )
 from app.services.chat_attachment_service import AttachmentInfo
 from app.services.chat_follow_up import ChatFollowUp
-from app.services.image_fallback_stream import NEED_IMAGE, SWITCH_NOTE, ImageFallback
+from app.services.image_fallback_stream import NEED_IMAGE, SWITCH_NOTE, ImageFallback, image_question
 
 
 @pytest.fixture
@@ -77,12 +77,21 @@ async def test_prepare_asks_the_chat_model_and_keeps_the_image_for_the_vision_mo
     monkeypatch.setattr(model_catalog_service, "get_default_vision_model", vision_model)
     image = tmp_path / "bird.png"
     image.write_bytes(b"png")
-    messages = [{"role": "system", "content": ""}, {"role": "user", "content": "what bird is it?"}]
-    fallback = await ImageFallback.prepare(db, AttachmentInfo(path=image, filename="bird.png", type="image"), messages)
+    messages = [
+        {"role": "system", "content": "NOTES"},
+        {"role": "user", "content": "/describe"},
+        {"role": "assistant", "content": "A long description."},
+        {"role": "user", "content": "what bird is it?"},
+    ]
+    attachment = AttachmentInfo(path=image, filename="bird.png", type="image")
+    fallback = await ImageFallback.prepare(db, attachment, messages, image_question("", "what bird is it?"))
     assert fallback is not None and fallback.vision_model == "vision"
     assert NEED_IMAGE in messages[-1]["content"] and messages[-1]["content"].endswith("what bird is it?")
     assert "images" not in messages[-1]
-    assert fallback._vision_messages[-1]["content"] == "what bird is it?" and fallback._vision_messages[-1]["images"]
+    # The vision model gets the image and the question only: a prompt with an image is never reused from the cache.
+    vision = fallback._vision_messages
+    assert [m["role"] for m in vision] == ["system", "user"] and vision[-1]["content"] == "what bird is it?"
+    assert vision[-1]["images"]
 
 
 @pytest.mark.asyncio
@@ -94,7 +103,8 @@ async def test_without_a_vision_model_there_is_no_fallback(db, monkeypatch, tmp_
     image = tmp_path / "bird.png"
     image.write_bytes(b"png")
     messages = [{"role": "user", "content": "q"}]
-    assert await ImageFallback.prepare(db, AttachmentInfo(path=image, filename="b.png", type="image"), messages) is None
+    attachment = AttachmentInfo(path=image, filename="b.png", type="image")
+    assert await ImageFallback.prepare(db, attachment, messages, image_question("", "q")) is None
     assert messages == [{"role": "user", "content": "q"}]
 
 
@@ -118,6 +128,8 @@ async def test_the_plan_offers_the_image_for_any_later_question(db, monkeypatch,
     )
     plan = await ChatFollowUp(db, messages, 4096, 512).plan("what kind of bird?", [])
     assert plan.image_if_needed is not None and plan.image_again is None
+    # "OK" gets no NEED_IMAGE instruction: a small model asked for the image on it.
+    assert (await ChatFollowUp(db, messages, 4096, 512).plan("OK", [])).image_if_needed is None
 
 
 def test_the_first_on_off_setting_still_reads():

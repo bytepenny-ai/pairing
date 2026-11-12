@@ -13,12 +13,14 @@ from app.services import (
     chat_attachment_service,
     chat_file_index,
     chat_follow_up,
+    image_relevance,
     model_catalog_service,
 )
 from app.services.chat_attachment_memory import AttachmentMemory
 from app.services.chat_attachment_service import AttachmentInfo, delete_attachment_files
 from app.services.chat_file_index import ChatFileIndex
 from app.services.chat_follow_up import ChatFollowUp
+from app.services.inference_client import InferenceError
 
 WORDS = ["launch", "weather", "apple", "budget"]
 
@@ -35,6 +37,13 @@ def engine(monkeypatch, tmp_path):
     monkeypatch.setattr(model_catalog_service, "get_default_embedding_model", embedding_model)
     monkeypatch.setattr(chat_file_index, "embed", _fake_embed)
     monkeypatch.setattr(chat_follow_up, "embed", _fake_embed)
+
+    async def no_embedding(
+        _text, _model
+    ):  # image relevance unknown: the recency rule decides (test_image_relevance.py)
+        raise InferenceError("not in these tests")
+
+    monkeypatch.setattr(image_relevance, "embed", no_embedding)
     monkeypatch.setattr(chat_attachment_memory, "ATTACHMENTS_DIR", tmp_path)
 
 
@@ -116,6 +125,11 @@ async def test_an_earlier_image_is_shown_again_only_when_allowed_and_asked_about
     # A follow-up right after the image needs no picture words: "what kind of a bird is that?"
     plain = await ChatFollowUp(db, messages, 4096, 512).plan("what kind of a bird is that?", [])
     assert plain.image_again is not None
+    # A short reply needs no image (it would re-read the whole chat and the image); a short question still does.
+    for reply in ("OK", "thanks a lot", "great!", "תודה"):
+        assert (await ChatFollowUp(db, messages, 4096, 512).plan(reply, [])).image_again is None, reply
+    for short_question in ("count the birds", "why?", "מה זה"):
+        assert (await ChatFollowUp(db, messages, 4096, 512).plan(short_question, [])).image_again, short_question
 
     later = [*messages[:-1]]
     for turn in range(3):
@@ -147,7 +161,7 @@ async def test_the_long_file_of_this_message_is_indexed_after_the_reply(db, engi
     await follow_up.plan("/summarize", [])
     follow_up.schedule_indexing([AttachmentInfo(path=path, filename="big.txt", type="text")])
     await ChatFileIndex.ensure(path, "emb")
-    assert ChatFileIndex.search([(path, "big.txt")], await _as_vector("launch"), "emb", 1)[0][1].count("12345") == 1
+    assert ChatFileIndex.search([(path, "big.txt")], await _as_vector("launch"), "emb", 1)[0][2].count("12345") == 1
 
 
 async def _as_vector(text: str):

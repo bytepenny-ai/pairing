@@ -11,6 +11,7 @@ When the chat outgrows the context window, the oldest messages leave it (chat_hi
 files with them: summaries() keeps the reply about each file, and forgotten_notice tells the user once.
 """
 
+import base64
 import logging
 from collections.abc import Sequence
 from pathlib import Path
@@ -21,6 +22,7 @@ from app.services.chat_commands import ChatCommand
 from app.services.chat_file_index import ChatFileIndex
 from app.services.document_extract import extract_text
 from app.services.document_retrieval import build_attachment_system_prompt
+from app.services.image_relevance import ImageRelevance
 from app.services.turn_context_fit import TokenEstimate
 
 logger = logging.getLogger(__name__)
@@ -33,13 +35,19 @@ _SUMMARY_FILES = 4  # the latest files that left the window keep a summary
 
 class AttachmentMemory:
     def __init__(
-        self, current: Message | None = None, folder: Path | None = None, whole_limit: int | None = None
+        self,
+        current: Message | None = None,
+        folder: Path | None = None,
+        whole_limit: int | None = None,
+        images_inline: bool = False,
     ) -> None:
         # The message being answered: its files go in this turn's context, not in its history text.
         self._current = current
         self._folder = folder or ATTACHMENTS_DIR
         # Tokens a file may take to stay whole; None: every file stays whole (no embedding model to search with).
         self._whole_limit = whole_limit
+        # The chat model sees images: earlier ones go with their message (images_of), not as a note.
+        self._images_inline = images_inline
         self._texts: dict[int, str] = {}  # per message, for this turn: the window is measured more than once
         self._sent: dict[Path, str] = {}
 
@@ -50,7 +58,7 @@ class AttachmentMemory:
     @classmethod
     def sidecars(cls, path: Path) -> list[Path]:
         """Files kept next to an attachment, deleted with it."""
-        return [cls.sent_path(path), ChatFileIndex.index_path(path)]
+        return [cls.sent_path(path), ChatFileIndex.index_path(path), ImageRelevance.about_path(path)]
 
     @classmethod
     def remember(cls, path: Path, text: str) -> None:
@@ -125,7 +133,21 @@ class AttachmentMemory:
             f"window. The model keeps the reply about {pronoun} as a summary; attach {pronoun} again for details."
         )
 
+    def images_of(self, message: Message) -> list[str]:
+        """An earlier message's images as base64, for a chat model that sees them (not the one being answered: its
+        image is attached by the reply itself)."""
+        if message is self._current or message.role != "user":
+            return []
+        images = []
+        for attachment in message.attachments or []:
+            path = self.path_of(attachment)
+            if attachment.type == "image" and path.exists():
+                images.append(base64.b64encode(path.read_bytes()).decode("ascii"))
+        return images
+
     def _part(self, attachment: MessageAttachment) -> str:
+        if attachment.type == "image" and self._images_inline:
+            return ""
         if attachment.type == "image":
             return (
                 f'The user attached an image named "{attachment.filename}" with this message; the reply that '
