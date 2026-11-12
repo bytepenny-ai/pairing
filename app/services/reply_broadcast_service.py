@@ -45,6 +45,8 @@ class GenerationState:
     tool_events: list[dict] = field(default_factory=list)
     # Stages of the model's reasoning so far (reasoning_stages.py), for the chat's live "Reasoning..." list.
     reasoning: list[str] = field(default_factory=list)
+    # How much of a long prompt the engine has read (0 to 1), before the first word (reply_side_events.py).
+    read_progress: float | None = None
 
 
 class _Topic:
@@ -116,6 +118,14 @@ def publish_reasoning(conversation_id: str, stages: list[str]) -> None:
         return
     topic.state.reasoning = stages
     _publish(conversation_id, {"reasoning": stages, "message_id": topic.state.message_id})
+
+
+def publish_read_progress(conversation_id: str, fraction: float) -> None:
+    topic = _topics.get(conversation_id)
+    if topic is None or topic.state is None:
+        return
+    topic.state.read_progress = fraction
+    _publish(conversation_id, {"read_progress": fraction, "message_id": topic.state.message_id})
 
 
 def publish_done(conversation_id: str, sources: list[str] | None, stats: dict | None = None) -> None:

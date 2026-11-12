@@ -4,6 +4,7 @@ Title generation lives in title_service.py and history trimming/merging in chat_
 (file-size rule).
 """
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ATTACHMENTS_DIR
@@ -179,6 +180,10 @@ async def build_reply_stream(
         fallback = await ImageFallback.prepare(db, plan.image_if_needed, chat_messages, vision_messages)
 
     live_workflow.exit("chat_service_build")
+    # Getting here can take a while (a long file to search first): a chat deleted meanwhile gets no reply, else the
+    # engine would read the whole prompt for nobody (nothing to cancel existed when it was deleted).
+    if not await _still_exists(db, conversation.id):
+        return
     # Channels always finish generating (other members may rely on it); a personal chat has one viewer, so
     # leaving stops generation (cancel_on_disconnect=True). Both leave a clean status="error" record
     # (reply_generation_service.stream_reply).
@@ -216,3 +221,9 @@ async def build_reply_stream(
             title_service.schedule_smart_title_generation(
                 conversation.id, ChatCommand.title_text(content, [(a.filename, a.type) for a in attachments])
             )
+
+
+async def _still_exists(db: AsyncSession, conversation_id: str) -> bool:
+    """Read from the database, not the session's cached object: deleted by another request meanwhile?"""
+    found = await db.execute(select(Conversation.id).where(Conversation.id == conversation_id))
+    return found.scalar_one_or_none() is not None

@@ -4,22 +4,27 @@
 class AttachmentCommands {
   static URL = "/api/chat/attachments/check";
   static autoText = ""; // the command this script put in the box, cleared only while unchanged
+  static warnings = []; // the last check's long-file warnings, shown while files are attached
 
-  /* { accepted, rejected: [{ file, reason }] }. If the check itself fails, every file passes: the server re-checks. */
-  static async check(files) {
-    if (!files.length) return { accepted: [], rejected: [] };
+  /* { accepted, rejected: [{ file, reason }], warnings: [text] }. If the check itself fails, every file passes: the
+     server re-checks. With the chat's id, a long file comes back with how long the reply may take to start. */
+  static async check(files, conversationId = null) {
+    const none = { accepted: files, rejected: [], warnings: [] };
+    if (!files.length) return none;
     const form = new FormData();
     for (const file of files) form.append("files", file);
+    if (conversationId) form.append("conversation_id", conversationId);
     try {
       const response = await fetch(AttachmentCommands.URL, { method: "POST", body: form });
-      if (!response.ok) return { accepted: files, rejected: [] };
+      if (!response.ok) return none;
       const verdicts = (await response.json()).files;
       const accepted = [];
       const rejected = [];
       files.forEach((file, i) => (verdicts[i]?.ok === false ? rejected.push({ file, reason: verdicts[i].reason }) : accepted.push(file)));
-      return { accepted, rejected };
+      const warnings = verdicts.filter((v) => v?.ok && v.warning).map((v) => v.warning);
+      return { accepted, rejected, warnings };
     } catch (_err) {
-      return { accepted: files, rejected: [] };
+      return none;
     }
   }
 
@@ -48,9 +53,12 @@ class AttachmentCommands {
     AttachmentCommands.autoText = "";
   }
 
-  /* Plain-words reasons for rejected files, and a hint while a command waits in the box. */
-  static showNotice(el, rejected, files, input) {
+  /* Plain-words reasons for rejected files, how long a long file may take, and a hint while a command waits. */
+  static showNotice(el, rejected, files, input, warnings = null) {
+    if (warnings) AttachmentCommands.warnings = [...AttachmentCommands.warnings, ...warnings];
+    if (!files.length) AttachmentCommands.warnings = [];
     const lines = rejected.map((r) => `<li class="text-warning-400">${escapeHtml(r.reason)}</li>`);
+    lines.push(...AttachmentCommands.warnings.map((w) => `<li class="text-warning-400">${escapeHtml(w)}</li>`));
     const command = AttachmentCommands.command(files);
     if (command && input.value.trim() === command) {
       const documents = files.filter((f) => !f.type.startsWith("image/")).length;

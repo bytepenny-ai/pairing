@@ -182,6 +182,8 @@ async def chat_stream(model: str, messages: list[dict], params: dict) -> AsyncGe
                         # (telemetry_exporter turns them into a TelemetryEvent row).
                         call_state["done_payload"] = data
                         break
+                    if data.get("prompt_progress") and params.get("usage_events"):
+                        yield {"read_progress": data["prompt_progress"]}  # still reading (reply_deadline.py)
                     chunk = data.get("message", {}).get("content", "")
                     if chunk:
                         yield chunk
@@ -200,7 +202,8 @@ async def chat_stream(model: str, messages: list[dict], params: dict) -> AsyncGe
             ):
                 yield chunk
             if params.get("usage_events") and call_state.get("done_payload"):
-                yield {"usage": ReplyStats.from_matricxon(call_state["done_payload"])}  # reply_stats.py
+                usage = ReplyStats.from_matricxon(call_state["done_payload"])
+                yield {"usage": {**usage, "host": call_state.get("host")}}  # reply_stats.py
         except (httpx.HTTPError, MatricxonError) as exc:
             matricxon_telemetry.record_chat_error(span, call_state.get("host", ""), call_state["attempts"], exc)
             # A MatricxonError here already has its real message (e.g. the memory-refusal detail) from

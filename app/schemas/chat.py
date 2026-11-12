@@ -105,6 +105,7 @@ class AttachmentVerdictOut(BaseModel):
     kind: str | None  # "image" or "text"; None for a type chats don't take
     ok: bool
     reason: str | None = None  # why a model can't read it, in plain words
+    warning: str | None = None  # readable, but long: how long the reply may take to start (read_speed.py)
 
 
 class AttachmentCheckOut(BaseModel):

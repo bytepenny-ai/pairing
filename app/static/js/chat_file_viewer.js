@@ -14,6 +14,24 @@ class ChatFileViewer {
     return dot < 0 ? "" : name.slice(dot).toLowerCase();
   }
 
+  static #LOCAL_LIMIT = 200_000; // characters of a just-sent file shown before "the preview ends here"
+
+  /* A just-sent text file read from its blob: URL; Word and PDF files need the server's text extraction. */
+  static async #localPreview(url, root) {
+    const name = root.querySelector("[data-viewer-name]").textContent;
+    const suffix = ChatFileViewer.#suffix(name);
+    if (![".txt", ".md", ".csv", ".json", ".html"].includes(suffix)) {
+      throw new Error("The preview is ready once the reply has started");
+    }
+    const text = await (await fetch(url)).text();
+    return {
+      filename: name,
+      format: suffix === ".md" ? "markdown" : "text",
+      text: text.slice(0, ChatFileViewer.#LOCAL_LIMIT),
+      truncated: text.length > ChatFileViewer.#LOCAL_LIMIT,
+    };
+  }
+
   static kindOf(name) {
     const suffix = ChatFileViewer.#suffix(name);
     if (ChatFileViewer.#IMAGES.includes(suffix)) return "image";
@@ -101,7 +119,9 @@ class ChatFileViewer {
     const ticket = ++this.loading;
     let preview;
     try {
-      preview = await api(`${url}/preview`);
+      // A file just sent still has the browser's own blob: URL (the optimistic bubble, chat.js sendMessage) until the
+      // chat reloads its messages: read it here, as the server's preview isn't reachable through that URL.
+      preview = url.startsWith("blob:") ? await ChatFileViewer.#localPreview(url, this.root) : await api(`${url}/preview`);
     } catch (err) {
       if (ticket === this.loading) body.replaceChildren(this.#note(`${err.message}. Use Download to open it.`));
       return;

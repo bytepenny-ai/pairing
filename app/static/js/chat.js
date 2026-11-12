@@ -152,7 +152,7 @@ attachmentInput.addEventListener("change", async () => {
   const fresh = Array.from(attachmentInput.files || []);
   // Cleared so the input can be reused; pendingAttachments is the source of truth for what is queued.
   attachmentInput.value = "";
-  const { accepted, rejected } = await AttachmentCommands.check(fresh);
+  const { accepted, rejected, warnings } = await AttachmentCommands.check(fresh, activeConversationId);
   // Merged with earlier picks: <input multiple> reports only this dialog's selection, so replacing the list would drop
   // files attached one at a time.
   const picked = [...pendingAttachments, ...accepted];
@@ -164,7 +164,7 @@ attachmentInput.addEventListener("change", async () => {
   pendingAttachments = [...images.slice(0, MAX_ATTACHMENT_IMAGES), ...documents.slice(0, MAX_ATTACHMENT_DOCUMENTS)];
   renderAttachmentPreview();
   AttachmentCommands.prefill(chatInput, pendingAttachments);
-  AttachmentCommands.showNotice(attachmentNoticeEl, rejected, pendingAttachments, chatInput);
+  AttachmentCommands.showNotice(attachmentNoticeEl, rejected, pendingAttachments, chatInput, warnings);
 });
 
 // Whether the user is an admin (data attribute on <body>, see base.html and settings.js). With a channel's is_manager
@@ -472,7 +472,7 @@ function renderReplyBody(bubble, content, status, sources, errorText) {
     // the first), else "Thinking…" until the first words arrive.
     const waiting = lookingAgain
       ? "Looking at the image again…"
-      : ReasoningSteps.label(bubble, thinkingChip.on ? "Reasoning…" : "Thinking…");
+      : ReadProgress.label(bubble) || ReasoningSteps.label(bubble, thinkingChip.on ? "Reasoning…" : "Thinking…");
     bubble.insertAdjacentHTML("beforeend", `<span class="ml-2 text-xs text-slate-400">${waiting}</span>`);
     ToolBlocks.render(bubble);
     return;
@@ -675,6 +675,7 @@ function handleReplyLiveEvent(conversationId, payload) {
     const { bubble, created } = findOrCreateBubbleForMessage(messageId, "assistant", "AI");
     bubble._toolEvents = payload.tool_events;
     bubble._reasoning = payload.reasoning;
+    if (payload.read_progress != null) ReadProgress.set(bubble, payload.read_progress);
     renderReplyBody(bubble, replyLiveContent.get(messageId), payload.status);
     chatScroll.follow();
     if (created) reconcileConversationMessages(conversationId);
@@ -688,6 +689,11 @@ function handleReplyLiveEvent(conversationId, payload) {
   if (payload.reasoning) {
     const { bubble } = findOrCreateBubbleForMessage(messageId, "assistant", "AI");
     ReasoningSteps.set(bubble, payload.reasoning);
+    renderReplyBody(bubble, replyLiveContent.get(messageId) || "", "streaming");
+  }
+  if (payload.read_progress != null) {
+    const { bubble } = findOrCreateBubbleForMessage(messageId, "assistant", "AI");
+    ReadProgress.set(bubble, payload.read_progress);
     renderReplyBody(bubble, replyLiveContent.get(messageId) || "", "streaming");
   }
   if (payload.chunk) {
@@ -1463,8 +1469,9 @@ async function sendMessage(askAi) {
     } else if (bubble && userWrapper.dataset.messageId) {
       // The user message was persisted (readAssistantReplyStream's "user_message_id" tagging) before generation failed,
       // matching what reopening would show (renderReplyBody): a user message then an assistant message with
-      // status="error".
-      renderReplyBody(bubble, "", "error");
+      // status="error". The browser's own reason is added: a dropped connection logs nothing to the console.
+      console.error("Reply stream failed:", err);
+      renderReplyBody(bubble, "", "error", null, `${REPLY_FAILED_NOTICE} (${err.message || err.name || "unknown error"})`);
       if (activeChannelInfo) channelReplyInFlight = false;
     } else if (bubble) {
       // Failed before the server saved anything (e.g. an unsupported/oversized attachment rejected by
@@ -1690,8 +1697,15 @@ async function readAssistantReplyStream(
         attachDeleteButtonIfEligible(userWrapper, payload.user_message_id);
         ChannelShare.decorate(userWrapper, payload.user_message_id, "user");
       }
-      // An attached file (or knowledge base excerpts) cut to fit the context window (turn_context_fit.py).
-      if (payload.notice) showMessageNotice(userWrapper, payload.notice);
+      // An attached file (or knowledge base excerpts) cut to fit the context window (turn_context_fit.py). A display
+      // problem with the note must not end the reply.
+      if (payload.notice) {
+        try {
+          showMessageNotice(userWrapper, payload.notice);
+        } catch (err) {
+          console.error("Could not show the notice:", err);
+        }
+      }
       // Present on every event (reply_generation_service): tag the bubble the first time it's seen, before the error
       // check, since an instant failure's first event can be the error and a later reconcile must find this node
       // instead of duplicating the message_id. Only present when askAi is true (wrapper/bubble are null otherwise).
@@ -1738,6 +1752,10 @@ async function readAssistantReplyStream(
         ReasoningSteps.set(bubble, payload.reasoning);
         renderReplyBody(bubble, fullText, "streaming");
       }
+      if (bubble && payload.read_progress != null) {
+        ReadProgress.set(bubble, payload.read_progress);
+        renderReplyBody(bubble, fullText, "streaming");
+      }
       if (bubble && payload.chunk) {
         fullText += payload.chunk;
         renderReplyBody(bubble, fullText, "streaming");
@@ -1769,8 +1787,12 @@ function showMessageNotice(wrapper, text) {
   const notice = document.createElement("p");
   notice.className = "message-notice mt-1 max-w-[min(75ch,100%)] px-1 text-xs text-warning-400";
   notice.textContent = text;
+  // Above the time, as the message's own line: the share button (chat_share.js) moves the time into a footer row, and
+  // the note belongs above that row, not inside it (wrapper.insertBefore(notice, time) threw there and ended the
+  // reply's stream on a chat's first file).
   const time = wrapper.querySelector(".message-time");
-  if (time) wrapper.insertBefore(notice, time);
+  const anchor = time && (time.closest(".message-footer") || time);
+  if (anchor && anchor.parentNode === wrapper) wrapper.insertBefore(notice, anchor);
   else wrapper.appendChild(notice);
 }
 

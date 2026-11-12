@@ -32,6 +32,7 @@ from app.services import (
 from app.services.image_fallback_stream import ImageFallback
 from app.services.inference_client import InferenceError, chat_stream, stop_model
 from app.services.live_workflow_bus import live_workflow
+from app.services.reply_deadline import ReplyDeadline
 from app.services.reply_side_events import ReplySideEvents
 
 logger = logging.getLogger("llama_chat")
@@ -39,14 +40,13 @@ logger = logging.getLogger("llama_chat")
 # DB commits of streamed text are batched; every chunk still reaches the hub (live viewers) at once.
 _FLUSH_CHARS = 200
 _FLUSH_INTERVAL_SECONDS = 0.4
-
 # How often stream_reply's relay also reads the DB, not just the queue (reply_cross_instance_service).
 _CROSS_INSTANCE_POLL_SECONDS = 3.0
 
 # Strong refs: asyncio keeps only a weak one to a bare create_task result (as title_service._background_title_tasks).
 _background_generation_tasks: set[asyncio.Task] = set()
 
-# delete_message's way of stopping a streaming reply: lives in reply_cancellation_service, re-exported here.
+# delete_message's way to stop a streaming reply (reply_cancellation_service), re-exported here.
 cancel_generation = reply_cancellation_service.cancel_generation
 mark_message_deleted = reply_cancellation_service.mark_message_deleted
 
@@ -175,13 +175,14 @@ async def _run_generation(
             unflushed = ""
             last_flush = time.monotonic()
             try:
-                async with asyncio.timeout(effective_timeout):
+                async with asyncio.timeout(effective_timeout) as timeout:
                     gen_params = {**(params or {}), "request_id": message_id, "conversation_id": conversation_id}
                     gen_params["reasoning_ticks"] = gen_params["usage_events"] = True
                     if has_image:  # the default vision model: Matricxon keeps it out of its loaded-model limit
                         gen_params["model_role"] = "vision"
                     tools = await tool_loop_service.tool_stream_or_none(db, model, chat_messages, gen_params)
-                    side_events = ReplySideEvents(db, message, conversation_id)
+                    deadline = ReplyDeadline(timeout, effective_timeout)  # moves on while the engine reads
+                    side_events = ReplySideEvents(db, message, conversation_id, model, deadline)
                     stream = tools or (fallback.stream if fallback else chat_stream)(model, chat_messages, gen_params)
                     async for chunk in stream:
                         model = (fallback.model if fallback else "") or model  # the one streaming, for stop_model
@@ -190,7 +191,7 @@ async def _run_generation(
                                 await stop_model(model, request_id=message_id)
                                 return
                             continue
-                        side_events.stats.text()
+                        side_events.text()
                         full_reply += chunk
                         unflushed += chunk
                         reply_broadcast_service.publish_chunk(conversation_id, chunk)
@@ -243,8 +244,7 @@ async def _run_generation(
             await db.commit()
             reply_broadcast_service.publish_done(conversation_id, source_filenames, message.stats)
     except Exception:
-        # Broad on purpose, like title_service._generate_title_in_background: a detached task with no caller to
-        # propagate to; otherwise the failure would vanish without context.
+        # Broad on purpose: a detached task has no caller to propagate to (as title_service's background task).
         logger.exception("Reply generation failed for message %s", message_id)
         if conversation_id is not None:
             reply_broadcast_service.publish_error(conversation_id, "Reply generation failed unexpectedly.")

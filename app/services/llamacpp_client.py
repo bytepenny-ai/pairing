@@ -121,6 +121,8 @@ def _chat_payload(model: str, messages: list[dict], params: dict) -> dict:
     payload.update(SamplingExtras.of(params))
     # The model's template switch, off unless the chat turned Reasoning on; reasoning_content stays out of the text.
     payload["chat_template_kwargs"] = {"enable_thinking": bool(params.get("think"))}
+    if params.get("usage_events"):  # a reply: stream the prompt read's progress (reply_deadline.py)
+        payload["return_progress"] = True
     add_tools_to_payload(payload, params)
     return payload
 
@@ -153,6 +155,8 @@ async def chat_stream(model: str, messages: list[dict], params: dict) -> AsyncGe
                         raise LlamaCppError(_error_detail(data.encode(), 500))
                     if event.get("timings"):
                         call_state["timings"] = event["timings"]
+                    if event.get("prompt_progress") and params.get("usage_events"):
+                        yield {"read_progress": event["prompt_progress"]}
                     delta = ((event.get("choices") or [{}])[0]).get("delta") or {}
                     if delta.get("tool_calls"):
                         collector.add(delta["tool_calls"])
@@ -171,7 +175,8 @@ async def chat_stream(model: str, messages: list[dict], params: dict) -> AsyncGe
             async for chunk in _stream_with_one_reload(_chunks_from):
                 yield chunk
             if params.get("usage_events") and call_state["timings"]:
-                yield {"usage": ReplyStats.from_llamacpp(call_state["timings"])}  # reply_stats.py
+                usage = ReplyStats.from_llamacpp(call_state["timings"])
+                yield {"usage": {**usage, "host": call_state.get("host")}}  # reply_stats.py
         except (httpx.HTTPError, LlamaCppError) as exc:
             llamacpp_telemetry.record_chat_error(span, call_state.get("host", ""), call_state["attempts"], exc)
             if isinstance(exc, LlamaCppError):

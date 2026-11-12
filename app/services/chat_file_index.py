@@ -20,6 +20,7 @@ from app.services.inference_client import InferenceError, embed
 logger = logging.getLogger(__name__)
 
 _INDEX_SUFFIX = ".search.npz"
+_GIVE_UP_AFTER = 3  # failed pieces in a row, none embedded yet
 
 
 class ChatFileIndex:
@@ -78,10 +79,12 @@ class ChatFileIndex:
             return
         kept_texts: list[str] = []
         vectors: list[list[float]] = []
-        for piece in chunk_text(text):
+        for tried, piece in enumerate(chunk_text(text), start=1):
             try:
                 vectors.append(await embed(piece, embedding_model))
             except InferenceError:
+                if not vectors and tried >= _GIVE_UP_AFTER:
+                    break  # the model can't embed at all: don't spend minutes trying every piece
                 continue
             kept_texts.append(piece)
         if not vectors:

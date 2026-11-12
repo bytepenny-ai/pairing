@@ -115,7 +115,7 @@ class TestCheck:
 
     async def test_the_check_route_answers_per_file(self, db, user, vision):
         out = await chat_router.check_attachments(
-            files=[_upload("notes.txt", b"hi"), _upload("cat.png", b"nope")], db=db, _user=user
+            files=[_upload("notes.txt", b"hi"), _upload("cat.png", b"nope")], conversation_id=None, db=db, user=user
         )
         assert [f.ok for f in out.files] == [True, False]
 

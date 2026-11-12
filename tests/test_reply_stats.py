@@ -33,6 +33,8 @@ def test_times_and_engine_token_counts():
         "output_tokens": 40,
         "prompt_tokens": 12,
         "tokens_per_second": 20.0,
+        "read_tokens": 12,  # llama.cpp's prompt_n counts only what it read, for read_speed.py
+        "read_ms": 0,
     }
 
 
@@ -59,6 +61,8 @@ def test_matricxon_done_line_and_no_counts_from_a_connector():
         "output_tokens": 8,
         "output_ms": 400.0,
         "prompt_tokens": 3,
+        "read_tokens": None,  # no prompt_cached_count: an older Matricxon, no read sample
+        "read_ms": 1000.0,
     }
     clock = _Clock()
     stats = ReplyStats(clock)
@@ -136,4 +140,5 @@ async def test_matricxon_sends_usage_only_to_callers_that_ask(monkeypatch):
     asked = [c async for c in matricxon_client.chat_stream("m", [], {**params, "usage_events": True})]
 
     assert plain == ["Hi!"]
-    assert asked == ["Hi!", {"usage": {"output_tokens": 4, "output_ms": 200.0, "prompt_tokens": 2}}]
+    usage = {"output_tokens": 4, "output_ms": 200.0, "prompt_tokens": 2, "read_tokens": None, "read_ms": 0.0}
+    assert asked == ["Hi!", {"usage": {**usage, "host": "http://mx:8420"}}]

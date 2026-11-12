@@ -5,6 +5,15 @@ https://bytepenny.com/rss/
 
 ## Unreleased
 
+- A chat deleted while its reply was still being prepared (searching a long file first) no longer gets a reply started for it on the engine. Building a file's search index stops at once when the embedding model can't embed at all, instead of trying every piece.
+
+- Fixed: a chat's first message with a long file failed at once ("This reply didn't finish") when the "only part of the file fitted" note was placed under the message. A note that can't be shown no longer ends the reply, and a failed reply's note now says the browser's reason. A file just sent can be previewed before the reply starts.
+
+- While the engine reads a long prompt, the reply shows how far it got and the time left, e.g. "Reading… 35% · about 12 min left", so a long file no longer looks stuck (a reload or leaving the chat stops a personal chat's reply).
+
+- A long file gets a warning when it's attached: "ROADMAP.md is long: on this server the reply may take about 20 minutes to start", from the chat model's measured reading speed (the median of its latest replies, per engine node; a new chat assumes the slowest node).
+- The reply timeout no longer cuts off a slow but working read: while the engine reports progress reading the prompt (Matricxon, and llama.cpp with `return_progress`), the timeout waits; from the first word, the reply gets the full timeout. A read with no progress for the whole timeout still fails.
+
 - Chats remember earlier attachments: a follow-up question still sees a file's text (exactly as first sent, so the prompt cache keeps matching) and knows an image was attached, answering from the reply that described it.
 - Long files in a chat are searched instead of repeated: a file over a share of the context window (Admin settings > System > Chat > Files in a chat, 25% by default) is split and embedded in the background after the first reply, for that chat only, and each later question gets the parts that match it. Needs a default embedding model; without one, files stay whole.
 - When a long chat outgrows the context window, each file that leaves it keeps the reply about it as a summary, and the user is told once.

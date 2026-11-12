@@ -29,11 +29,18 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 @router.post("/attachments/check", response_model=AttachmentCheckOut)
 async def check_attachments(
     files: list[UploadFile] = File(...),
+    conversation_id: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ) -> AttachmentCheckOut:
-    """Whether a model can read each picked file, before the message is sent (the chat composer calls it)."""
-    return AttachmentCheckOut(files=await AttachmentCheck(db).check_uploads(files))
+    """Whether a model can read each picked file, before the message is sent (the chat composer calls it). With the
+    chat's id, a long file also gets how long the reply may take to start."""
+    conversation = (
+        await conversation_service.get_accessible_conversation_or_404(db, conversation_id, user)
+        if conversation_id
+        else None
+    )
+    return AttachmentCheckOut(files=await AttachmentCheck(db, conversation).check_uploads(files))
 
 
 @router.post("/{conversation_id}/stream")
@@ -150,6 +157,7 @@ async def subscribe_to_reply(
                             "sources": state.sources,
                             "tool_events": state.tool_events,
                             "reasoning": state.reasoning,
+                            "read_progress": state.read_progress,
                         }
                     )
                     + "\n\n"
