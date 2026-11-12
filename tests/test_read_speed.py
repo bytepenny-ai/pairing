@@ -149,7 +149,7 @@ async def test_a_chat_deleted_while_its_reply_is_prepared_gets_no_reply(db, user
     async def deleted(_db, _conversation_id):
         return False
 
-    monkeypatch.setattr(chat_service, "_still_exists", deleted)
+    monkeypatch.setattr(chat_service, "_still_asked", deleted)
     events = [e async for e in chat_service.build_reply_stream(db, one, user, "hello")]
     assert started == [] and "user_message_id" in events[0]
 
@@ -170,3 +170,18 @@ def test_an_embedding_model_that_fails_stops_the_index_early(monkeypatch, tmp_pa
     path.write_text("word " * 5000)
     asyncio.run(ChatFileIndex._build(path, "emb"))
     assert len(calls) == 3 and not ChatFileIndex.index_path(path).exists()
+
+
+@pytest.mark.asyncio
+async def test_a_question_deleted_alone_or_with_its_chat_is_no_longer_asked(db, chats):
+    from app.services import chat_service
+
+    one, _ = chats
+    question = Message(conversation_id=one.id, role="user", content="q")
+    db.add(question)
+    await db.commit()
+    assert await chat_service._still_asked(db, question.id)
+    question.status = "deleted"  # a channel post deleted by its admin
+    await db.commit()
+    assert not await chat_service._still_asked(db, question.id)
+    assert not await chat_service._still_asked(db, "no-such-message")  # gone with its chat

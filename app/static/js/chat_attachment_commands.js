@@ -1,6 +1,7 @@
 /* Chat composer attachments: checks each picked file with the server (POST /api/chat/attachments/check), says why a
-   rejected one can't be read, and puts /describe (an image), /summarize (documents) or both in the message box, so a
-   file can be sent without typing. The server expands the command (app/services/chat_commands.py). */
+   rejected one can't be read, and puts the command for each attached kind in the message box (/describe for an image,
+   /summarize for documents, both for a mix: ChatCommands.forKind), so a file can be sent without typing. The server
+   expands the command (app/services/chat_commands.py). */
 class AttachmentCommands {
   static URL = "/api/chat/attachments/check";
   static autoText = ""; // the command this script put in the box, cleared only while unchanged
@@ -28,11 +29,10 @@ class AttachmentCommands {
     }
   }
 
-  /* "/describe" for an image, "/summarize" for documents, both for a mix ("" with no files). */
+  /* The command for each kind attached, images first ("" with no files): "/describe /summarize" for a mix. */
   static command(files) {
-    const hasImage = files.some((f) => f.type.startsWith("image/"));
-    const hasDocument = files.some((f) => !f.type.startsWith("image/"));
-    return [hasImage && "/describe", hasDocument && "/summarize"].filter(Boolean).join(" ");
+    const kinds = ["image", "text"].filter((kind) => files.some((f) => ChatCommands.kindOf(f) === kind));
+    return kinds.map((kind) => ChatCommands.forKind(kind)).filter(Boolean).map((c) => `/${c.name}`).join(" ");
   }
 
   /* Sets the box to the command for `files`, unless the user typed something of their own. */
@@ -49,6 +49,19 @@ class AttachmentCommands {
     }
   }
 
+  /* While the box holds only commands: what sending it does, and the other forms ("/describe_short"...). */
+  static hint(text) {
+    const { commands, rest } = ChatCommands.leading(text);
+    if (!commands.length || rest) return null;
+    const typed = commands.map((c) => `/${c.name}`).join(" ");
+    const what = commands.map((c) => c.hint || c.description).join(" and ");
+    const others = commands.flatMap((c) => ChatCommands.siblings(c)).filter((c) => !commands.includes(c));
+    const also = others.length
+      ? ` Also: ${others.map((c) => `<span class="font-mono">/${escapeHtml(c.name)}</span>`).join(", ")}.`
+      : "";
+    return `Send <span class="font-mono">${escapeHtml(typed)}</span> to ${escapeHtml(what)}, or add your own question after it.${also}`;
+  }
+
   static reset() {
     AttachmentCommands.autoText = "";
   }
@@ -59,13 +72,8 @@ class AttachmentCommands {
     if (!files.length) AttachmentCommands.warnings = [];
     const lines = rejected.map((r) => `<li class="text-warning-400">${escapeHtml(r.reason)}</li>`);
     lines.push(...AttachmentCommands.warnings.map((w) => `<li class="text-warning-400">${escapeHtml(w)}</li>`));
-    const command = AttachmentCommands.command(files);
-    if (command && input.value.trim() === command) {
-      const documents = files.filter((f) => !f.type.startsWith("image/")).length;
-      const parts = [command.includes("/describe") && "describe the image", documents && `summarize the file${documents > 1 ? "s" : ""}`];
-      const what = parts.filter(Boolean).join(" and ");
-      lines.push(`<li class="text-slate-500">Send <span class="font-mono">${command}</span> to ${what}, or add your own question after it.</li>`);
-    }
+    const hint = files.length ? AttachmentCommands.hint(input.value) : null;
+    if (hint) lines.push(`<li class="text-slate-500">${hint}</li>`);
     el.innerHTML = lines.join("");
     el.classList.toggle("hidden", !lines.length);
   }

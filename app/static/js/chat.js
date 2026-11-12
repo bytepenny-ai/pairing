@@ -435,14 +435,23 @@ async function deleteChannelMessage(messageId, wrapper) {
     return;
   }
   // Deleting a "user" message whose reply is still generating also removes that reply
-  // (conversation_service.delete_message); the response lists every removed id so both bubbles go now.
+  // (conversation_service.delete_message); the response lists every removed id so both bubbles go now. A reply still
+  // reading a long prompt may not know its id yet (no event carried it): then it's the reply bubble right after the
+  // message, still waiting. It used to stay, "thinking" forever.
+  const nextBubble = wrapper.nextElementSibling;
   for (const id of deletedMessageIds) {
-    const el = id === messageId ? wrapper : messagesEl.querySelector(`[data-message-id="${id}"]`);
+    let el = id === messageId ? wrapper : messagesEl.querySelector(`[data-message-id="${id}"]`);
+    if (!el && nextBubble && !nextBubble.dataset.messageId && nextBubble.querySelector(".typing-dot")) el = nextBubble;
     if (el) el.remove();
     //.add, not.delete: a "cheap" poll in flight at click time can resolve with the pre-delete status (e.g.
     // "streaming"), and without this runChannelPoll's liveMessageIds check would recreate the bubble, reappearing until
     // a full reload (a shipped bug).
     liveMessageIds.add(id);
+  }
+  if (deletedMessageIds.length > 1) {
+    // The reply was stopped: the channel can be asked again.
+    channelReplyInFlight = false;
+    updateAskAiButtonState();
   }
   if (messagesEl.children.length === 0) showEmptyState(true);
 }

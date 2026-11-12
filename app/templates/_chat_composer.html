@@ -2,7 +2,7 @@
 <form id="chat-form" class="border-t border-slate-800 p-4">
   <!-- One chip per file picked via #attach-btn below (chat.js onAttachmentChosen), each with an "x" to drop it; cleared on send. Up to 5 documents + 1 image combined (app.config.MAX_ATTACHMENT_DOCUMENTS/MAX_ATTACHMENT_IMAGES); the server is the authority, this is a client-side nicety. -->
   <div id="attachment-preview" class="hidden mx-auto max-w-3xl mb-2 flex flex-wrap gap-2"></div>
-  <!-- Why a picked file was refused, and how to send the prefilled /describe or /summarize (chat_attachment_commands.js). -->
+  <!-- Why a picked file was refused, and how to send the prefilled command (/describe, /summarize...: chat_attachment_commands.js). -->
   <ul id="attachment-notice" class="hidden mx-auto max-w-3xl mb-2 space-y-0.5 text-xs"></ul>
   <!-- The composer: the message on top (two lines, grows to 200px, chat.js), the actions below it. -->
   <div class="relative mx-auto max-w-3xl rounded-2xl border border-slate-600 bg-slate-900 shadow-lg shadow-black/20 focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/25 transition">

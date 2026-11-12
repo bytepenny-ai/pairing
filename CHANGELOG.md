@@ -5,6 +5,10 @@ https://bytepenny.com/rss/
 
 ## Unreleased
 
+- Chat commands have short and long forms: `/describe_short`, `/describe_long`, `/summarize_short` and `/summarize_long` (and `/summarise_…`), beside `/describe` and `/summarize`. Typing `/` in the message box lists every command with what it does. Commands are one catalog on the server (GET /api/chat/commands), so a new command needs no change in the page.
+
+- Channels: deleting a post whose AI reply is still reading a long prompt removes the reply's "thinking" bubble too (it had no id yet, so it stayed), and the channel can be asked again at once. A post deleted while its reply was still being prepared gets no reply started.
+
 - A chat deleted while its reply was still being prepared (searching a long file first) no longer gets a reply started for it on the engine. Building a file's search index stops at once when the embedding model can't embed at all, instead of trying every piece.
 
 - Fixed: a chat's first message with a long file failed at once ("This reply didn't finish") when the "only part of the file fitted" note was placed under the message. A note that can't be shown no longer ends the reply, and a failed reply's note now says the browser's reason. A file just sent can be previewed before the reply starts.

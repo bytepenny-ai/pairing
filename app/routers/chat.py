@@ -14,16 +14,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import ATTACHMENTS_DIR
 from app.database import get_db
 from app.models import User
-from app.schemas.chat import AttachmentCheckOut, AttachmentPreviewOut
+from app.schemas.chat import AttachmentCheckOut, AttachmentPreviewOut, ChatCommandListOut, ChatCommandOut
 from app.services import chat_attachment_service, conversation_service, reply_broadcast_service
 from app.services.auth_service import get_current_user
 from app.services.chat_attachment_check import AttachmentCheck
 from app.services.chat_attachment_preview import AttachmentPreviewer, get_accessible_attachment
+from app.services.chat_commands import ChatCommand
 from app.services.chat_service import build_reply_stream
 from app.services.model_catalog_service import HiddenModelTags
 from app.services.usage_limits import UsageLimitService
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+@router.get("/commands", response_model=ChatCommandListOut)
+async def list_chat_commands(_user: User = Depends(get_current_user)) -> ChatCommandListOut:
+    """The commands a message can start with (chat_command_catalog.py), for the "/" menu and attach prefill."""
+    return ChatCommandListOut(
+        commands=[
+            ChatCommandOut(
+                name=c.name,
+                description=c.description,
+                needs=c.needs,
+                prefill_for=c.prefill_for,
+                hint=c.hint,
+                aliases=list(c.aliases),
+            )
+            for c in ChatCommand.CATALOG.all()
+        ]
+    )
 
 
 @router.post("/attachments/check", response_model=AttachmentCheckOut)

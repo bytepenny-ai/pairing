@@ -110,3 +110,18 @@ class AttachmentVerdictOut(BaseModel):
 
 class AttachmentCheckOut(BaseModel):
     files: list[AttachmentVerdictOut]
+
+
+class ChatCommandOut(BaseModel):
+    """One chat command, for the page's "/" menu and attach-a-file prefill (chat_command_catalog.py)."""
+
+    name: str
+    description: str
+    needs: str | None = None  # "image" or "text": the attachment kind it works on
+    prefill_for: str | None = None  # attaching this kind puts this command in the box
+    hint: str = ""
+    aliases: list[str] = []
+
+
+class ChatCommandListOut(BaseModel):
+    commands: list[ChatCommandOut]

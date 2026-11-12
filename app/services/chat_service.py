@@ -180,9 +180,10 @@ async def build_reply_stream(
         fallback = await ImageFallback.prepare(db, plan.image_if_needed, chat_messages, vision_messages)
 
     live_workflow.exit("chat_service_build")
-    # Getting here can take a while (a long file to search first): a chat deleted meanwhile gets no reply, else the
-    # engine would read the whole prompt for nobody (nothing to cancel existed when it was deleted).
-    if not await _still_exists(db, conversation.id):
+    # Getting here can take a while (a long file to search first): a question deleted meanwhile (the post in a
+    # channel, or the whole chat) gets no reply, else the engine would read the prompt for nobody (no reply existed
+    # yet to cancel).
+    if not await _still_asked(db, user_message.id):
         return
     # Channels always finish generating (other members may rely on it); a personal chat has one viewer, so
     # leaving stops generation (cancel_on_disconnect=True). Both leave a clean status="error" record
@@ -223,7 +224,9 @@ async def build_reply_stream(
             )
 
 
-async def _still_exists(db: AsyncSession, conversation_id: str) -> bool:
-    """Read from the database, not the session's cached object: deleted by another request meanwhile?"""
-    found = await db.execute(select(Conversation.id).where(Conversation.id == conversation_id))
-    return found.scalar_one_or_none() is not None
+async def _still_asked(db: AsyncSession, message_id: str) -> bool:
+    """Whether the question is still there, read from the database (not the session's cached object): deleted by
+    another request meanwhile, alone (status "deleted") or with its chat (no row)?"""
+    found = await db.execute(select(Message.status).where(Message.id == message_id))
+    status = found.scalar_one_or_none()
+    return status is not None and status != "deleted"
