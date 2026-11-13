@@ -42,6 +42,25 @@ def test_the_text_sent_with_a_file_comes_back_on_the_next_turn_as_it_was_sent(tm
     assert text.startswith(f"{sent}\n\n---\n\nSummarize the attached file(s)")  # same as the first turn: cache match
 
 
+def test_a_message_with_a_file_and_a_layout_insert_reads_the_same_on_the_next_turn(tmp_path):
+    from app.services.chat_prompt_service import prepend_turn_context
+    from app.services.prompt_layout.base import PromptLayout
+
+    path = _save(tmp_path, "notes.txt", "full file")
+    files = chat_attachment_service.fold_text_attachments_into_prompt(
+        "", [AttachmentInfo(path=path, filename="notes.txt", type="text")]
+    ).strip()
+    message = _with_file(tmp_path, "notes.txt", "text", "what is in it?")
+    message.id = "m1"
+    inserts = {"m1": "Update to your instructions: answer in French."}
+    now = [
+        {"role": "user", "content": PromptLayout.wrap(AttachmentMemory(current=message).history_text, inserts)(message)}
+    ]
+    prepend_turn_context(now, files, inserts["m1"])  # the turn it is sent
+    later = PromptLayout.wrap(AttachmentMemory(folder=tmp_path).history_text, inserts)(message)  # every turn after
+    assert now[0]["content"] == later
+
+
 def test_a_file_sent_before_this_was_kept_is_read_once_and_saved(tmp_path):
     path = _save(tmp_path, "old.txt", "old content")
     text = AttachmentMemory(folder=tmp_path).history_text(_with_file(tmp_path, "old.txt", "text", "what is it?"))

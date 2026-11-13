@@ -1666,7 +1666,7 @@ const saveBarHomeParent = saveBarEl?.parentNode;
 const saveBarHomeNextSibling = saveBarEl?.nextSibling;
 // System is split into five pages; Default models sits under Models (settings/system.html), each its own tab.
 const SYSTEM_TABS = ["system-service", "system-database", "system-proxy", "system-rag", "system-chat"];
-const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "my-skills", "account", "default-models", ...SYSTEM_TABS, "external-servers", "memory-pinning", "mcp-servers", "users", "channels", "skills", "update"];
+const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "my-skills", "account", "default-models", ...SYSTEM_TABS, "external-servers", "memory-pinning", "prompt-cache", "mcp-servers", "users", "channels", "skills", "update"];
 
 let activeTabName = "model";
 

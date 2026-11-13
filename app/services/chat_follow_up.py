@@ -20,6 +20,7 @@ from app.services.chat_file_index import ChatFileIndex
 from app.services.chat_file_memory_setting import ChatFileMemorySettings
 from app.services.image_relevance import ImageRelevance
 from app.services.inference_client import InferenceError, embed
+from app.services.prompt_layout.base import PromptLayout
 from app.services.turn_context_fit import TokenEstimate
 
 logger = logging.getLogger(__name__)
@@ -63,27 +64,60 @@ class ChatFollowUp:
         self._embedding_model: str | None = None
         self._memory = AttachmentMemory(current=messages[-1])
         self._question_vectors: dict[str, np.ndarray | None] = {}
+        self._setting: ChatFileMemorySetting | None = None
+        self._texts: dict[object, str] = {}
 
-    async def plan(self, question: str, attachments: list[AttachmentInfo]) -> FollowUpPlan:
-        setting = await ChatFileMemorySettings(self._db).get()
-        self._embedding_model = await model_catalog_service.get_default_embedding_model(self._db)
-        whole_limit = self._num_ctx * setting.whole_file_percent // 100
-        self._memory = AttachmentMemory(
-            current=self._messages[-1],
-            whole_limit=whole_limit if self._embedding_model else None,
-            images_inline=self._sees_images,
-        )
-        text_of = self._memory.history_text
-        images_of = self._memory.images_of if self._sees_images else None
+    async def prepare(self) -> ChatFileMemorySetting:
+        """Reads the admin's setting and the embedding model, once (plan calls it too)."""
+        if self._setting is None:
+            self._setting = await ChatFileMemorySettings(self._db).get()
+            self._embedding_model = await model_catalog_service.get_default_embedding_model(self._db)
+            whole_limit = self._num_ctx * self._setting.whole_file_percent // 100
+            self._memory = AttachmentMemory(
+                current=self._messages[-1],
+                whole_limit=whole_limit if self._embedding_model else None,
+                images_inline=self._sees_images,
+            )
+            self._texts = {}
+        return self._setting
+
+    def _history_text(self, message: Message) -> str:
+        """A message as the model reads it, worked out once per reply (it may read files)."""
+        key = message.id or id(message)
+        if key not in self._texts:
+            self._texts[key] = self._memory.history_text(message)
+        return self._texts[key]
+
+    async def kept_ids(self, inserts: dict[str, str]) -> set[str]:
+        """The messages the history window keeps when `inserts` (a prompt layout's, app/services/prompt_layout) go
+        before their messages."""
+        await self.prepare()
+        text_of = PromptLayout.wrap(self._history_text, inserts)
         start = chat_history_service.window_start(self._messages, self._num_ctx, self._reserved, text_of)
+        return {m.id for m in self._messages[start:]}
+
+    async def plan(
+        self, question: str, attachments: list[AttachmentInfo], layout: PromptLayout | None = None
+    ) -> FollowUpPlan:
+        """`layout`: the reply's prompt layout, whose inserts go before their messages."""
+        setting = await self.prepare()
+        whole_limit = self._num_ctx * setting.whole_file_percent // 100
+        text_of = layout.text_of(self._history_text) if layout else self._history_text
+        images_of = self._memory.images_of if self._sees_images else None
+        notes_of = layout.notes_of if layout else None  # the app's tool results before messages (tool models)
+        start = chat_history_service.window_start(self._messages, self._num_ctx, self._reserved, text_of, notes_of)
         plan = FollowUpPlan(
-            chat_history_service.trim_history(self._messages, self._num_ctx, self._reserved, text_of, images_of)
+            chat_history_service.trim_history(
+                self._messages, self._num_ctx, self._reserved, text_of, images_of, notes_of
+            )
         )
         forgotten = self._memory.forgotten_notice(self._messages, self._last_window_start(text_of), start)
         if forgotten:
             plan.notices.append(forgotten)
         self._prepend(plan.history, AttachmentMemory.summaries(self._messages, start), first=True)
-        self._prepend(plan.history, await self._excerpts(question, whole_limit, setting.unrelated_below), first=False)
+        excerpts = await self._excerpts(question, whole_limit, setting.unrelated_below)
+        insert = layout.inserts.get(self._messages[-1].id, "") if layout else ""
+        self._prepend(plan.history, excerpts, first=False, insert=insert)
         if not self._sees_images and not any(a.type == "image" for a in attachments):
             if setting.image_follow_up == "again":
                 plan.image_again = await self._earlier_image(question, setting)
@@ -110,7 +144,7 @@ class ChatFollowUp:
         """The parts of earlier long files that match the question; none for a short reply ("OK") or when even the
         best part is unrelated in meaning (under the admin's mark)."""
         files = self._memory.long_files(self._messages) if self._embedding_model else []
-        if not files or not question.strip() or self._small_talk(question):
+        if not files or not question.strip() or self.is_small_talk(question):
             return ""
         try:
             for path, _filename in files:
@@ -152,7 +186,7 @@ class ChatFollowUp:
         a question close in meaning to the image's description always does and an unrelated one never does
         (image_relevance.py); in between, or without one: while the image is among the last few questions, or when the
         question names a picture."""
-        if self._small_talk(question):
+        if self.is_small_talk(question):
             return None
         found = self._latest_image()
         if found is None:
@@ -188,13 +222,14 @@ class ChatFollowUp:
         return None
 
     @staticmethod
-    def _small_talk(question: str) -> bool:
+    def is_small_talk(question: str) -> bool:
         """ "OK", "thanks a lot", "great!": short, with no "?" and no question word."""
         return len(question.split()) <= _SMALL_TALK_WORDS and "?" not in question and not _ASKS.search(question)
 
     @staticmethod
-    def _prepend(history: list[dict], text: str, first: bool) -> None:
-        """Puts `text` before the first (or the newest) user message; a first that isn't a user turn gets one."""
+    def _prepend(history: list[dict], text: str, first: bool, insert: str = "") -> None:
+        """Puts `text` before the first (or the newest) user message; a first that isn't a user turn gets one. On the
+        newest, after its prompt-layout `insert` (PromptLayout.add_after_insert)."""
         if not text or not history:
             return
         users = [m for m in history if m["role"] == "user"]
@@ -202,4 +237,4 @@ class ChatFollowUp:
         if first and history[0]["role"] != "user":
             history.insert(0, {"role": "user", "content": text})
             return
-        target["content"] = f"{text}\n\n---\n\n{target['content']}"
+        target["content"] = PromptLayout.add_after_insert(target["content"], insert, text)

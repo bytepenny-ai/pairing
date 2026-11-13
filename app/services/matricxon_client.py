@@ -139,8 +139,8 @@ async def chat_stream(model: str, messages: list[dict], params: dict) -> AsyncGe
         payload["request_id"] = params["request_id"]
     if params.get("conversation_id"):  # tags the cached prompt, so a deleted chat's cache can be dropped
         payload["cache_tag"] = params["conversation_id"]
-    if params.get("model_role"):  # "vision": not counted toward Matricxon's max loaded (chat) models
-        payload["model_role"] = params["model_role"]
+    # A "vision" model_role isn't counted toward max loaded models; cache_reuse: the "blocks" layout (prompt_layout).
+    payload.update({key: params[key] for key in ("model_role", "cache_reuse") if params.get(key)})
 
     # Filled per attempt by _raw_content_chunks_from (failover may retry), read at the end for the span's telemetry;
     # the span wraps the whole failover loop, so plain locals won't do (as llamacpp_client.chat_stream's call_state).

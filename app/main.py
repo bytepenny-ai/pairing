@@ -53,6 +53,7 @@ from app.routers import (
     model_catalog_admin,
     notes,
     pages,
+    prompt_cache_admin,
     proxy_admin,
     reasoning_admin,
     rerank_admin,
@@ -184,6 +185,8 @@ app.include_router(workflow_view_admin.router)
 app.include_router(context_window_admin.router)
 app.include_router(vision_reply_admin.router)
 app.include_router(chat_file_memory_admin.router)
+app.include_router(prompt_cache_admin.router)
+app.include_router(prompt_cache_admin.chat_router)
 app.include_router(reasoning_admin.router)
 app.include_router(mcp_admin.router)
 app.include_router(mcp_admin.enabled_router)

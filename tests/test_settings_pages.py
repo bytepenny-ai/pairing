@@ -47,16 +47,21 @@ async def test_admin_settings_has_the_admin_tabs_and_the_admin_models_page(db, a
     html = response.body.decode()
 
     system = ["system-service", "system-database", "system-proxy", "system-chat"]
-    # The Inference group: Engine, Memory pinning, MCP servers, RAG.
-    inference = ["external-servers", "memory-pinning", "mcp-servers", "system-rag"]
+    # The Inference group: Engine, Memory pinning, Prompt cache, MCP servers, RAG.
+    inference = ["external-servers", "memory-pinning", "prompt-cache", "mcp-servers", "system-rag"]
     rest = ["users", "channels", "skills", "update"]
     admin_tabs = ["model", "default-models", *system, *inference, *rest]
     assert _tabs(response) == admin_tabs
     for page in [*system, *inference, "default-models"]:  # one panel per page
         assert f'id="tab-{page}"' in html
     group = html[html.index(">\n            Inference\n") :]
-    labels = ("Engine", "Memory pinning", "MCP servers", "RAG")
+    labels = ("Engine", "Memory pinning", "Prompt cache", "MCP servers", "RAG")
     assert [label for label in labels if label in group[: group.index("</details>")]] == list(labels)
+    # settings.js shows only panels it lists: a page missing there opens empty
+    script = Path("app/static/js/settings.js").read_text()
+    listed = re.search(r"const TAB_CONTENT_IDS = \[(.*?)\];", script).group(1)
+    for page in admin_tabs:
+        assert f'"{page}"' in listed or page.startswith("system-"), page
     assert 'id="hf-search-input"' in html and 'id="mcp-panel"' in html
     assert "will not affect other users" not in html
     # truly separate: none of the user-level panels or controls are in this page

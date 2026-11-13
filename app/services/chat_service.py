@@ -27,6 +27,7 @@ from app.services.chat_follow_up import ChatFollowUp
 from app.services.chat_model_warmup import ChatModelWarmUp
 from app.services.image_fallback_stream import ImageFallback, image_question
 from app.services.live_workflow_bus import live_workflow
+from app.services.prompt_layout.layouts import PromptLayouts
 from app.services.reasoning_setting import reasoning_setting
 
 
@@ -134,7 +135,13 @@ async def build_reply_stream(
         reserved_tokens,
         sees_images,
     )
-    plan = await follow_up.plan(ChatCommand.expand(content), attachments)
+    # How the notes and skills go into the prompt (Admin settings > Inference > Prompt cache): may add an update or
+    # a skill's text to this message.
+    question, has_image = ChatCommand.expand(content), any(a.type == "image" for a in attachments)
+    layout = await PromptLayouts(db).for_message(
+        conversation, user.id, user_message.id, question, follow_up.kept_ids, has_image, sees_images
+    )
+    plan = await follow_up.plan(question, attachments, layout)
     history = plan.history
     # An earlier image the question is about, shown to the vision model again (admin setting, off by default).
     reply_files = [*attachments, plan.image_again] if plan.image_again else attachments
@@ -142,11 +149,21 @@ async def build_reply_stream(
     # Notes/RAG/attachment layering: see chat_prompt_service.build_system_prompt. Excerpts and files get only the room
     # the history leaves; whatever was cut is reported to the sender as a "notice" event.
     system_prompt, turn_context, source_filenames, notices = await chat_prompt_service.build_system_prompt(
-        db, conversation, user, ChatCommand.expand(content), params, reply_files, history, reserved_tokens, sees_images
+        db,
+        conversation,
+        user,
+        question,
+        params,
+        reply_files,
+        history,
+        reserved_tokens,
+        sees_images,
+        layout.system_prompt,
     )
+    params = {**params, **layout.reply_params()}
     for notice in [*plan.notices, *notices]:
         yield {"notice": notice}
-    chat_prompt_service.prepend_turn_context(history, turn_context)
+    chat_prompt_service.prepend_turn_context(history, turn_context, layout.inserts.get(user_message.id, ""))
     # Always sent, even when "": an explicit empty system message tells the engine there is no preamble,
     # whereas omitting it makes some chat-template layers (e.g. Matricxon's VicunaPromptBuilder) substitute their own
     # default.

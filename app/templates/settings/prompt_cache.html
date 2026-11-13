@@ -1,0 +1,88 @@
+<!-- Admin settings > Inference > Prompt cache: how notes and skills are laid out in the prompt, so changing them
+     costs the engine as little re-reading as possible (app/services/prompt_layout, settings_prompt_cache.js,
+     /api/settings/prompt-cache). -->
+<div id="tab-prompt-cache" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
+  <section id="prompt-cache-panel" class="space-y-3">
+    <h2 class="text-sm font-semibold text-slate-200">Prompt cache</h2>
+    <p class="text-xs text-slate-500 -mt-2">
+      The engine keeps what it has read of each chat, so the next message reads only what's new. A change to the
+      chat's notes or skills normally makes it read again from that point to the end. Choose how they are laid out,
+      so a change costs as little reading as possible. It applies to every chat from its next message.
+    </p>
+    <div id="prompt-cache-modes" class="space-y-2">
+      {% set modes = [
+        ("ordered", "Stable order", "Exact · every engine",
+         "What changes least comes first: skills, then notes. A change (e.g. changing skills mid-chat) makes the engine read again from that part to the end, never what comes before it. Skills and notes lock at a chat's first message."),
+        ("append", "Add changes as updates", "Exact · every engine",
+         "The prompt stays as the chat started. A change (e.g. changing skills mid-chat) is added as a short update to the message where it happened, so nothing is read again. Once the updates grow past the limits below, the prompt is rebuilt (one full read). Started chats can still change their skills and notes mid-chat."),
+        ("index", "Skill index, full text when needed", "Exact · every engine",
+         "The prompt lists each skill in one line, and a skill's full text joins the chat only when a request needs it, so long skills nobody uses are never read. Chat models that can call tools (Gemma 4, Qwen 3.5, Llama 3.2, Ministral 3: models with the tools capability) read a skill themselves when they need it and need no embedding model. For other models the default embedding model judges which skill fits (without one, every skill is added with the chat's first message). Started chats can change their skills, not their notes."),
+        ("blocks", "Keep unchanged blocks", "Approximate · Matricxon",
+         "Laid out like Stable order. After a change (e.g. changing skills mid-chat), Matricxon reads only the changed part and copies the rest of the chat from what it already read, instead of reading it all again: much faster. The copied parts were read next to the old text, so a reply may differ slightly from a full re-read. Matricxon only: other engines re-read as with Stable order (for llama.cpp, adding --cache-reuse 256 to its extra arguments on the Engine page does something similar). Started chats can still change their skills and notes."),
+      ] %}
+      {% for value, title, badge, text in modes %}
+      <label class="flex cursor-pointer gap-3 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 hover:border-slate-700 has-[:checked]:border-brand-500">
+        <input type="radio" name="prompt-cache-mode" value="{{ value }}" class="mt-1 accent-brand-500" />
+        <span class="space-y-1">
+          <span class="flex flex-wrap items-center gap-2">
+            <span class="text-sm text-slate-200">{{ title }}</span>
+            <span class="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">{{ badge }}</span>
+          </span>
+          <span class="block text-xs text-slate-500">{{ text }}</span>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div data-mode-fields="append" class="hidden rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 grid grid-cols-2 gap-3">
+      <label class="block">
+        <span class="text-xs text-slate-400">Rebuild after this many updates (1 to 50)</span>
+        <input type="number" id="prompt-cache-max-updates" min="1" max="50" step="1"
+          class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-slate-400">…or this many characters of updates (500 to 100000)</span>
+        <input type="number" id="prompt-cache-max-update-chars" min="500" max="100000" step="100"
+          class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+      </label>
+    </div>
+
+    <div data-mode-fields="index" class="hidden rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block">
+          <span class="text-xs text-slate-400">Add a skill from this closeness (0 to 1)</span>
+          <input type="number" id="prompt-cache-load-above" min="0" max="1" step="0.01"
+            class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+        </label>
+        <label class="block">
+          <span class="text-xs text-slate-400">Skills added per message, at most (1 to 10)</span>
+          <input type="number" id="prompt-cache-max-loaded" min="1" max="10" step="1"
+            class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+        </label>
+      </div>
+      <p class="text-xs text-slate-500">Only for chat models that can't call tools (one that can reads the skill
+        itself, with no embedding model). Each question is compared in meaning with each skill not added yet (0
+        unrelated, 1 the same). Short replies like "OK" add none. The mark suits
+        <strong class="text-slate-400">paraphrase-multilingual-MiniLM-L12-v2</strong> (best for chats in several
+        languages) and all-MiniLM-L6-v2 (English only). multilingual-e5 doesn't suit it: every question
+        scores high there, so every skill is added. A skill's text never goes on a message with an image: it would
+        hide the image.</p>
+    </div>
+
+    <div data-mode-fields="blocks" class="hidden rounded-lg bg-slate-900 border border-slate-800 px-4 py-3">
+      <label class="block">
+        <span class="text-xs text-slate-400">Shortest unchanged part worth keeping, in tokens (8 to 4096)</span>
+        <input type="number" id="prompt-cache-min-block" min="8" max="4096" step="1"
+          class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
+      </label>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button id="prompt-cache-save-btn" type="button"
+        class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+        Save
+      </button>
+      <span id="prompt-cache-status" class="text-xs text-slate-500"></span>
+    </div>
+  </section>
+</div>

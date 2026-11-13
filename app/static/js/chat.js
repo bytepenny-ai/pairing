@@ -1121,6 +1121,19 @@ document.addEventListener("keydown", (event) => {
 /* Shows one clickable icon per persona/rules slot (GET /api/notes/slots/{id}), always both in the same order so the row doesn't jump; an off slot fades but stays clickable to turn it back on (openSlotEditor's "Enable"). Best-effort: a failed lookup shows no icons. */
 let pinnedSlots = [];
 let activeHasMessages = false;
+/* Admin settings > Inference > Prompt cache: what a started chat may still change, by what its layout makes cheap
+   (GET /api/prompt-cache/mid-chat-changes, read on each chat switch): skills in every layout but "Stable order",
+   persona and rules only in "Add changes as updates" and "Keep unchanged blocks". */
+let midChatChanges = { skills: false, notes: false };
+const notesLocked = () => activeHasMessages && !midChatChanges.notes;
+const skillsLocked = () => activeHasMessages && !midChatChanges.skills;
+async function loadMidChatChanges() {
+  try {
+    midChatChanges = await api("/api/prompt-cache/mid-chat-changes");
+  } catch (_) {
+    midChatChanges = { skills: false, notes: false };
+  }
+}
 
 async function loadPinnedBadges(conversationId) {
   let slots;
@@ -1136,9 +1149,9 @@ async function loadPinnedBadges(conversationId) {
   renderPinnedBadges();
 }
 
-/* Draws the badges from `pinnedSlots`, then the Skills badge (chat_skills.js); clickable only for someone who can manage the chat, and only while it has no messages. */
+/* Draws the badges from `pinnedSlots`, then the Skills badge (chat_skills.js); clickable only for someone who can manage the chat, and only while notesLocked() (skillsLocked() for skills) is false. */
 function renderPinnedBadges() {
-  const editable = canManageActive && !activeHasMessages;
+  const editable = canManageActive && !notesLocked();
   const conversationId = activeConversationId;
   pinnedBadgesEl.innerHTML = "";
   for (const slot of pinnedSlots) {
@@ -1150,12 +1163,12 @@ function renderPinnedBadges() {
     const state = !slot.active ? " (off)" : slot.is_override ? " (customized)" : "";
     const readOnlyNote = !canManageActive
       ? " — read-only (admins/managers only)"
-      : activeHasMessages ? " — locked: can only change before the first message" : "";
+      : notesLocked() ? " — locked: can only change before the first message" : "";
     badge.title = `${PIN_TYPE_LABELS[slot.pin_type] || slot.pin_type}${state}: ${slot.title || ""}${readOnlyNote}`;
     badge.textContent = PIN_TYPE_ICONS[slot.pin_type] || "📌";
     // Reads canManageActive at click time, not render time (see its declaration).
     badge.addEventListener("click", () => {
-      if (canManageActive && !activeHasMessages) return openSlotEditor(conversationId, slot);
+      if (canManageActive && !notesLocked()) return openSlotEditor(conversationId, slot);
       const reason = !canManageActive
         ? "Read-only: only admins and this channel's managers can change it."
         : "Locked: notes can only change before the first message.";
@@ -1163,7 +1176,7 @@ function renderPinnedBadges() {
     });
     pinnedBadgesEl.appendChild(badge);
   }
-  if (typeof chatSkills !== "undefined") chatSkills.render(conversationId, editable);
+  if (typeof chatSkills !== "undefined") chatSkills.render(conversationId, canManageActive && !skillsLocked());
   if (typeof chatExport !== "undefined") chatExport.render(conversationId);
 }
 
@@ -1300,7 +1313,7 @@ async function selectConversation(id) {
   activeHasMessages = false;
   loadPinnedBadges(id);
 
-  const messages = await api(`/api/conversations/${id}/messages`);
+  const [messages] = await Promise.all([api(`/api/conversations/${id}/messages`), loadMidChatChanges()]);
   renderMessageList(messages, channelInfo);
   if (id === activeConversationId) {
     activeHasMessages = messages.length > 0;

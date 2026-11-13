@@ -218,3 +218,12 @@ async def test_an_identical_repeated_call_in_one_turn_runs_once(server, monkeypa
     events = [i["tool"] for i in await _collect(ToolLoop([_tool(server)])) if isinstance(i, dict)]
 
     assert [e["result"] for e in events] == ["2", "4"]
+
+
+async def test_a_reply_that_starts_with_a_tool_call_has_no_blank_lines_in_front(server, monkeypatch) -> None:
+    engine = ScriptedEngine([("", [_call("fake__add", {"a": 2, "b": 3})]), ("It is 5.", [])])
+    monkeypatch.setattr(inference_client, "chat_stream", engine)
+
+    items = await _collect(ToolLoop([_tool(server)]))
+
+    assert "".join(i for i in items if isinstance(i, str)) == "It is 5."

@@ -14,12 +14,12 @@ async def test_slots_are_editable_only_while_the_chat_has_no_messages(db, user):
     await db.commit()
     await db.refresh(conversation, ["messages"])
 
-    await _require_slot_edit_rights(conversation, user)
+    await _require_slot_edit_rights(db, conversation, user)
 
     db.add(Message(conversation_id=conversation.id, role="user", content="hi", sender_id=user.id))
     await db.commit()
     await db.refresh(conversation, ["messages"])
 
     with pytest.raises(HTTPException) as locked:
-        await _require_slot_edit_rights(conversation, user)
+        await _require_slot_edit_rights(db, conversation, user)
     assert locked.value.status_code == 409

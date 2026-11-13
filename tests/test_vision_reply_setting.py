@@ -11,6 +11,7 @@ from app.routers import vision_reply_admin
 from app.schemas.vision_reply import VisionReplySetting
 from app.services import chat_prompt_service
 from app.services.chat_attachment_service import AttachmentInfo
+from app.services.prompt_layout import sections
 
 IMAGE = [AttachmentInfo(path=Path("/x/cat.png"), filename="cat.png", type="image")]
 
@@ -20,18 +21,20 @@ def stubs(monkeypatch):
     """A chat with one note and one skill, and an empty knowledge base."""
 
     async def notes(_db, _conversation, _user_id):
-        return {"persona": "NOTE"}
+        return {"persona": [SimpleNamespace(id="n1", content="NOTE")]}
 
     async def skills(_db, _conversation):
-        return ["SKILL"]
+        return [SimpleNamespace(id="s1", name="S", content="SKILL", description="")]
 
     async def nothing(*_args, **_kwargs):
         return []
 
-    monkeypatch.setattr(chat_prompt_service, "resolve_conversation_notes", notes)
-    monkeypatch.setattr(chat_prompt_service, "build_pinned_system_prompt", lambda found: found["persona"])
-    monkeypatch.setattr(chat_prompt_service.conversation_skills, "active_skills", skills)
-    monkeypatch.setattr(chat_prompt_service.conversation_skills, "build_skills_prompt", lambda found: found[0])
+    monkeypatch.setattr(sections, "resolve_conversation_notes", notes)
+    monkeypatch.setattr(sections.conversation_skills, "active_skills", skills)
+    monkeypatch.setattr(sections.PromptSections, "notes_text", lambda self: "NOTE" if self.of_kind("persona") else "")
+    monkeypatch.setattr(
+        sections.PromptSections, "skills_text", staticmethod(lambda found: found[0].text if found else "")
+    )
     monkeypatch.setattr(chat_prompt_service, "retrieve_context", nothing)
 
 
@@ -45,7 +48,7 @@ async def _system_prompt(db, attachments) -> str:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("include", "expected"), [("all", "NOTE\n\nSKILL"), ("notes", "NOTE"), ("none", "")])
+@pytest.mark.parametrize(("include", "expected"), [("all", "SKILL\n\nNOTE"), ("notes", "NOTE"), ("none", "")])
 async def test_a_reply_to_an_image_includes_what_the_admin_chose(db, stubs, include, expected):
     await vision_reply_admin.set_vision_reply_context(VisionReplySetting(include=include), db=db, _admin=None)
     assert await _system_prompt(db, IMAGE) == expected
@@ -54,7 +57,7 @@ async def test_a_reply_to_an_image_includes_what_the_admin_chose(db, stubs, incl
 @pytest.mark.asyncio
 async def test_a_text_reply_always_includes_notes_and_skills(db, stubs):
     await vision_reply_admin.set_vision_reply_context(VisionReplySetting(include="none"), db=db, _admin=None)
-    assert await _system_prompt(db, []) == "NOTE\n\nSKILL"
+    assert await _system_prompt(db, []) == "SKILL\n\nNOTE"
 
 
 @pytest.mark.asyncio

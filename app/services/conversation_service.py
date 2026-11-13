@@ -112,8 +112,8 @@ async def update_conversation(
             raise HTTPException(status_code=400, detail="Model is disabled by an admin")
         conversation.model = body.model
     if body.params is not None:
-        saved_tools = (conversation.params or {}).get("tool_snapshot", [])
-        conversation.params = {**body.params.model_dump(), "tool_snapshot": saved_tools}
+        kept = {k: (conversation.params or {}).get(k, d) for k, d in (("tool_snapshot", []), ("prompt_layout", {}))}
+        conversation.params = {**body.params.model_dump(), **kept}  # server-managed keys survive a Settings save
     await db.commit()
     await db.refresh(conversation)
     return conversation

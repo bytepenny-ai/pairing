@@ -158,3 +158,6 @@ class GenerationParams(BaseModel):
     # Tool definitions this chat offers, saved at first use (chat_tool_set). Server-managed: client updates
     # never change it. Declared so a Settings save does not lose it.
     tool_snapshot: list[dict] = []
+    # How this chat's notes and skills were laid out for the prompt cache (app/services/prompt_layout).
+    # Server-managed like tool_snapshot, and never sent to the browser: it holds the notes' and skills' text.
+    prompt_layout: dict = Field(default_factory=dict, exclude=True)

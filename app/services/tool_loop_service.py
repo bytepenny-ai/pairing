@@ -19,6 +19,7 @@ from app.services.live_workflow_bus import live_workflow
 from app.services.mcp_client import McpError
 from app.services.mcp_tool_catalog import ExposedTool, McpToolCatalog
 from app.services.model_capabilities import model_capabilities
+from app.services.prompt_layout.skill_chat_tool import NoticeTool, SkillTool
 from app.services.tool_call_sink import ToolCallSink
 from app.services.tool_result_clip import ToolResultClip
 
@@ -26,7 +27,7 @@ from app.services.tool_result_clip import ToolResultClip
 class ToolLoop:
     def __init__(
         self,
-        tools: list[ExposedTool | ChatTool],
+        tools: list[ExposedTool | ChatTool | SkillTool | NoticeTool],
         max_rounds: int = mcp_settings_service.DEFAULT_MAX_TOOL_ROUNDS,
         max_result_chars: int = mcp_settings_service.DEFAULT_MAX_RESULT_CHARS,
     ) -> None:
@@ -40,6 +41,7 @@ class ToolLoop:
     ) -> AsyncIterator[str | dict[str, Any]]:
         messages = list(messages)
         offer_tools = True
+        wrote = False  # a separator goes between rounds' text only, never in front of the reply
         for round_number in range(self._max_rounds + 1):
             offer_tools = offer_tools and round_number < self._max_rounds
             sink = ToolCallSink()
@@ -50,9 +52,10 @@ class ToolLoop:
                     if isinstance(chunk, dict):  # reasoning (reasoning_ticks): passed on, not reply text
                         yield chunk
                         continue
-                    if round_number > 0 and not text:
+                    if round_number > 0 and not text and wrote:
                         yield "\n\n"
                     text += chunk
+                    wrote = wrote or bool(chunk.strip())
                     yield chunk
             except InferenceError as exc:
                 if not (round_number == 0 and not text and "support tools" in str(exc)):
@@ -129,25 +132,44 @@ def _arguments(raw: Any) -> dict[str, Any]:
 async def tool_stream_or_none(
     db: AsyncSession, model: str, messages: list[dict], params: dict[str, Any]
 ) -> AsyncIterator[str | dict[str, Any]] | None:
-    """The tool-using reply stream, or None for a plain chat: the conversation didn't ask for tools, no MCP server
-    offers any, or the model can't use them.
-    """
-    if not params.get("use_tools") or not registry.active().capabilities.tools:
-        return None
-    if not await mcp_settings_service.get_enabled(db):
-        return None
-    live = await McpToolCatalog(db).tools()
-    tools = await ChatToolSet(db).for_chat(params.get("conversation_id"), params.get("tool_snapshot") or [], live)
-    if not tools or not await _model_can_use_tools(model):
+    """The tool-using reply stream, or None for a plain chat: no tools offered (see offered_tools)."""
+    tools = await offered_tools(db, model, params)
+    if not tools:
         return None
     limits = await mcp_settings_service.get_limits(db)
     live_workflow.pulse("mcp_gate")
     return ToolLoop(tools, limits.rounds, limits.result_chars).run(model, messages, params)
 
 
-async def _model_can_use_tools(model: str) -> bool:
-    """False only when the engine reports capabilities for this model and "tools" isn't among them (Matricxon does;
-    a remote llama-server's list doesn't, so it is tried and falls back if refused). See model_capabilities.py.
+async def offered_tools(
+    db: AsyncSession, model: str, params: dict[str, Any]
+) -> list[ExposedTool | ChatTool | SkillTool | NoticeTool]:
+    """The tools a reply offers, in a fixed order (they start the prompt): the chat's MCP tools when it asked for
+    them, then the app's own when its prompt layout uses them (skill_chat_tool.py). None if the model can't
+    use tools. The warm-up offers the same, so its cache matches the reply's."""
+    tools: list[ExposedTool | ChatTool | SkillTool | NoticeTool] = [
+        *await _mcp_tools(db, params),
+        *SkillTool.from_params(params),
+        *NoticeTool.from_params(params),
+    ]
+    if not tools or not await model_can_use_tools(model):
+        return []
+    return tools
+
+
+async def _mcp_tools(db: AsyncSession, params: dict[str, Any]) -> list[ChatTool]:
+    if not params.get("use_tools") or not await mcp_settings_service.get_enabled(db):
+        return []
+    live = await McpToolCatalog(db).tools()
+    return await ChatToolSet(db).for_chat(params.get("conversation_id"), params.get("tool_snapshot") or [], live)
+
+
+async def model_can_use_tools(model: str) -> bool:
+    """False when the engine has no tool support, or reports capabilities for this model and "tools" isn't among
+    them (Matricxon does; a remote llama-server's list doesn't, so it is tried and falls back if refused). See
+    model_capabilities.py.
     """
+    if not registry.active().capabilities.tools:
+        return False
     capabilities = await model_capabilities.of(model)
     return capabilities is None or "tools" in capabilities

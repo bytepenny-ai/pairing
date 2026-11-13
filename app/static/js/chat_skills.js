@@ -1,6 +1,7 @@
 /* The composer's Skills chip and picker (chat.html #skills-badge, #skills-picker): which skills this chat uses,
  * via /api/skills (routers/skills.py). Drawn with the persona/rules icons (chat.js renderPinnedBadges calls render),
- * and locked the same way: only before the first message, and in a channel only for its admins and managers. */
+ * and locked the same way: only before the first message (unless the Prompt cache layout allows changes, chat.js
+ * skillsLocked), and in a channel only for its admins and managers. */
 class ChatSkills {
   constructor() {
     this.badge = document.getElementById("skills-badge");
@@ -11,6 +12,7 @@ class ChatSkills {
     this.available = [];
     this.selected = new Set();
     this.editable = false;
+    this.wide = false; // more than 5 skills on offer: the picker is wider and lists them in two columns
     this.reason = "";
     this.limit = 2; // replaced by the server's (ConversationSkillsOut.limit)
     this.badge.addEventListener("click", () => this.open());
@@ -67,7 +69,7 @@ class ChatSkills {
     }
     this.badge.className = "relative shrink-0 rounded-xl px-2.5 py-1.5 text-sm leading-5 transition-colors hover:bg-slate-800";
     const names = count ? this.chosen.map((s) => s.name).join(", ") : "none";
-    const locked = activeHasMessages ? " — locked: can only change before the first message" : this.reason ? ` — ${this.reason}` : "";
+    const locked = skillsLocked() ? " — locked: can only change before the first message" : this.reason ? ` — ${this.reason}` : "";
     this.badge.title = `Skills: ${names}${this.editable ? "" : locked}`;
   }
 
@@ -75,7 +77,7 @@ class ChatSkills {
     closeHeaderPopups("skills");
     this.selected = new Set(this.chosen.map((s) => s.id));
     // Started chat: the red box (as the model picker's warning); otherwise the reason, e.g. a channel member.
-    const started = activeHasMessages;
+    const started = skillsLocked();
     this.field("locked").classList.toggle("hidden", !started);
     this.field("header").classList.toggle("hidden", started);
     this.field("note").textContent = this.editable || started ? "" : this.reason;
@@ -91,6 +93,9 @@ class ChatSkills {
         this.available = [];
       }
     }
+    this.wide = this.editable && this.available.length > 5;
+    this.picker.classList.toggle("w-96", !this.wide);
+    this.picker.classList.toggle("w-[42rem]", this.wide);
     this.renderChosen();
     this.renderList();
     if (this.editable) this.field("search").focus();
@@ -135,9 +140,11 @@ class ChatSkills {
     }
     const groups = {};
     for (const skill of matches) (groups[skill.category] ||= []).push(skill);
+    // More than 5 skills on offer: two columns (one on a narrow screen), so the list stays short.
+    const columns = this.wide ? "grid grid-cols-1 sm:grid-cols-2 gap-x-1" : "";
     list.innerHTML = Object.entries(groups)
       .map(
-        ([category, skills]) => `<p class="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(category)}</p>${skills
+        ([category, skills]) => `<p class="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(category)}</p><div class="${columns}">${skills
           .map(
             (s) => `<label class="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-800">
               <input type="checkbox" data-skill="${escapeHtml(s.id)}" ${this.selected.has(s.id) ? "checked" : ""} class="mt-0.5 accent-brand-500">
@@ -146,7 +153,7 @@ class ChatSkills {
               }<span class="block text-xs text-slate-500">${escapeHtml(s.description)}</span></span>
             </label>`,
           )
-          .join("")}`,
+          .join("")}</div>`,
       )
       .join("");
     this.applyLimit();

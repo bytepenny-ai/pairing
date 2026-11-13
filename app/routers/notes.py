@@ -29,6 +29,7 @@ from app.services import (
     note_titles,
 )
 from app.services.auth_service import get_current_user
+from app.services.prompt_cache_setting import PromptCacheSettings
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -43,12 +44,15 @@ async def _get_owned_note_or_404(db: AsyncSession, note_id: str, user: User) -> 
     return note
 
 
-async def _require_slot_edit_rights(conversation, user: User) -> None:
+async def _require_slot_edit_rights(db: AsyncSession, conversation, user: User) -> None:
     """Slot edits need more than read access: a personal chat's owner has full rights; a channel's slots
-    change only by an admin or its manager (members can read via get_slots). Nobody can once the chat has a
-    message: persona/rules start the prompt, so changing them re-reads the whole conversation.
+    change only by an admin or its manager (members can read via get_slots). Once the chat has a message, only
+    under a prompt cache layout that makes a note change cheap ("append", "blocks"; PromptCacheSetting).
     """
-    if conversation_service.visible_messages(conversation):
+    if (
+        conversation_service.visible_messages(conversation)
+        and not (await PromptCacheSettings(db).mid_chat_changes()).notes
+    ):
         raise HTTPException(status_code=409, detail="Persona and rules can only change before the first message.")
     if conversation.channel_id is not None and not channel_service.can_manage_channel_conversation(conversation, user):
         raise HTTPException(
@@ -114,7 +118,7 @@ async def update_slot(
     if pin_type not in note_service.NOTE_SLOTS:
         raise HTTPException(status_code=404, detail="Unknown slot")
     conversation = await conversation_service.get_accessible_conversation_or_404(db, conversation_id, user)
-    await _require_slot_edit_rights(conversation, user)
+    await _require_slot_edit_rights(db, conversation, user)
 
     await note_slot_service.update_slot_content(db, conversation, user, pin_type, body.content, body.only_this_chat)
 
@@ -138,7 +142,7 @@ async def use_default_slot(
     if pin_type not in note_service.NOTE_SLOTS:
         raise HTTPException(status_code=404, detail="Unknown slot")
     conversation = await conversation_service.get_accessible_conversation_or_404(db, conversation_id, user)
-    await _require_slot_edit_rights(conversation, user)
+    await _require_slot_edit_rights(db, conversation, user)
 
     pin = (
         await db.execute(
@@ -170,7 +174,7 @@ async def turn_off_slot(
     if pin_type not in note_service.NOTE_SLOTS:
         raise HTTPException(status_code=404, detail="Unknown slot")
     conversation = await conversation_service.get_accessible_conversation_or_404(db, conversation_id, user)
-    await _require_slot_edit_rights(conversation, user)
+    await _require_slot_edit_rights(db, conversation, user)
 
     pin = (
         await db.execute(

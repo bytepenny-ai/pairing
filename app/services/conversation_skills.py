@@ -1,7 +1,8 @@
 """The skills a chat uses (the chat's Skills picker, models/skill.py ConversationSkill) and their part of its
 system prompt (chat_prompt_service.py). Like persona and rules notes, they change only before the first message
-(the system prompt opens the conversation, so a later change re-reads all of it), and in a channel only admins and
-its managers change them, from the shared library only: a member's private skill would be hidden from the others.
+under the "ordered" prompt cache layout (a later change re-reads from there); the other layouts make a skill change
+cheap, so they allow it (PromptCacheSetting.mid_chat_changes). In a channel only admins and its managers change
+them, from the shared library only: a member's private skill would be hidden from the others.
 """
 
 from fastapi import HTTPException
@@ -12,7 +13,10 @@ from app.config import MAX_SKILLS_PER_CHAT
 from app.models import Conversation, ConversationSkill, Skill, User
 from app.schemas.skill import ConversationSkillsOut, SkillOut
 from app.services import channel_service, conversation_service
+from app.services.prompt_cache_setting import PromptCacheSettings
 from app.services.skill_library import to_skill_out
+
+_NOT_A_MANAGER = "Only admins and this channel's managers can change its skills."
 
 
 def _usable(skill: Skill, conversation: Conversation) -> bool:
@@ -49,14 +53,17 @@ async def active_skills(db: AsyncSession, conversation: Conversation) -> list[Sk
 
 
 def build_skills_prompt(skills: list[Skill]) -> str:
-    """Each skill under its name, after persona and rules in the system prompt."""
+    """Each skill under its name; the system prompt puts skills before persona and rules."""
     blocks = [f"## {s.name}\n{s.content.strip()}" for s in skills]
     return "Skills for this conversation (follow the one that fits the request):\n\n" + "\n\n".join(blocks)
 
 
-def edit_block_reason(conversation: Conversation, user: User) -> str | None:
+async def edit_block_reason(db: AsyncSession, conversation: Conversation, user: User) -> str | None:
     """Why `user` can't change this chat's skills now, or None."""
-    if conversation_service.visible_messages(conversation):
+    if (
+        conversation_service.visible_messages(conversation)
+        and not (await PromptCacheSettings(db).mid_chat_changes()).skills
+    ):
         if conversation.channel_id is not None:
             return (
                 "Skills can only change before the first message; "
@@ -64,13 +71,13 @@ def edit_block_reason(conversation: Conversation, user: User) -> str | None:
             )
         return "Skills can only change before the first message."
     if conversation.channel_id is not None and not channel_service.can_manage_channel_conversation(conversation, user):
-        return "Only admins and this channel's managers can change its skills."
+        return _NOT_A_MANAGER
     return None
 
 
 async def chosen(db: AsyncSession, conversation: Conversation, user: User) -> ConversationSkillsOut:
     skills = await active_skills(db, conversation)
-    reason = edit_block_reason(conversation, user)
+    reason = await edit_block_reason(db, conversation, user)
     return ConversationSkillsOut(chosen=[to_skill_out(s) for s in skills], editable=reason is None, reason=reason)
 
 
@@ -78,8 +85,8 @@ async def choose(
     db: AsyncSession, conversation: Conversation, user: User, skill_ids: list[str]
 ) -> ConversationSkillsOut:
     """Replaces the chat's skills with `skill_ids`, in that order. 409 when locked, 404 for a skill it can't use."""
-    if reason := edit_block_reason(conversation, user):
-        status = 409 if conversation_service.visible_messages(conversation) else 403
+    if reason := await edit_block_reason(db, conversation, user):
+        status = 403 if reason == _NOT_A_MANAGER else 409
         raise HTTPException(status_code=status, detail=reason)
     await _replace(db, conversation, user, skill_ids)
     return await chosen(db, conversation, user)
@@ -91,7 +98,9 @@ async def set_for_channel(
     """A channel's skill set (Admin settings > Channels): library skills, changeable any time, from the next
     message on. Kept by a channel reset."""
     await _replace(db, conversation, admin, skill_ids)
-    await conversation_service._drop_engine_cache(conversation.id)  # its system prompt changed
+    if not (await PromptCacheSettings(db).mid_chat_changes()).skills:
+        await conversation_service._drop_engine_cache(conversation.id)  # its system prompt changed
+    # other layouts reuse the cache across the change (app/services/prompt_layout)
     return await chosen(db, conversation, admin)
 
 

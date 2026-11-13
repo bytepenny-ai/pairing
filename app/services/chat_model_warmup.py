@@ -9,9 +9,10 @@ import logging
 
 from app.database import AsyncSessionLocal
 from app.models import Conversation
-from app.services import channel_history_setting, chat_history_service, chat_prompt_service, conversation_service
+from app.services import channel_history_setting, chat_history_service, conversation_service, tool_loop_service
 from app.services.chat_attachment_memory import AttachmentMemory
 from app.services.inference_client import InferenceError, chat_stream
+from app.services.prompt_layout.layouts import PromptLayouts
 
 logger = logging.getLogger(__name__)
 
@@ -41,17 +42,27 @@ class ChatModelWarmUp:
                 past = chat_history_service.without_failed_replies(past)
                 if not past or past[-1].role != "assistant":
                     return
-                system_prompt = await chat_prompt_service.notes_and_skills_prompt(db, conversation, user_id, False)
+                # The chat's prompt layout as saved (Prompt cache setting): the next message's prompt starts the same.
+                layout = await PromptLayouts(db).current(conversation, user_id)
+                warm_params = {**params, **layout.reply_params(), "num_predict": 1, "conversation_id": conversation_id}
+                # The reply's tools too: they start the prompt, so without them the warm cache wouldn't match it.
+                tools = await tool_loop_service.offered_tools(db, model, warm_params)
+                if tools:
+                    warm_params["tools"] = [t.definition() for t in tools]
             reserved = max(512, params.get("num_predict", 0))
             history = chat_history_service.trim_history(
-                past, params["num_ctx"], reserved, AttachmentMemory().history_text
+                past,
+                params["num_ctx"],
+                reserved,
+                layout.text_of(AttachmentMemory().history_text),
+                None,
+                layout.notes_of,
             )
             messages = [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": layout.system_prompt},
                 *history,
                 {"role": "user", "content": _PLACEHOLDER},
             ]
-            warm_params = {**params, "num_predict": 1, "conversation_id": conversation_id}
             async for _chunk in chat_stream(model, messages, warm_params):
                 pass
             logger.info("Chat %s: the chat model read the image reply ahead of the next message", conversation_id[:8])

@@ -139,7 +139,8 @@ async def test_deleting_a_skill_drops_it_from_chats(db, user):
 
 
 @pytest.mark.asyncio
-async def test_the_system_prompt_has_the_notes_then_the_skills(db, user, monkeypatch):
+async def test_the_system_prompt_has_the_skills_then_the_notes(db, user, monkeypatch):
+    """Skills first: they change less than notes (prompt_layout/sections.py), so a note edit re-reads less."""
     from app.services import chat_prompt_service, note_service
 
     async def no_rag(*_args, **_kwargs):
@@ -154,7 +155,7 @@ async def test_the_system_prompt_has_the_notes_then_the_skills(db, user, monkeyp
 
     prompt, *_ = await chat_prompt_service.build_system_prompt(db, chat, user, "hi", {"num_ctx": 8192}, [], [], 0)
 
-    assert prompt.index("Persona:") < prompt.index("Rules") < prompt.index("## Reviewer\nReview the code.")
+    assert prompt.index("## Reviewer\nReview the code.") < prompt.index("Persona:") < prompt.index("Rules")
 
 
 @pytest.mark.asyncio

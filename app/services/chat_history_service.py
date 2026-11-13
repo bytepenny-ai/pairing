@@ -32,6 +32,8 @@ def without_failed_replies(messages: list[Message]) -> list[Message]:
 _TRIM_STEPS = 4
 
 TextOf = Callable[[Message], str]
+# Tool results the app puts before a message (prompt_layout.base.ToolNote: .tool, .arguments, .text).
+NotesOf = Callable[[Message], list]
 
 
 def _plain_text(message: Message) -> str:
@@ -45,18 +47,49 @@ def trim_history(
     reserved_tokens: int = 512,
     text_of: TextOf = _plain_text,
     images_of: Callable[[Message], list[str]] | None = None,
+    notes_of: NotesOf | None = None,
 ) -> list[dict]:
     """Keeps only the recent history that fits the context window, so long chats don't overflow num_ctx.
     `reserved_tokens` leaves room for the system prompt, RAG context and the reply. `text_of` gives a message as the
     model reads it (chat_attachment_memory.py adds earlier files). `images_of`, for a chat model that sees images,
     gives a message's earlier images (base64), sent with it again so the engine's prompt cache keeps matching.
+    `notes_of` gives the app's tool results to put before a message (prompt layouts; counted in the window).
     """
     texts = [text_of(m) for m in messages]
-    start = _window_start(texts, num_ctx, reserved_tokens)
+    start = _window_start(_with_notes(texts, messages, notes_of), num_ctx, reserved_tokens)
     merged = _merge_consecutive_same_role(messages[start:], texts[start:])
     if images_of is not None:
         _add_images(merged, messages[start:], images_of)
-    return merged
+    return _add_notes(merged, messages[start:], notes_of) if notes_of is not None else merged
+
+
+def _with_notes(texts: list[str], messages: list[Message], notes_of: NotesOf | None) -> list[str]:
+    """The texts as sized for the window: with the app's tool results before each message."""
+    if notes_of is None:
+        return texts
+    return ["".join(n.text for n in notes_of(m)) + text for m, text in zip(messages, texts, strict=True)]
+
+
+def _add_notes(merged: list[dict], messages: list[Message], notes_of: NotesOf) -> list[dict]:
+    """Before each turn, the app's tool results for its messages: the calls go on the reply before it (or on a
+    turn of their own), then one tool message each. Ids come from the message, so every turn renders the same."""
+    out: list[dict] = []
+    for turn, (_role, group) in zip(merged, itertools.groupby(messages, key=lambda m: m.role), strict=True):
+        notes = [(m.id, i, n) for m in group for i, n in enumerate(notes_of(m))]
+        if notes:
+            calls = [
+                {"id": f"app_{mid}_{i}", "function": {"name": n.tool, "arguments": n.arguments}} for mid, i, n in notes
+            ]
+            if out and out[-1]["role"] == "assistant" and not out[-1].get("tool_calls"):
+                out[-1] = {**out[-1], "tool_calls": calls}
+            else:
+                out.append({"role": "assistant", "content": "", "tool_calls": calls})
+            out += [
+                {"role": "tool", "content": n.text, "tool_name": n.tool, "tool_call_id": f"app_{mid}_{i}"}
+                for mid, i, n in notes
+            ]
+        out.append(turn)
+    return out
 
 
 def _add_images(merged: list[dict], messages: list[Message], images_of: Callable[[Message], list[str]]) -> None:
@@ -70,10 +103,14 @@ def _add_images(merged: list[dict], messages: list[Message], images_of: Callable
 
 
 def window_start(
-    messages: list[Message], num_ctx: int, reserved_tokens: int = 512, text_of: TextOf = _plain_text
+    messages: list[Message],
+    num_ctx: int,
+    reserved_tokens: int = 512,
+    text_of: TextOf = _plain_text,
+    notes_of: NotesOf | None = None,
 ) -> int:
     """Index of the first message trim_history keeps."""
-    return _window_start([text_of(m) for m in messages], num_ctx, reserved_tokens)
+    return _window_start(_with_notes([text_of(m) for m in messages], messages, notes_of), num_ctx, reserved_tokens)
 
 
 def _window_start(texts: list[str], num_ctx: int, reserved_tokens: int) -> int:
