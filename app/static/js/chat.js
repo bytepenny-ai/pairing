@@ -881,7 +881,9 @@ function setModelBadgeManageable(manageable) {
 }
 
 // Same icons as the Notes page pin chips (notes.js), copied since these static files share no module system.
-const PIN_TYPE_ICONS = { persona: "🎭", rules: "📏" };
+const PIN_TYPE_ICONS = { persona: "🧬", rules: "📏" };
+// Degrees to turn an icon (negative: to the left).
+const PIN_TYPE_TILT = { persona: -15 };
 const PIN_TYPE_LABELS = { persona: "Persona", rules: "Rules" };
 
 const slotEditorEl = document.getElementById("slot-editor");
@@ -932,6 +934,8 @@ function openSlotEditor(conversationId, slot, lockedReason = "") {
   lockedEl.textContent = lockedReason;
   lockedEl.classList.toggle("hidden", !locked);
   slotEditorContentEl.readOnly = locked;
+  // Off and locked: the chat doesn't use it and it can't be turned on, so only the title and the warning show.
+  slotEditorContentEl.classList.toggle("hidden", locked && !slot.active);
   document.getElementById("slot-editor-only-this-chat-row").classList.toggle("hidden", locked);
   document.getElementById("slot-editor-save").classList.toggle("hidden", locked);
   if (locked) [slotEditorUseDefaultBtn, slotEditorTurnOffBtn].forEach((b) => b.classList.add("hidden"));
@@ -1175,7 +1179,11 @@ function renderPinnedBadges() {
       ? " — read-only (admins/managers only)"
       : notesLocked() ? " — locked: can only change before the first message" : "";
     badge.title = `${PIN_TYPE_LABELS[slot.pin_type] || slot.pin_type}${state}: ${slot.title || ""}${readOnlyNote}`;
-    badge.textContent = PIN_TYPE_ICONS[slot.pin_type] || "📌";
+    const icon = document.createElement("span");
+    icon.className = "inline-block";
+    icon.textContent = PIN_TYPE_ICONS[slot.pin_type] || "📌";
+    if (PIN_TYPE_TILT[slot.pin_type]) icon.style.transform = `rotate(${PIN_TYPE_TILT[slot.pin_type]}deg)`;
+    badge.appendChild(icon);
     // Reads canManageActive at click time, not render time (see its declaration).
     badge.addEventListener("click", () => {
       if (canManageActive && !notesLocked()) return openSlotEditor(conversationId, slot);

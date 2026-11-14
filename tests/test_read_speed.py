@@ -135,6 +135,7 @@ async def test_progress_reaches_the_chat_each_time_it_moved_a_percent(db, monkey
 @pytest.mark.asyncio
 async def test_a_chat_deleted_while_its_reply_is_prepared_gets_no_reply(db, user, chats, monkeypatch):
     from app.services import chat_service, reply_generation_service
+    from app.services.chat_turn.assemble import StillAskedStage
 
     one, _ = chats
     started: list[str] = []
@@ -149,7 +150,7 @@ async def test_a_chat_deleted_while_its_reply_is_prepared_gets_no_reply(db, user
     async def deleted(_db, _conversation_id):
         return False
 
-    monkeypatch.setattr(chat_service, "_still_asked", deleted)
+    monkeypatch.setattr(StillAskedStage, "still_asked", staticmethod(deleted))
     events = [e async for e in chat_service.build_reply_stream(db, one, user, "hello")]
     assert started == [] and "user_message_id" in events[0]
 
@@ -174,14 +175,14 @@ def test_an_embedding_model_that_fails_stops_the_index_early(monkeypatch, tmp_pa
 
 @pytest.mark.asyncio
 async def test_a_question_deleted_alone_or_with_its_chat_is_no_longer_asked(db, chats):
-    from app.services import chat_service
+    from app.services.chat_turn.assemble import StillAskedStage
 
     one, _ = chats
     question = Message(conversation_id=one.id, role="user", content="q")
     db.add(question)
     await db.commit()
-    assert await chat_service._still_asked(db, question.id)
+    assert await StillAskedStage.still_asked(db, question.id)
     question.status = "deleted"  # a channel post deleted by its admin
     await db.commit()
-    assert not await chat_service._still_asked(db, question.id)
-    assert not await chat_service._still_asked(db, "no-such-message")  # gone with its chat
+    assert not await StillAskedStage.still_asked(db, question.id)
+    assert not await StillAskedStage.still_asked(db, "no-such-message")  # gone with its chat

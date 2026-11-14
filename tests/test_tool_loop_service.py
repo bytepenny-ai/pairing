@@ -11,6 +11,8 @@ from app.services.tool_call_sink import ToolCallSink
 from app.services.tool_loop_service import ToolLoop
 from tests.mcp_fake_server import FakeMcpServer
 
+pytestmark = pytest.mark.real_tool_check  # tests the real tool check (conftest.py)
+
 
 @pytest.fixture(scope="module")
 def server():

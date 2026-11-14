@@ -34,6 +34,10 @@ from app.services.leader_lease import LeaderLease
 from app.services.upload_jobs import upload_jobs
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line("markers", "real_tool_check: keep tool_loop_service.model_can_use_tools unfaked")
+
+
 @pytest.fixture(autouse=True)
 def _this_test_process_is_the_leader(monkeypatch):
     """Leader-only jobs (leader_lease.py) run in tests as on a single server; tests of LeaderLease use their own."""
@@ -78,6 +82,22 @@ def _tests_never_reach_real_servers(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(httpx.HTTPTransport, "handle_request", guarded)
     monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", guarded_async)
+
+
+@pytest.fixture(autouse=True)
+def _test_models_cannot_call_tools(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A test's fake model has no capability list, which counts as "can call tools": with the Short index prompt
+    layout (the default) its reply would then go through the tool loop instead of the chat_stream tests fake. A test
+    about tools sets tool_loop_service.model_can_use_tools itself, or is marked `real_tool_check` to test it."""
+    from app.services import tool_loop_service
+
+    if request.node.get_closest_marker("real_tool_check"):
+        return
+
+    async def no_tools(_model: str) -> bool:
+        return False
+
+    monkeypatch.setattr(tool_loop_service, "model_can_use_tools", no_tools)
 
 
 @pytest.fixture(autouse=True)

@@ -9,6 +9,7 @@ from app.schemas.skill import SkillIn, SkillTemplateAdd
 from app.services import conversation_skills
 from app.services.skill_library import SkillLibrary
 from app.services.skill_templates import skill_templates
+from tests.test_prompt_layouts import use
 
 
 def _skill(name: str, content: str = "Do it well.", **extra) -> SkillIn:
@@ -89,6 +90,7 @@ async def test_a_chat_uses_its_chosen_skills_in_order_and_skips_a_disabled_one(d
 
 @pytest.mark.asyncio
 async def test_skills_lock_at_the_first_message(db, user):
+    await use(db, "ordered")  # the layout that locks them
     skill = await SkillLibrary(db).create(_skill("Any"))
     chat = await _chat(db, user)
     db.add(Message(conversation_id=chat.id, role="user", content="hi", sender_id=user.id))
@@ -184,6 +186,7 @@ async def test_an_admin_sets_a_channel_skill_set_any_time(db, user, admin_user, 
     from app.schemas.skill import ConversationSkillsIn
     from app.services import channel_service
 
+    await use(db, "ordered")  # a started chat locks; an admin may still change a channel's
     shared = await SkillLibrary(db).create(_skill("Shared"))
     private = await SkillLibrary(db, owner_id=admin_user.id).create(_skill("Admin's own"))
     body = ChannelCreate(

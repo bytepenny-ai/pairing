@@ -9,6 +9,7 @@ from app.services.chat_tool_set import ChatTool, ChatToolSet
 from app.services.mcp_client import McpConnection
 from app.services.mcp_tool_catalog import ExposedTool, McpToolCatalog
 from app.services.tool_loop_service import ToolLoop
+from tests.test_prompt_layouts import use
 from tests.test_tool_loop_service import ScriptedEngine, _call, _collect
 
 
@@ -85,6 +86,7 @@ async def test_the_chat_tools_endpoint_lists_unavailable_and_new_tools(db, user,
     db.add(conversation)
     await db.commit()
     await mcp_settings_service.set_enabled(db, True)
+    await use(db, "ordered")  # the layout whose chats keep their saved tools
 
     out = await mcp_tools.chat_tools(conversation.id, db=db, user=user)
 

@@ -1,34 +1,24 @@
-"""Core chat logic: trims history to the context window, builds the system prompt from notes + RAG, calls
-the engine and persists both sides. routers/chat.py only wraps build_reply_stream's events into SSE.
-Title generation lives in title_service.py and history trimming/merging in chat_history_service.py
-(file-size rule).
+"""Core chat logic: saves the user's message, prepares the reply through the chat_turn stages (history, notes and
+skills, RAG, which model: chat_turn/pipeline.py), calls the engine and persists both sides. routers/chat.py only
+wraps build_reply_stream's events into SSE. Titles live in title_service.py, history trimming in
+chat_history_service.py.
 """
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import ATTACHMENTS_DIR
 from app.models import Conversation, Message, MessageAttachment, User
 from app.services import (
-    channel_history_setting,
-    chat_attachment_service,
-    chat_history_service,
-    chat_prompt_service,
     chat_settings_service,
-    context_window_setting,
-    conversation_service,
-    model_catalog_service,
     reply_generation_service,
     title_service,
 )
 from app.services.chat_attachment_service import AttachmentInfo
 from app.services.chat_commands import ChatCommand
-from app.services.chat_follow_up import ChatFollowUp
 from app.services.chat_model_warmup import ChatModelWarmUp
-from app.services.image_fallback_stream import ImageFallback, image_question
+from app.services.chat_turn.pipeline import ChatPipelines
+from app.services.chat_turn.turn import ChatTurn
 from app.services.live_workflow_bus import live_workflow
-from app.services.prompt_layout.layouts import PromptLayouts
-from app.services.reasoning_setting import reasoning_setting
 
 
 async def build_reply_stream(
@@ -66,10 +56,6 @@ async def build_reply_stream(
     title handling and the title in personal "done" events (channels have none).
     """
     attachments = attachments or []
-    # num_ctx is one system-wide value (Settings > System > Context window).
-    params = {**conversation.params, "num_ctx": await context_window_setting.get_num_ctx(db)}
-    # Reasoning may be blocked for everyone (Admin settings > System > Reasoning).
-    params = await reasoning_setting.apply(db, params)
     is_personal = conversation.channel_id is None
     title_mode = await chat_settings_service.get_title_mode(db) if is_personal else None
     # Personal chats always ask the AI, whatever the caller passes (no other human to message). Enforced here
@@ -114,102 +100,24 @@ async def build_reply_stream(
     live_workflow.begin(conversation.model)
     live_workflow.pulse("chat_js_send")
     live_workflow.enter("chat_js_stream", "chat_router_stream", "chat_service_build")
-
-    # History = conversation_service.visible_messages (excludes admin-deleted) plus user_message explicitly:
-    # with expire_on_commit=False (app/database.py) the loaded `conversation.messages` isn't refreshed, and
-    # db.add alone doesn't update it, so otherwise history would miss the current question.
-    past = conversation_service.visible_messages(conversation)
-    if not is_personal and not await channel_history_setting.get_include_plain_messages(db):
-        past = chat_history_service.only_addressed_to_ai(past)
-    # Room for a full reply (num_predict); else a long chat cuts the reply short.
-    reserved_tokens = max(512, params.get("num_predict", 0))
-    # Earlier files and images stay in the history while their message does; long ones are searched per question
-    # (chat_follow_up.py).
-    # A chat model that reads images itself (Matricxon's gemma 4 with its image file) answers them too: no switch to
-    # the vision model, and earlier images go with their messages, so its prompt cache keeps matching.
-    sees_images = await model_catalog_service.sees_images(conversation.model)
-    follow_up = ChatFollowUp(
-        db,
-        [*chat_history_service.without_failed_replies(past), user_message],
-        params["num_ctx"],
-        reserved_tokens,
-        sees_images,
-    )
-    # How the notes and skills go into the prompt (Admin settings > Inference > Prompt cache): may add an update or
-    # a skill's text to this message.
-    question, has_image = ChatCommand.expand(content), any(a.type == "image" for a in attachments)
-    layout = await PromptLayouts(db).for_message(
-        conversation, user.id, user_message.id, content, follow_up.kept_ids, has_image, sees_images
-    )
-    plan = await follow_up.plan(question, attachments, layout)
-    history = plan.history
-    # An earlier image the question is about, shown to the vision model again (admin setting, off by default).
-    reply_files = [*attachments, plan.image_again] if plan.image_again else attachments
-
-    # Notes/RAG/attachment layering: see chat_prompt_service.build_system_prompt. Excerpts and files get only the room
-    # the history leaves; whatever was cut is reported to the sender as a "notice" event.
-    system_prompt, turn_context, source_filenames, notices = await chat_prompt_service.build_system_prompt(
-        db,
-        conversation,
-        user,
-        question,
-        params,
-        reply_files,
-        history,
-        reserved_tokens,
-        sees_images,
-        layout.system_prompt,
-    )
-    params = {**params, **layout.reply_params()}
-    for notice in [*plan.notices, *notices]:
-        yield {"notice": notice}
-    chat_prompt_service.prepend_turn_context(history, turn_context, layout.inserts.get(user_message.id, ""))
-    # Always sent, even when "": an explicit empty system message tells the engine there is no preamble,
-    # whereas omitting it makes some chat-template layers (e.g. Matricxon's VicunaPromptBuilder) substitute their own
-    # default.
-    chat_messages = [{"role": "system", "content": system_prompt}] + history
-    if plan.image_again:  # the vision model needs the image and the question, not the chat (image_question)
-        chat_messages = image_question(system_prompt, ChatCommand.expand(content))
-
-    # None (stream_reply falls back to conversation.model) unless `attachments` has an image, then the
-    # default vision model for this reply only (apply_image_attachment). Also the has_image signal below.
-    if sees_images:
-        chat_attachment_service.attach_image(reply_files, chat_messages)
-        reply_model = None
-    else:
-        reply_model = (
-            await chat_attachment_service.apply_image_attachment(db, reply_files, chat_messages)
-            if reply_files
-            else None
-        )
-    if reply_model is None:
-        # get_default_vision_model only returns installed models, so only conversation.model needs checking
-        # (resolve_installed_model: an engine switch can leave the stored tag unknown to the new engine).
-        resolved_model = await model_catalog_service.resolve_installed_model(db, user, conversation.model)
-        if resolved_model != conversation.model:
-            conversation.model = resolved_model
-            await db.commit()
-    # "Description first, image if needed": the chat's model may hand over to the vision model (image_fallback_stream).
-    fallback = None
-    if plan.image_if_needed:
-        vision_system = await chat_prompt_service.notes_and_skills_prompt(db, conversation, user.id, True)
-        vision_messages = image_question(vision_system, ChatCommand.expand(content))
-        fallback = await ImageFallback.prepare(db, plan.image_if_needed, chat_messages, vision_messages)
-
-    live_workflow.exit("chat_service_build")
-    # Getting here can take a while (a long file to search first): a question deleted meanwhile (the post in a
-    # channel, or the whole chat) gets no reply, else the engine would read the prompt for nobody (no reply existed
-    # yet to cancel).
-    if not await _still_asked(db, user_message.id):
+    # Everything before the model: history, notes and skills, earlier files, knowledge, which model (chat_turn/).
+    turn = ChatTurn(db, conversation, user, user_message, content, attachments, is_personal)
+    try:
+        async for notice in ChatPipelines.for_chat(conversation).run(turn):
+            yield notice
+    finally:
+        live_workflow.exit("chat_service_build")
+    if turn.stopped:
         return
+    follow_up, params, reply_model, fallback = turn.follow_up, turn.params, turn.reply_model, turn.fallback
     # Channels always finish generating (other members may rely on it); a personal chat has one viewer, so
     # leaving stops generation (cancel_on_disconnect=True). Both leave a clean status="error" record
     # (reply_generation_service.stream_reply).
     async for event in reply_generation_service.stream_reply(
         db,
         conversation,
-        chat_messages,
-        source_filenames,
+        turn.chat_messages,
+        turn.source_filenames,
         reply_to_message_id=user_message.id,
         cancel_on_disconnect=is_personal,
         model=reply_model,
@@ -219,7 +127,8 @@ async def build_reply_stream(
     ):
         if event.get("done"):
             # Detached, like the smart title below: long files become searchable for the next questions.
-            follow_up.schedule_indexing(attachments)
+            if follow_up is not None:
+                follow_up.schedule_indexing(attachments)
             # The vision model answered: the chat model reads that reply now, not on the next message.
             vision_model = reply_model or (
                 fallback.model if fallback and fallback.model == fallback.vision_model else None
@@ -239,11 +148,3 @@ async def build_reply_stream(
             title_service.schedule_smart_title_generation(
                 conversation.id, ChatCommand.title_text(content, [(a.filename, a.type) for a in attachments])
             )
-
-
-async def _still_asked(db: AsyncSession, message_id: str) -> bool:
-    """Whether the question is still there, read from the database (not the session's cached object): deleted by
-    another request meanwhile, alone (status "deleted") or with its chat (no row)?"""
-    found = await db.execute(select(Message.status).where(Message.id == message_id))
-    status = found.scalar_one_or_none()
-    return status is not None and status != "deleted"
