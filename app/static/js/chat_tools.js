@@ -166,9 +166,11 @@ class ToolToggle {
 
   async flip() {
     // Tools sit at the start of the prompt, so switching them in a chat with messages makes the engine re-read it all
-    // on the next reply. Say so and let the person choose.
+    // on the next reply. Say so and let the person choose; not when the Prompt cache setting makes it cheap
+    // (chat.js midChatChanges: Add changes as updates, Short index, Keep unchanged blocks).
     const turningOn = !this.on;
-    const rereads = typeof activeHasMessages !== "undefined" && activeHasMessages;
+    const cheap = typeof midChatChanges !== "undefined" && midChatChanges.tools;
+    const rereads = typeof activeHasMessages !== "undefined" && activeHasMessages && !cheap;
     if (rereads && !confirm(`Turning tools ${turningOn ? "on" : "off"} changes this chat's prompt, so its next reply will re-read the whole chat (slower). Continue?`)) {
       this.drawPopover();
       return;

@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import EMBEDDING_MODEL, KNOWLEDGE_DIR
 from app.models import Document
 from app.services import model_catalog_service
-from app.services.document_extract import SUPPORTED_EXTENSIONS, extract_text, hash_bytes
+from app.services.document_extract import extract_text, hash_bytes
 from app.services.document_ingest import GLOBAL_DIR, USERS_DIR, ingest_document_stream, user_folder
 from app.services.inference_client import InferenceError
 from app.services.pdf_ocr import PdfOcr
+from app.services.text_files import TextFiles
 
 
 async def sync_folder_stream(db: AsyncSession, folder: Path, owner_id: str | None, force: bool = False):
@@ -37,7 +38,7 @@ async def sync_folder_stream(db: AsyncSession, folder: Path, owner_id: str | Non
     existing_docs = (await db.execute(select(Document).where(Document.owner_id == owner_id))).scalars().all()
     existing_by_relpath = {doc.filename: doc for doc in existing_docs}
     on_disk = (
-        {path for path in folder.iterdir() if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS}
+        {path for path in folder.iterdir() if path.is_file() and TextFiles.readable_path(path)}
         if folder.is_dir()
         else set()
     )

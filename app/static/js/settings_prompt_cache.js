@@ -13,27 +13,36 @@ class PromptCacheSetting {
   constructor(root) {
     this.root = root;
     this.modes = [...root.querySelectorAll('input[name="prompt-cache-mode"]')];
+    this.choices = [...root.querySelectorAll('input[name="prompt-cache-skill-choice"]')];
     this.fields = Object.fromEntries(
       Object.entries(PromptCacheSetting.NUMBERS).map(([key, selector]) => [key, root.querySelector(selector)])
     );
     this.status = root.querySelector("#prompt-cache-status");
-    this.modes.forEach((radio) => radio.addEventListener("change", () => this.showFields()));
+    [...this.modes, ...this.choices].forEach((radio) => radio.addEventListener("change", () => this.showFields()));
     root.querySelector("#prompt-cache-save-btn").addEventListener("click", () => this.save());
     this.load();
   }
 
   get mode() {
-    return (this.modes.find((radio) => radio.checked) || {}).value || "ordered";
+    return (this.modes.find((radio) => radio.checked) || {}).value || "index";
+  }
+
+  get skillChoice() {
+    return (this.choices.find((radio) => radio.checked) || {}).value || "auto";
   }
 
   showFields() {
     this.root.querySelectorAll("[data-mode-fields]").forEach((box) => {
       box.classList.toggle("hidden", box.dataset.modeFields !== this.mode);
     });
+    this.root.querySelectorAll("[data-skill-choice-fields]").forEach((box) => {
+      box.classList.toggle("hidden", box.dataset.skillChoiceFields !== this.skillChoice);
+    });
   }
 
   show(setting) {
     this.modes.forEach((radio) => (radio.checked = radio.value === setting.mode));
+    this.choices.forEach((radio) => (radio.checked = radio.value === setting.skill_choice));
     Object.entries(this.fields).forEach(([key, input]) => (input.value = setting[key]));
     this.showFields();
   }
@@ -48,7 +57,7 @@ class PromptCacheSetting {
 
   async save() {
     this.status.textContent = "Saving…";
-    const body = { mode: this.mode };
+    const body = { mode: this.mode, skill_choice: this.skillChoice };
     Object.entries(this.fields).forEach(([key, input]) => (body[key] = Number(input.value)));
     try {
       this.show(await api(PromptCacheSetting.URL, { method: "PUT", body: JSON.stringify(body) }));

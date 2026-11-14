@@ -8,16 +8,18 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Message
+from app.models import Conversation, Message, User
 from app.schemas.prompt_cache import PromptCacheSetting
-from app.services import model_catalog_service, tool_loop_service
+from app.services import conversation_skills, mcp_settings_service, model_catalog_service, tool_loop_service
+from app.services.chat_commands import ChatCommand
+from app.services.chat_skill_command import SkillCommand
 from app.services.prompt_cache_setting import PromptCacheSettings
 from app.services.prompt_layout.append import AppendLayout
 from app.services.prompt_layout.base import KeptIds, LayoutContext, PromptLayout, PromptStrategy
 from app.services.prompt_layout.index import IndexLayout
 from app.services.prompt_layout.ordered import BlockLayout, OrderedLayout
-from app.services.prompt_layout.sections import PromptSections
-from app.services.prompt_layout.skill_chat_tool import SkillTool
+from app.services.prompt_layout.sections import PromptSection, PromptSections
+from app.services.prompt_layout.skill_chat_tool import TOOL_INDEX_PARAM_KEY, SkillTool
 from app.services.prompt_layout.skill_relevance import SkillRelevance
 
 logger = logging.getLogger(__name__)
@@ -39,16 +41,19 @@ class PromptLayouts:
         conversation: Conversation,
         user_id: str,
         message_id: str,
-        question: str,
+        content: str,
         kept: KeptIds,
         has_image: bool,
         sees_images: bool,
     ) -> PromptLayout:
-        """The layout for answering a new message: the vision model's own when it answers an image (the chat's
-        model can't see it), else the chat's layout for the reply (`for_reply`)."""
+        """The layout for answering a new message (`content` as the user wrote it): the vision model's own when it
+        answers an image (the chat's model can't see it), else the chat's layout for the reply (`for_reply`)."""
         if has_image and not sees_images:
             return await self.for_image_reply(conversation, user_id)
-        return await self.for_reply(conversation, user_id, message_id, question, kept, has_image)
+        asked = SkillCommand.parse(content)[0]
+        return await self.for_reply(
+            conversation, user_id, message_id, ChatCommand.expand(content), kept, has_image, asked
+        )
 
     async def for_reply(
         self,
@@ -58,9 +63,11 @@ class PromptLayouts:
         question: str,
         kept: KeptIds,
         has_image: bool = False,
+        asked_skill: str | None = None,
     ) -> PromptLayout:
-        """The layout for answering `message_id`; may add an update or a skill to it, and saves the chat's state."""
-        return await self._run(conversation, user_id, message_id, question, kept, has_image)
+        """The layout for answering `message_id`; may add an update or a skill to it, and saves the chat's state.
+        `asked_skill`: the skill the message asks for with /use_skill."""
+        return await self._run(conversation, user_id, message_id, question, kept, has_image, asked_skill)
 
     async def current(self, conversation: Conversation, user_id: str) -> PromptLayout:
         """The layout as saved, changing nothing: what the next reply's prompt starts with (the warm-up)."""
@@ -79,6 +86,7 @@ class PromptLayouts:
         question: str,
         kept: KeptIds,
         has_image: bool = False,
+        asked_skill: str | None = None,
     ) -> PromptLayout:
         sections = await PromptSections.load(self._db, conversation, user_id)
         saved = (conversation.params or {}).get(STATE_KEY)
@@ -86,7 +94,9 @@ class PromptLayouts:
         try:
             setting = await PromptCacheSettings(self._db).get()
             strategy = await self._strategy(setting)
-            ctx = LayoutContext(sections, dict(saved), question, message_id, kept, has_image)
+            ctx = LayoutContext(sections, dict(saved), question, message_id, kept, has_image, asked_skill=asked_skill)
+            if setting.mode == "index" and asked_skill:
+                ctx.asked_section = await self._asked_section(conversation, user_id, sections, asked_skill)
             if setting.mode in ("index", "append"):  # they tell a tool model things as tool results
                 await self._add_tools(ctx, conversation, skills=setting.mode == "index")
             layout, state = await strategy.layout(ctx)
@@ -98,9 +108,30 @@ class PromptLayouts:
             await self._db.commit()
         return layout
 
+    async def _asked_section(
+        self, conversation: Conversation, user_id: str, sections: PromptSections, asked: str
+    ) -> PromptSection | None:
+        """The skill /use_skill names when it isn't one of the chat's: one this user may use in this chat (the shared
+        library, and their own outside a channel; conversation_skills.available), so a name can't reach any other."""
+        if SkillTool.match(asked, [s.title for s in sections.of_kind("skill")]):
+            return None  # one of the chat's: IndexNotes.asked finds it there
+        user = await self._db.get(User, user_id)
+        usable = {s.name: s for s in await conversation_skills.available(self._db, user, conversation)} if user else {}
+        name = SkillTool.match(asked, usable)
+        if name is None:
+            return None
+        skill = usable[name]
+        return PromptSection(f"skill:{skill.id}", "skill", skill.name, skill.content.strip(), skill.description.strip())
+
     async def _add_tools(self, ctx: LayoutContext, conversation: Conversation, skills: bool) -> None:
         """Whether the model can call tools, and (`skills`) which skills earlier replies read with use_skill."""
         ctx.tools = await tool_loop_service.model_can_use_tools(conversation.model)
+        if ctx.tools and await mcp_settings_service.get_enabled(self._db):  # the tool index (options 2 and 3)
+            params = conversation.params or {}
+            ctx.tools_on = bool(params.get("use_tools"))
+            chat = {"use_tools": True, "conversation_id": conversation.id, TOOL_INDEX_PARAM_KEY: True}
+            tools = await tool_loop_service.chat_mcp_tools(self._db, chat) if ctx.tools_on else []
+            ctx.tool_specs = [t.definition() for t in tools]
         if skills and ctx.tools and not ctx.read_only:
             rows = await self._db.execute(
                 select(Message)

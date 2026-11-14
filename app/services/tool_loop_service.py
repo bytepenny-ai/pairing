@@ -19,7 +19,8 @@ from app.services.live_workflow_bus import live_workflow
 from app.services.mcp_client import McpError
 from app.services.mcp_tool_catalog import ExposedTool, McpToolCatalog
 from app.services.model_capabilities import model_capabilities
-from app.services.prompt_layout.skill_chat_tool import NoticeTool, SkillTool
+from app.services.prompt_layout.skill_chat_tool import TOOL_INDEX_PARAM_KEY, NoticeTool, SkillTool
+from app.services.prompt_layout.tool_index import UseTool
 from app.services.tool_call_sink import ToolCallSink
 from app.services.tool_result_clip import ToolResultClip
 
@@ -27,7 +28,7 @@ from app.services.tool_result_clip import ToolResultClip
 class ToolLoop:
     def __init__(
         self,
-        tools: list[ExposedTool | ChatTool | SkillTool | NoticeTool],
+        tools: list[ExposedTool | ChatTool | SkillTool | NoticeTool | UseTool],
         max_rounds: int = mcp_settings_service.DEFAULT_MAX_TOOL_ROUNDS,
         max_result_chars: int = mcp_settings_service.DEFAULT_MAX_RESULT_CHARS,
     ) -> None:
@@ -73,8 +74,9 @@ class ToolLoop:
             messages.append({"role": "assistant", "content": text, "tool_calls": calls})
             for call in calls:
                 event = await self._execute(call)
-                live_workflow.pulse("mcp_record")
-                yield {"tool": event}
+                if not event.pop("hidden", False):  # a call made while the chat's tools are off isn't shown
+                    live_workflow.pulse("mcp_record")
+                    yield {"tool": event}
                 messages.append(
                     {
                         "role": "tool",
@@ -89,6 +91,11 @@ class ToolLoop:
         name = function.get("name", "")
         arguments = _arguments(function.get("arguments"))
         tool = self._tools.get(name)
+        hidden = False
+        if tool is not None and hasattr(tool, "route"):  # use_tool: run, and show, the tool it names
+            hidden = tool.off  # tools turned off: refused, and not shown (a small model may still try one)
+            tool, arguments = tool.route(arguments)
+            name = tool.name
         event: dict[str, Any] = {
             "id": call["id"],
             "name": name,
@@ -97,13 +104,13 @@ class ToolLoop:
             "arguments": arguments,
         }
         if tool is None:
-            return {**event, "result": f"Unknown tool: {name}", "is_error": True}
+            return {**event, "result": f"Unknown tool: {name}", "is_error": True, "hidden": hidden}
         try:
             async with live_workflow.stage("mcp_tool_loop", "mcp_server_call"):
                 result = await tool.call(arguments)
         except McpError as exc:
-            return {**event, "result": f"Tool call failed: {exc}", "is_error": True}
-        return {**event, "result": self._clip.fit(result.text), "is_error": result.is_error}
+            return {**event, "result": f"Tool call failed: {exc}", "is_error": True, "hidden": hidden}
+        return {**event, "result": self._clip.fit(result.text), "is_error": result.is_error, "hidden": hidden}
 
 
 def _without_repeats(calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -143,25 +150,30 @@ async def tool_stream_or_none(
 
 async def offered_tools(
     db: AsyncSession, model: str, params: dict[str, Any]
-) -> list[ExposedTool | ChatTool | SkillTool | NoticeTool]:
+) -> list[ExposedTool | ChatTool | SkillTool | NoticeTool | UseTool]:
     """The tools a reply offers, in a fixed order (they start the prompt): the chat's MCP tools when it asked for
     them, then the app's own when its prompt layout uses them (skill_chat_tool.py). None if the model can't
     use tools. The warm-up offers the same, so its cache matches the reply's."""
-    tools: list[ExposedTool | ChatTool | SkillTool | NoticeTool] = [
-        *await _mcp_tools(db, params),
-        *SkillTool.from_params(params),
-        *NoticeTool.from_params(params),
-    ]
+    mcp = await chat_mcp_tools(db, params)
+    app_tools = [*SkillTool.from_params(params), *NoticeTool.from_params(params)]
+    if params.get(TOOL_INDEX_PARAM_KEY):  # option 3: the chat's tools only through use_tool (tool_index.py)
+        tools: list[ExposedTool | ChatTool | SkillTool | NoticeTool | UseTool] = [*app_tools, UseTool(mcp)]
+    else:
+        tools = [*mcp, *app_tools]
     if not tools or not await model_can_use_tools(model):
         return []
     return tools
 
 
-async def _mcp_tools(db: AsyncSession, params: dict[str, Any]) -> list[ChatTool]:
+async def chat_mcp_tools(db: AsyncSession, params: dict[str, Any]) -> list[ChatTool]:
+    """The chat's MCP tools: none unless it asked for tools and MCP is on. Its saved list (chat_tool_set.py), except
+    with a tool index (options 2 and 3), where a changed list costs one notice, not a re-read: there it follows the
+    current tools, and the saved list is brought up to date."""
     if not params.get("use_tools") or not await mcp_settings_service.get_enabled(db):
         return []
     live = await McpToolCatalog(db).tools()
-    return await ChatToolSet(db).for_chat(params.get("conversation_id"), params.get("tool_snapshot") or [], live)
+    saved = [] if params.get(TOOL_INDEX_PARAM_KEY) else params.get("tool_snapshot") or []
+    return await ChatToolSet(db).for_chat(params.get("conversation_id"), saved, live)
 
 
 async def model_can_use_tools(model: str) -> bool:

@@ -5,6 +5,7 @@ message can be just the command. Several can be chained: "/describe /summarize" 
 import re
 
 from app.services.chat_command_catalog import Command, CommandCatalog
+from app.services.chat_skill_command import SkillCommand
 
 
 class ChatCommand:
@@ -16,6 +17,7 @@ class ChatCommand:
         """The commands a message starts with, in order (none for plain text, or a "/word" that isn't a command),
         and the user's own words after them."""
         commands: list[Command] = []
+        content = SkillCommand.parse(content)[1]  # /use_skill "<skill>" is the layout's, never the model's text
         rest = content or ""
         while match := cls._PATTERN.match(rest):
             command = cls.CATALOG.get(match.group(1))
@@ -31,7 +33,7 @@ class ChatCommand:
         """The text the model reads: each command's instruction, then any words the user added after them."""
         commands, rest = cls.parse(content)
         if not commands:
-            return content
+            return rest  # the message, without a /use_skill command
         instructions = "\n".join(command.instruction for command in commands)
         return f"{instructions}\n\n{rest}" if rest else instructions
 

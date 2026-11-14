@@ -107,7 +107,9 @@ class TestCheck:
         assert (await check.verdict("notes.txt", b"some notes")).ok
         assert "empty" in (await check.verdict("blank.txt", b"   ")).reason
         assert "damaged" in (await check.verdict("bad.docx", b"not a zip")).reason
-        assert "can't read .exe" in (await check.verdict("tool.exe", b"MZ")).reason
+        assert "isn't a text file" in (await check.verdict("tool.exe", b"MZ\x90\x00\x03\x00\x00\x00")).reason
+        assert (await check.verdict("script.py", b"def f(x):\n    return x\n")).ok  # any text file, by content
+        assert (await check.verdict("Dockerfile", b"FROM python:3.13\nRUN pip install x\n")).ok
 
     async def test_a_pdf_without_text_is_called_scanned(self, db, vision, monkeypatch):
         monkeypatch.setattr(chat_attachment_check, "extract_text", lambda _raw, _suffix: "")

@@ -37,7 +37,7 @@ async def test_edits_removals_and_unsupported_files(tmp_path):
     doc = tmp_path / "a.md"
     doc.write_text("one")
     watcher.mark_synced()
-    (tmp_path / "picture.exe").write_bytes(b"x")  # not a knowledge file
+    (tmp_path / "picture.exe").write_bytes(b"MZ\x90\x00\x03\x00")  # binary: not a knowledge file
     assert not await watcher.check_once() and not await watcher.check_once()
 
     doc.write_text("one, two")

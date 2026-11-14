@@ -13,6 +13,7 @@ from app.services import chat_model_warmup, conversation_service, matricxon_clie
 from app.services.chat_follow_up import ChatFollowUp
 from app.services.chat_model_warmup import ChatModelWarmUp
 from app.services.prompt_layout.skill_chat_tool import NAME, NOTICE_NAME, PARAM_KEY
+from app.services.prompt_layout.tool_index import NAME as TOOL_NAME
 from tests.test_prompt_layouts import RULES, SKILLS, ask, chat_parts, engine, use  # noqa: F401 - fixtures
 
 
@@ -121,7 +122,7 @@ async def test_the_model_reads_a_skill_with_the_tool_and_the_next_message_keeps_
 
     (first, first_params), (tool_round, _), (second, _) = calls
     assert NAME in first[0]["content"]
-    assert [t["function"]["name"] for t in first_params["tools"]] == [NAME, NOTICE_NAME]
+    assert [t["function"]["name"] for t in first_params["tools"]] == [NAME, NOTICE_NAME, TOOL_NAME]
     assert first[-1]["content"] == "please review my code"  # nothing added up front
     assert tool_round[-1]["role"] == "tool" and tool_round[-1]["content"].endswith("Check the code.")
     assert second[0] == first[0]  # the system prompt never changed
@@ -155,7 +156,7 @@ async def test_the_warm_up_offers_the_same_tools_as_the_reply(db, user, monkeypa
 
     params = {**GenerationParams().model_dump(), "num_ctx": 4096}
     await ChatModelWarmUp._warm(conversation.id, user.id, "fake-model", params)
-    assert [t["function"]["name"] for t in warmed[0]["tools"]] == [NAME, NOTICE_NAME]
+    assert [t["function"]["name"] for t in warmed[0]["tools"]] == [NAME, NOTICE_NAME, TOOL_NAME]
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,5 @@
-"""Skills for every user: their private skills (Settings > Skills), what a chat's picker offers, and the skills a
-chat uses (services/conversation_skills.py, services/skill_library.py)."""
+"""Skills for every user: their private skills (Settings > Private skills), what a chat's picker offers, and the
+skills a chat uses (services/conversation_skills.py, services/skill_library.py)."""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession

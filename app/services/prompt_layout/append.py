@@ -15,6 +15,7 @@ The prompt is rebuilt from the current notes and skills (one full re-read) when:
 from app.services.prompt_layout.base import LONG_INSERT_CHARS, LayoutContext, PromptLayout, PromptStrategy, ToolNote
 from app.services.prompt_layout.sections import PromptSections
 from app.services.prompt_layout.skill_chat_tool import NOTICE_NAME
+from app.services.prompt_layout.tool_index import ToolIndexNotes
 from app.services.prompt_layout.update_note import UpdateNote
 
 
@@ -22,12 +23,13 @@ class AppendLayout(PromptStrategy):
     mode = "append"
 
     async def layout(self, ctx: LayoutContext) -> tuple[PromptLayout, dict]:
+        tools = await self._tools(ctx)
         saved = self._saved(ctx.saved)
         if saved is None:
-            return self._fresh(ctx)
+            return self._fresh(ctx, tools)
         base, current, updates = saved
         if ctx.read_only:
-            return self._layout(ctx, base, updates), ctx.saved
+            return self._layout(ctx, base, updates, tools), ctx.saved
         if current != ctx.sections:
             text = UpdateNote.between(current, ctx.sections)
             if not self._waits(ctx, text):
@@ -35,25 +37,36 @@ class AppendLayout(PromptStrategy):
                 current = ctx.sections
         updates = await self._carried(ctx, base, current, updates)
         if updates is None or self._too_long(updates):
-            return self._fresh(ctx)
+            return self._fresh(ctx, tools)
         state = {"mode": self.mode, "base": base.to_saved(), "current": current.to_saved(), "updates": updates}
-        return self._layout(ctx, base, updates), state
+        return self._layout(ctx, base, updates, tools), {**state, "tools": tools}
 
-    def _layout(self, ctx: LayoutContext, base: PromptSections, updates: list[dict]) -> PromptLayout:
-        """The prompt as the chat started, and each update at its message (a tool result for a tool model)."""
+    async def _tools(self, ctx: LayoutContext) -> list[dict]:
+        """The tool notices (tool_index.py): turning tools on or off, or a changed tool list, is a short note, so
+        the tool list at the prompt's start never changes. Kept apart from the updates: never counted against
+        their limit, and kept through a rebuild."""
+        saved = ctx.saved.get("tools") if ctx.saved.get("mode") == self.mode else None
+        entries = [e for e in saved or [] if isinstance(e, dict) and isinstance(e.get("message_id"), str)]
+        if ctx.read_only or ctx.tool_specs is None:
+            return entries
+        if entries:
+            kept = await ctx.kept(self.joined({e["message_id"]: [e["text"]] for e in entries}))
+            entries = [e for e in entries if e["message_id"] in kept]
+        return entries + ToolIndexNotes.notes(ctx, entries)
+
+    def _layout(self, ctx: LayoutContext, base: PromptSections, updates: list[dict], tools: list[dict]) -> PromptLayout:
+        """The prompt as the chat started, and each update and tool notice at its message (a tool result for a
+        tool model)."""
         parts: dict[str, list[ToolNote]] = {}
-        for update in updates:
-            parts.setdefault(update["message_id"], []).append(ToolNote(NOTICE_NAME, {}, update["text"]))
-        return PromptLayout(base.ordered_prompt(), **self.delivered(ctx, parts))
+        for item in [*updates, *tools]:
+            parts.setdefault(item["message_id"], []).append(ToolNote(NOTICE_NAME, {}, item["text"]))
+        index = ctx.tools and ctx.tool_specs is not None
+        return PromptLayout(base.ordered_prompt(), tool_index=index, **self.delivered(ctx, parts))
 
-    def _fresh(self, ctx: LayoutContext) -> tuple[PromptLayout, dict]:
+    def _fresh(self, ctx: LayoutContext, tools: list[dict]) -> tuple[PromptLayout, dict]:
         saved = ctx.sections.to_saved()
-        return self._layout(ctx, ctx.sections, []), {
-            "mode": self.mode,
-            "base": saved,
-            "current": saved,
-            "updates": [],
-        }
+        state = {"mode": self.mode, "base": saved, "current": saved, "updates": [], "tools": tools}
+        return self._layout(ctx, ctx.sections, [], tools), state
 
     def _saved(self, saved: dict) -> tuple[PromptSections, PromptSections, list[dict]] | None:
         if saved.get("mode") != self.mode:

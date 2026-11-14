@@ -139,7 +139,7 @@ async def build_reply_stream(
     # a skill's text to this message.
     question, has_image = ChatCommand.expand(content), any(a.type == "image" for a in attachments)
     layout = await PromptLayouts(db).for_message(
-        conversation, user.id, user_message.id, question, follow_up.kept_ids, has_image, sees_images
+        conversation, user.id, user_message.id, content, follow_up.kept_ids, has_image, sees_images
     )
     plan = await follow_up.plan(question, attachments, layout)
     history = plan.history

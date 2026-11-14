@@ -18,8 +18,8 @@ from app.config import KNOWLEDGE_DIR, KNOWLEDGE_WATCH_SECONDS
 from app.database import AsyncSessionLocal
 from app.models import UploadJob
 from app.models._base import utcnow
-from app.services.document_extract import SUPPORTED_EXTENSIONS
 from app.services.leader_lease import leader_lease
+from app.services.text_files import TextFiles
 
 logger = logging.getLogger("llama_chat")
 
@@ -44,7 +44,7 @@ class KnowledgeWatcher:
         files = set()
         for path in self._root.rglob("*"):
             try:
-                if path.suffix.lower() in SUPPORTED_EXTENSIONS and path.is_file():
+                if path.is_file() and TextFiles.readable_path(path):
                     info = path.stat()
                     files.add((str(path.relative_to(self._root)), info.st_size, info.st_mtime_ns))
             except OSError:

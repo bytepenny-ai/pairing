@@ -10,18 +10,18 @@ import re
 import uuid
 from pathlib import Path
 
-from fastapi import UploadFile
-from sqlalchemy import select
+from fastapi import HTTPException, UploadFile
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import INSTANCE_INDEX, KNOWLEDGE_DIR
 from app.database import AsyncSessionLocal
-from app.models import Document, User
+from app.models import Document, DocumentFolder, User
 from app.schemas import KnowledgeSummary, ScopeSummary, UploadJobStatus, UploadResult
-from app.services.document_extract import SUPPORTED_EXTENSIONS
 from app.services.document_ingest import GLOBAL_DIR, user_folder
 from app.services.document_sync import sync_folder_stream
 from app.services.settings_service import get_rag_limits
+from app.services.text_files import HEAD_BYTES, TextFiles
 from app.services.upload_jobs import ProgressThrottle, upload_jobs
 
 # Client filenames are untrusted, but only path separators (already stripped by Path(name).name) and
@@ -58,6 +58,27 @@ async def get_knowledge_summary(db: AsyncSession, user: User) -> KnowledgeSummar
 # INSTANCE_INDEX prefix: instance_proxy.py still routes a poll to the instance that started the job.
 
 
+async def upload_folder(db: AsyncSession, user: User, scope: str, folder_id: str | None) -> str | None:
+    """`folder_id` checked before any file is saved: one of the user's own folders, and only for their own scope."""
+    if not folder_id:
+        return None
+    if scope != "mine":
+        raise HTTPException(status_code=400, detail="Only your own documents go in folders.")
+    folder = await db.get(DocumentFolder, folder_id)
+    if folder is None or folder.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Folder not found.")
+    return folder.id
+
+
+async def _put_in_folder(db: AsyncSession, target_dir: Path, accepted: list[str], folder_id: str | None) -> None:
+    """The uploaded files into the folder they were added from (a replaced file moves there too)."""
+    if folder_id is None or not accepted:
+        return
+    relpaths = [str((target_dir / name).relative_to(KNOWLEDGE_DIR)) for name in accepted]
+    await db.execute(update(Document).where(Document.filename.in_(relpaths)).values(folder_id=folder_id))
+    await db.commit()
+
+
 async def _run_upload_job(
     job_id: str,
     target_dir: Path,
@@ -65,6 +86,7 @@ async def _run_upload_job(
     accepted: list[str],
     rejects: list[tuple[str, str]],
     user_id: str,
+    folder_id: str | None = None,
 ) -> None:
     """The slow chunk + embed work, as a fire-and-forget task after the request returned. Uses its own DB
     session (the request's is closed by then).
@@ -98,6 +120,7 @@ async def _run_upload_job(
                     if event["status"] == "error":
                         entry["error"] = event["error"]
                     await upload_jobs.save(job_id, files)
+            await _put_in_folder(db, target_dir, accepted, folder_id)
         except Exception as exc:  # noqa: BLE001 - a bug here must still resolve the job, not hang it forever
             extra_errors.append(f"Upload job hit an unexpected error partway through: {exc}")
 
@@ -143,11 +166,11 @@ async def stage_upload(
     rejects: list[tuple[str, str]] = []
     for upload in files:
         name = safe_filename(upload.filename)
-        if Path(name).suffix.lower() not in SUPPORTED_EXTENSIONS:
-            rejects.append((upload.filename, "unsupported file type."))
+        raw = await upload.read()
+        if not TextFiles.readable(name, raw[:HEAD_BYTES]):
+            rejects.append((upload.filename, "not a text file (code, notes and data are fine), PDF or Word file."))
             continue
 
-        raw = await upload.read()
         if len(raw) > max_file_bytes:
             rejects.append((upload.filename, f"exceeds the {limits.max_file_mb:g}MB file size limit."))
             continue
@@ -173,6 +196,7 @@ async def start_upload_job(
     accepted: list[str],
     rejects: list[tuple[str, str]],
     user: User,
+    folder_id: str | None = None,
 ) -> UploadJobStatus:
     """Registers a job and, if anything is left to process, schedules run_upload_job. Returns the initial status
     snapshot to poll (see module docstring).
@@ -190,5 +214,5 @@ async def start_upload_job(
         ).model_dump()
     job = await upload_jobs.create(db, job_id, user.id, files_state, done=not accepted, result=result)
     if accepted:
-        background_tasks.add_task(_run_upload_job, job_id, target_dir, owner_id, accepted, rejects, user.id)
+        background_tasks.add_task(_run_upload_job, job_id, target_dir, owner_id, accepted, rejects, user.id, folder_id)
     return upload_jobs.status(job)

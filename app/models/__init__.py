@@ -7,7 +7,7 @@ from app.models._base import ID_LEN, new_id, utcnow
 from app.models.app_setting import SYSTEM_OWNER_ID, AppSetting
 from app.models.channel import Channel, ChannelMember
 from app.models.conversation import Conversation, Message, MessageAttachment
-from app.models.document import Chunk, Document
+from app.models.document import Chunk, Document, DocumentFolder
 from app.models.image_generation import ImageGenerationJob
 from app.models.mcp_server import McpServer
 from app.models.note import Note, NotePin
@@ -32,6 +32,7 @@ __all__ = [
     "MessageAttachment",
     "Chunk",
     "Document",
+    "DocumentFolder",
     "ImageGenerationJob",
     "LeaderLease",
     "Note",

@@ -41,6 +41,7 @@ from app.routers import (
     image_generation,
     image_model_admin,
     instances_admin,
+    knowledge_files,
     llamacpp_admin,
     matricxon_admin,
     matricxon_api_key_admin,
@@ -187,6 +188,7 @@ app.include_router(vision_reply_admin.router)
 app.include_router(chat_file_memory_admin.router)
 app.include_router(prompt_cache_admin.router)
 app.include_router(prompt_cache_admin.chat_router)
+app.include_router(knowledge_files.router)
 app.include_router(reasoning_admin.router)
 app.include_router(mcp_admin.router)
 app.include_router(mcp_admin.enabled_router)

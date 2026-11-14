@@ -79,8 +79,8 @@ async def use(db, mode: str, **fields) -> None:
 
 
 @pytest.mark.asyncio
-async def test_the_setting_defaults_to_ordered_and_saves(db):
-    assert (await prompt_cache_admin.get_prompt_cache(db=db, _admin=None)).mode == "ordered"
+async def test_the_setting_defaults_to_the_short_index_and_saves(db):
+    assert (await prompt_cache_admin.get_prompt_cache(db=db, _admin=None)).mode == "index"
     await use(db, "append", max_updates=3)
     saved = await prompt_cache_admin.get_prompt_cache(db=db, _admin=None)
     assert saved.mode == "append" and saved.max_updates == 3
@@ -96,7 +96,7 @@ def test_only_known_modes_and_ranges_are_accepted():
 async def test_a_damaged_saved_setting_reads_as_the_defaults(db):
     db.add(AppSetting(owner_id=SYSTEM_OWNER_ID, key="prompt_cache", value={"mode": "nonsense"}))
     await db.commit()
-    assert (await PromptCacheSettings(db).get()).mode == "ordered"
+    assert (await PromptCacheSettings(db).get()).mode == "index"
 
 
 # PromptLayouts and the chat's state

@@ -93,9 +93,12 @@ class ChatSkills {
         this.available = [];
       }
     }
+    // More than 5 skills on offer: as wide as the message box (both edges line up) and the list in two columns.
     this.wide = this.editable && this.available.length > 5;
     this.picker.classList.toggle("w-96", !this.wide);
-    this.picker.classList.toggle("w-[42rem]", this.wide);
+    this.picker.classList.toggle("right-0", this.wide);
+    this.field("list").classList.toggle("max-h-72", !this.wide);
+    this.field("list").classList.toggle("max-h-[45vh]", this.wide);
     this.renderChosen();
     this.renderList();
     if (this.editable) this.field("search").focus();
@@ -103,6 +106,27 @@ class ChatSkills {
 
   close() {
     this.picker.classList.add("hidden");
+    this.field("search").value = ""; // the next open starts with a fresh search
+  }
+
+  /* Every skill the user may use in this chat (the shared library, and their own outside a channel), for /use_skill
+     when the chat has none chosen (chat_command_menu.js). Loaded once per chat; [] until it arrives, then the
+     "chat-skills-library" event lets the menu redraw. */
+  libraryNames() {
+    if (this.library?.conversationId === this.conversationId) return this.library.names;
+    if (!this.libraryLoading && this.conversationId) {
+      const id = this.conversationId;
+      this.libraryLoading = api(`/api/skills/available?conversation_id=${encodeURIComponent(id)}`)
+        .then((skills) => {
+          if (id === this.conversationId) this.library = { conversationId: id, names: skills.map((s) => s.name) };
+        })
+        .catch(() => {})
+        .finally(() => {
+          this.libraryLoading = null;
+          document.dispatchEvent(new Event("chat-skills-library"));
+        });
+    }
+    return [];
   }
 
   renderChosen() {
@@ -114,8 +138,8 @@ class ChatSkills {
     this.field("chosen").innerHTML = chips.length
       ? chips
           .map(
-            (s) => `<span class="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-200">${escapeHtml(s.name)}${
-              this.editable ? `<button type="button" data-remove="${escapeHtml(s.id)}" class="text-slate-500 hover:text-slate-200" title="Remove">×</button>` : ""
+            (s) => `<span class="inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-xs text-white">${escapeHtml(s.name)}${
+              this.editable ? `<button type="button" data-remove="${escapeHtml(s.id)}" class="text-white/70 hover:text-white" title="Remove">×</button>` : ""
             }</span>`,
           )
           .join("")
@@ -134,17 +158,17 @@ class ChatSkills {
       .sort((a, b) => rank(a) - rank(b));
     if (!matches.length) {
       list.innerHTML = `<p class="px-2 py-3 text-xs text-slate-500">${
-        this.available.length ? "No skill matches." : "No skills yet: an admin adds them under Admin settings → Skills, and you can write your own under Settings → Skills."
+        this.available.length ? "No skill matches." : "No skills yet: an admin adds them under Admin settings → Skills, and you can write your own under Settings → Private skills."
       }</p>`;
       return;
     }
     const groups = {};
     for (const skill of matches) (groups[skill.category] ||= []).push(skill);
-    // More than 5 skills on offer: two columns (one on a narrow screen), so the list stays short.
-    const columns = this.wide ? "grid grid-cols-1 sm:grid-cols-2 gap-x-1" : "";
-    list.innerHTML = Object.entries(groups)
+    // Two balanced columns (one on a narrow screen), each category kept whole: no half-empty rows. On an inner
+    // block: columns on the scrolling box itself would flow sideways out of view instead of scrolling down.
+    const blocks = Object.entries(groups)
       .map(
-        ([category, skills]) => `<p class="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(category)}</p><div class="${columns}">${skills
+        ([category, skills]) => `<div class="break-inside-avoid pb-1"><p class="px-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(category)}</p>${skills
           .map(
             (s) => `<label class="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-800">
               <input type="checkbox" data-skill="${escapeHtml(s.id)}" ${this.selected.has(s.id) ? "checked" : ""} class="mt-0.5 accent-brand-500">
@@ -156,6 +180,7 @@ class ChatSkills {
           .join("")}</div>`,
       )
       .join("");
+    list.innerHTML = this.wide ? `<div class="sm:columns-2 gap-x-2">${blocks}</div>` : blocks;
     this.applyLimit();
   }
 

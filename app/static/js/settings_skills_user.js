@@ -1,4 +1,4 @@
-/* Settings > Skills (settings/skills_user.html): the user's private skills via /api/skills/mine. The form is
+/* Settings > Private skills (settings/skills_user.html): the user's private skills via /api/skills/mine. The form is
  * SkillEditor (settings_skills_editor.js). */
 class MySkills {
   static URL = "/api/skills/mine";
@@ -13,8 +13,8 @@ class MySkills {
     });
     root.querySelector('[data-action="new"]').addEventListener("click", () => this.editor.open(null, this.categories()));
     this.list.addEventListener("click", (event) => this.onClick(event));
-    document.querySelector('[data-tab="my-skills"]')?.addEventListener("click", () => this.load());
-    if (!document.getElementById("tab-my-skills")?.classList.contains("hidden")) this.load();
+    document.querySelector('[data-tab="private-skills"]')?.addEventListener("click", () => this.load());
+    if (!document.getElementById("tab-private-skills")?.classList.contains("hidden")) this.load();
   }
 
   categories() {

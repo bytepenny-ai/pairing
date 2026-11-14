@@ -23,16 +23,14 @@
         </div>
       </section>
 
-      <!-- Knowledge base: not tied to a conversation, so it saves itself (upload/delete), not via the Save button. Every chat searches what's in scope for its owner; an upload is ingested at once. Only "My documents" (private) is exposed for now; the shared/global scope exists server-side (app/rag.py) but has no UI yet. -->
+      <!-- Knowledge base: the user's private files and folders (settings_knowledge_files.js, /api/knowledge). It saves
+           itself (upload, move, delete), not via the Save button. Uploading is in a floating window (#kb-upload-modal). -->
       <section id="knowledge-base-section" class="space-y-4">
-        <h2 class="text-sm font-semibold text-slate-200">Knowledge base</h2>
-        <p class="text-xs text-slate-500 -mt-3">
-          Supported types: <code class="font-mono">.txt</code>, <code class="font-mono">.md</code>,
-          <code class="font-mono">.pdf</code>, <code class="font-mono">.docx</code>,
-          <code class="font-mono">.odt</code>, <code class="font-mono">.rtf</code>,
-          <code class="font-mono">.html</code>, <code class="font-mono">.csv</code>, and
-          <code class="font-mono">.json</code> — up to 5 files per upload.
-        </p>
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-sm font-semibold text-slate-200">Knowledge base</h2>
+          <span id="my-docs-summary" class="text-xs text-slate-500"></span>
+        </div>
+        <p class="text-xs text-slate-500 -mt-3">Private: only your own chats can search these.</p>
 
         <!-- Your quota: what the admin allows this account (Admin settings > Inference > RAG limits) and how much is used. Filled by settings.js renderKnowledgeSummary. -->
         <div id="rag-quota" class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-2">
@@ -46,14 +44,46 @@
           <ul id="rag-quota-details" class="text-xs text-slate-500 space-y-0.5 list-disc pl-4"></ul>
         </div>
 
-        <!-- My documents: private, visible only to your chats. Five file pickers rather than one multi-select, so each file has its own row and progress bar; embedding can be slow on weak hardware, and one shared bar left it unclear which file was still moving. -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400">My documents</h3>
-            <span id="my-docs-summary" class="text-xs text-slate-500"></span>
+        <!-- The file browser: where you are (top level or a folder), folder actions, cards/list, Add files. -->
+        <div id="knowledge-browser" class="space-y-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <nav data-kb="crumbs" class="mr-auto flex min-w-0 items-center gap-1 text-sm text-slate-300"></nav>
+            <button type="button" data-kb="new-folder" class="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">New folder</button>
+            <button type="button" data-kb="rename-folder" class="hidden rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Rename folder</button>
+            <button type="button" data-kb="delete-folder" class="hidden rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Delete folder</button>
+            <div class="flex rounded-lg border border-slate-700 p-0.5" role="group" aria-label="View">
+              <button type="button" data-kb-view="cards" title="Cards" class="rounded-md px-2 py-1 text-xs text-slate-300">▦ Cards</button>
+              <button type="button" data-kb-view="list" title="List" class="rounded-md px-2 py-1 text-xs text-slate-300">☰ List</button>
+            </div>
+            <button type="button" data-kb="add-files" class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Add files</button>
           </div>
-          <p class="text-xs text-slate-500">Private — only your own chats can search these.</p>
+          <!-- Shown while files are ticked: what to do with all of them at once. -->
+          <div data-kb="selection" class="hidden flex flex-wrap items-center gap-2 rounded-lg border border-brand-500/40 bg-brand-500/10 px-3 py-2">
+            <span data-kb="selected-count" class="mr-auto text-xs font-medium text-slate-200"></span>
+            <button type="button" data-kb="select-all" class="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40">Select all</button>
+            <button type="button" data-kb="move-selected" class="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40">Move to…</button>
+            <button type="button" data-kb="delete-selected" class="rounded-lg border border-red-500/50 bg-red-500/15 px-2.5 py-1 text-xs text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-40">Delete</button>
+            <button type="button" data-kb="clear-selection" class="rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40">Clear</button>
+          </div>
+          <p data-kb="status" class="text-xs text-slate-500"></p>
+          <div data-kb="content"></div>
+        </div>
+      </section>
 
+      <!-- Add files: the upload form, in a floating window. Five file pickers rather than one multi-select, so each file has its own row and progress bar; embedding can be slow on weak hardware. The ids are settings.js handleUpload's. -->
+      <div id="kb-upload-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-200">Add files</h3>
+              <p data-kb="upload-target" class="text-xs text-slate-500"></p>
+            </div>
+            <button type="button" data-kb="close-upload" class="text-lg leading-none text-slate-500 hover:text-slate-200" aria-label="Close">×</button>
+          </div>
+          <p class="text-xs text-slate-500">
+            PDF, Word, ODT, RTF, HTML and any text file: code, notes, config, logs and data, checked by its content
+            (a program or a zip is refused). Up to 5 files per upload.
+          </p>
           <div id="my-docs-upload-slots" class="space-y-1.5">
             {% for i in range(5) %}
             <div class="space-y-1" data-slot="{{ i }}">
@@ -84,20 +114,23 @@
             </div>
           </div>
           <p id="my-docs-status" class="text-xs text-slate-500"></p>
-          <div id="my-docs-list" class="!mt-6 rounded-lg bg-slate-900 border border-slate-800 divide-y divide-slate-800 text-sm"></div>
-          <div id="my-docs-pagination" class="hidden flex items-center justify-between text-xs text-slate-500">
-            <button id="my-docs-prev-btn" type="button"
-              class="rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent">
-              Prev
-            </button>
-            <span id="my-docs-page-info"></span>
-            <button id="my-docs-next-btn" type="button"
-              class="rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent">
-              Next
-            </button>
-          </div>
         </div>
-      </section>
+      </div>
+
+      <!-- A small dialog for a folder name, a move or a confirmation (settings_knowledge_dialog.js). -->
+      <div id="kb-dialog" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <form data-kb="dialog-form" class="w-full max-w-sm space-y-3 rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+          <h3 data-kb="dialog-title" class="text-sm font-semibold text-slate-200"></h3>
+          <p data-kb="dialog-text" class="text-xs text-slate-400"></p>
+          <input data-kb="dialog-input" type="text" maxlength="120" class="hidden w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+          <select data-kb="dialog-select" class="hidden w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500"></select>
+          <p data-kb="dialog-error" class="text-xs text-warning-400"></p>
+          <div class="flex justify-end gap-2">
+            <button type="button" data-kb="dialog-cancel" class="rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Cancel</button>
+            <button type="submit" data-kb="dialog-ok" class="rounded-lg px-3 py-1.5 text-xs font-medium"></button>
+          </div>
+        </form>
+      </div>
       </div>
 
     </div>

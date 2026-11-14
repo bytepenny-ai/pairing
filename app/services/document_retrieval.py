@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +13,7 @@ from app.services.default_model_settings import DefaultModelSettings
 from app.services.document_rerank import ChunkReranker
 from app.services.inference_client import embed
 from app.services.live_workflow_bus import live_workflow
+from app.services.question_vectors import QuestionVectors
 
 
 async def retrieve_context(
@@ -44,7 +44,7 @@ async def _retrieve(db: AsyncSession, query: str, user_id: str | None, top_k: in
         return []
 
     async with live_workflow.stage("rag_embed", "rag_embed_ml_engine"):
-        query_vector = np.asarray(await embed(query, embedding_model), dtype=np.float32)
+        query_vector = await QuestionVectors.of(query, embedding_model, embed)
 
     # Cosine similarity over the in-memory index. Only vectors from the current model compare: another model's
     # (recorded, or of another size when unknown) waits for the next sync to re-embed it instead of matching badly.

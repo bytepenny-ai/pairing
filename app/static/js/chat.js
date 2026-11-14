@@ -494,6 +494,8 @@ function renderReplyBody(bubble, content, status, sources, errorText) {
     bubble.appendChild(notice);
   } else {
     appendSourcesFooter(bubble, sources);
+    // The skill the message being answered asked for (/use_skill), under the reply like its sources.
+    if (bubble._askedSkill && typeof SkillChip !== "undefined") bubble.appendChild(SkillChip.footer(bubble._askedSkill));
   }
   ToolBlocks.render(bubble);
 }
@@ -547,7 +549,8 @@ function addMessageBubble(
   avatarUrl,
   initials,
   senderId,
-  errorText
+  errorText,
+  askedSkill = null
 ) {
   const sharedFrom = attachmentSource && attachmentSource.shared_from;
   const { wrapper, bubble } = bubbleFor(
@@ -568,7 +571,11 @@ function addMessageBubble(
   if (messageId && (!status || status === "complete")) ChannelShare.decorate(wrapper, messageId, role);
   ChannelShare.remark(wrapper, sharedFrom, attachmentSource && attachmentSource.sender_display_name);
   bubble._toolEvents = attachmentSource && attachmentSource.tool_events;
-  renderReplyBody(bubble, content, status, sources, errorText);
+  bubble._askedSkill = askedSkill; // a reply: the skill its message asked for (renderReplyBody shows it)
+  // A user's /use_skill "<name>" shows as a badge, not as text (chat_skill_chip.js).
+  const asked = role === "user" && typeof SkillChip !== "undefined" ? SkillChip.split(content) : null;
+  renderReplyBody(bubble, asked ? asked.text : content, status, sources, errorText);
+  if (asked?.skill) bubble.prepend(SkillChip.badge(asked.skill));
   renderAttachment(bubble, attachmentSource);
   messagesEl.appendChild(wrapper);
   chatScroll.follow();
@@ -594,7 +601,9 @@ function renderMessageList(messages, channelInfo) {
   const readingAt = messagesEl.scrollTop;
   messagesEl.innerHTML = "";
   showEmptyState(messages.length === 0);
+  let askedSkill = null; // the last user message's /use_skill, for the reply after it
   for (const message of messages) {
+    if (message.role === "user" && typeof SkillChip !== "undefined") askedSkill = SkillChip.split(message.content).skill;
     // Sender labels show only in a channel's shared conversation (see bubbleFor): "AI" for assistant replies,
     // message.sender_display_name (MessageOut) for user messages, since several members post.
     const senderLabel = channelInfo ? (message.role === "assistant" ? "AI" : message.sender_display_name) : null;
@@ -611,7 +620,8 @@ function renderMessageList(messages, channelInfo) {
       message.sender_avatar_url,
       message.sender_initials,
       senderId,
-      message.error_message
+      message.error_message,
+      message.role === "assistant" ? askedSkill : null
     );
   }
   if (messages.length > 0) {
@@ -1124,14 +1134,14 @@ let activeHasMessages = false;
 /* Admin settings > Inference > Prompt cache: what a started chat may still change, by what its layout makes cheap
    (GET /api/prompt-cache/mid-chat-changes, read on each chat switch): skills in every layout but "Stable order",
    persona and rules only in "Add changes as updates" and "Keep unchanged blocks". */
-let midChatChanges = { skills: false, notes: false };
+let midChatChanges = { skills: false, notes: false, tools: false };
 const notesLocked = () => activeHasMessages && !midChatChanges.notes;
 const skillsLocked = () => activeHasMessages && !midChatChanges.skills;
 async function loadMidChatChanges() {
   try {
     midChatChanges = await api("/api/prompt-cache/mid-chat-changes");
   } catch (_) {
-    midChatChanges = { skills: false, notes: false };
+    midChatChanges = { skills: false, notes: false, tools: false };
   }
 }
 
@@ -1284,6 +1294,7 @@ function renderChannelListItem(channel) {
 
 async function selectConversation(id) {
   activeConversationId = id;
+  if (typeof skillChip !== "undefined") skillChip.clear(); // a skill picked for one chat's message isn't another's
   chatScroll.following = true; // opening a chat starts at its latest message
   closeSlotEditor();
   closeModelPicker();
@@ -1409,8 +1420,10 @@ askAiBtn.addEventListener("click", () => sendMessage(true));
 
 /* Sends #chat-input as a normal channel message (askAi=false; the AI isn't invoked, see build_reply_stream's early return) or an explicit "ask AI" request (askAi=true; the only behavior for personal chats). Shared by #chat-form's submit and #ask-ai-btn's click. */
 async function sendMessage(askAi) {
-  const content = chatInput.value.trim();
-  if (!content) return;
+  if (!chatInput.value.trim()) return;
+  // A skill picked with /use_skill rides along as its command (chat_skill_chip.js); the badge clears with the send.
+  const content = typeof skillChip !== "undefined" ? skillChip.withCommand(chatInput.value.trim()) : chatInput.value.trim();
+  if (typeof skillChip !== "undefined") skillChip.clear();
 
   if (!activeConversationId) {
     await createNewConversation();
@@ -1467,6 +1480,7 @@ async function sendMessage(askAi) {
   let bubble = null;
   if (askAi) {
     ({ wrapper, bubble } = bubbleFor("assistant", activeChannelInfo ? "AI" : null));
+    bubble._askedSkill = typeof SkillChip !== "undefined" ? SkillChip.split(content).skill : null;
     renderReplyBody(bubble, "", "streaming");
     messagesEl.appendChild(wrapper);
     chatScroll.follow();

@@ -8,6 +8,7 @@ import numpy as np
 
 from app.services.inference_client import InferenceError, embed
 from app.services.prompt_layout.sections import PromptSection
+from app.services.question_vectors import QuestionVectors
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class SkillRelevance:
         if not self._model:
             return None
         try:
-            asked = await self._embed(question)
+            asked = await QuestionVectors.of(question, self._model, embed)  # shared with the knowledge-base search
             scores = {}
             for skill in skills:
                 vector = await self._skill_vector(skill)

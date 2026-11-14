@@ -1,13 +1,17 @@
 /**
  * Chat file viewer: a click on an image or a file in a message opens it in a soft floating window (75% of the screen).
  * Images show as pictures, PDFs in the browser's own PDF viewer (as text where there is none, as on phones), other
- * documents as their text (GET /api/chat/attachments/{id}/preview; Markdown rendered). Download saves the file.
+ * documents as their text (GET <the file's link>/preview: /api/chat/attachments/{id}/preview, or
+ * /api/knowledge/files/{id}/preview on Settings > Knowledge; Markdown rendered). Download saves the file.
  * Closes with the × button, a click outside it, or Escape. Ctrl/Cmd+click still opens the file in a new tab.
  */
 class ChatFileViewer {
   static #FADE_MS = 180;
   static #IMAGES = [".png", ".jpg", ".jpeg", ".gif", ".webp"];
-  static #DOCUMENTS = [".pdf", ".txt", ".md", ".csv", ".json", ".docx", ".odt", ".rtf", ".html", ".htm"];
+  // Documents needing the server's reader; any other file chats take is plain text. Prose shows in the page's font,
+  // anything else (code, config, data) in a code font.
+  static #NEEDS_SERVER = [".pdf", ".docx", ".odt", ".rtf"];
+  static #PROSE = [".txt", ".md", ".pdf", ".docx", ".odt", ".rtf", ".html", ".htm", ""];
 
   static #suffix(name) {
     const dot = (name || "").lastIndexOf(".");
@@ -20,7 +24,7 @@ class ChatFileViewer {
   static async #localPreview(url, root) {
     const name = root.querySelector("[data-viewer-name]").textContent;
     const suffix = ChatFileViewer.#suffix(name);
-    if (![".txt", ".md", ".csv", ".json", ".html"].includes(suffix)) {
+    if (ChatFileViewer.#NEEDS_SERVER.includes(suffix)) {
       throw new Error("The preview is ready once the reply has started");
     }
     const text = await (await fetch(url)).text();
@@ -36,7 +40,7 @@ class ChatFileViewer {
     const suffix = ChatFileViewer.#suffix(name);
     if (ChatFileViewer.#IMAGES.includes(suffix)) return "image";
     if (suffix === ".pdf" && navigator.pdfViewerEnabled) return "pdf";
-    return ChatFileViewer.#DOCUMENTS.includes(suffix) ? "text" : null;
+    return "text"; // any other file chats take is text (app/services/text_files.py); the preview says if it isn't
   }
 
   /** Whether a file of this name opens in the viewer (chat.js renderAttachment); others download as before. */
@@ -132,10 +136,12 @@ class ChatFileViewer {
     page.dir = "auto";
     if (preview.format === "markdown") {
       page.classList.add("markdown-body");
-      renderMessageContent(page, preview.text); // chat.js: marked + DOMPurify, as chat replies
+      // chat.js renders it as a reply is (math too); elsewhere (Settings > Knowledge) marked + DOMPurify directly.
+      if (typeof renderMessageContent === "function") renderMessageContent(page, preview.text);
+      else page.innerHTML = DOMPurify.sanitize(marked.parse(preview.text));
     } else {
-      // Data (CSV, JSON) in a code font; prose (text, Word, PDF) in the page's own.
-      const data = [".csv", ".json"].includes(ChatFileViewer.#suffix(preview.filename));
+      // Code, config and data in a code font; prose (text, Word, PDF) in the page's own.
+      const data = !ChatFileViewer.#PROSE.includes(ChatFileViewer.#suffix(preview.filename));
       const pre = document.createElement("pre");
       pre.className = "whitespace-pre-wrap break-words " + (data ? "font-mono text-[13px]" : "font-sans");
       pre.textContent = preview.text;

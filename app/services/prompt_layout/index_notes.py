@@ -28,6 +28,28 @@ class IndexNotes:
         }
 
     @staticmethod
+    def asked(ctx: LayoutContext, entries: list[dict], command: bool) -> list[dict]:
+        """The skill the user asked for with /use_skill (chat_skill_command.py), added to this message unless it is
+        already in the chat in this version. Not on a message with an image for a model without tools: there the
+        text would sit next to the image and hide it."""
+        if not ctx.asked_skill or (ctx.has_image and not ctx.tools):
+            return []
+        skills = {s.title: s for s in ctx.sections.of_kind("skill")}
+        if ctx.asked_section is not None:  # not one of the chat's: one the user may use (layouts.py checked it)
+            skills.setdefault(ctx.asked_section.title, ctx.asked_section)
+        title = SkillTool.match(ctx.asked_skill, skills)
+        skill = skills.get(title) if title else None
+        held = {(e["key"], e["digest"]) for e in entries if e["type"] == "load"}
+        if skill is None or (skill.key, skill.digest) in held:
+            return []
+        entry = IndexNotes.load(ctx, skill)
+        if command:
+            entry["text"] = (
+                f'For this message, the user asked to use the skill "{skill.title}". Its instructions:\n\n{skill.text}'
+            )
+        return [entry]
+
+    @staticmethod
     def gone(ctx: LayoutContext, listed: list[PromptSection], entries: list[dict]) -> list[dict]:
         """A note for each listed skill that is no longer the chat's, once."""
         current = ctx.sections.by_key()

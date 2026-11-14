@@ -12,8 +12,11 @@ The list is the chat's skills when it started, so it never changes the prompt's 
 one-line note ("new"), a removed one too ("gone"), and a changed one is read or added again in its new version.
 A skill's full text never goes on a message with an image (a long text there hides the image from the model): it
 waits for the next message. When a message holding an entry leaves the history window, the entry goes with it.
-Notes follow the list (a note change re-reads from there).
+Notes follow the list (a note change re-reads from there). With tools, the chat's MCP tools go through use_tool,
+told as a note when they are on (tool_index.py), so the Tools switch never changes the prompt's start either.
 """
+
+import asyncio
 
 from app.schemas.prompt_cache import PromptCacheSetting
 from app.services.chat_follow_up import ChatFollowUp
@@ -22,8 +25,10 @@ from app.services.prompt_layout.index_notes import IndexNotes
 from app.services.prompt_layout.sections import PromptSection, PromptSections
 from app.services.prompt_layout.skill_chat_tool import NAME, NOTICE_NAME
 from app.services.prompt_layout.skill_relevance import SkillRelevance
+from app.services.prompt_layout.tool_index import ToolIndexNotes
 
-_TYPES = ("load", "gone", "new", "changed")
+_TYPES = ("load", "gone", "new", "changed", "tools")
+_PRECHECK_SECONDS = 1.0  # the pre-check's embedding, at most; longer (a busy server) skips it for that message
 
 
 class IndexLayout(PromptStrategy):
@@ -36,29 +41,39 @@ class IndexLayout(PromptStrategy):
     async def layout(self, ctx: LayoutContext) -> tuple[PromptLayout, dict]:
         saved = self._saved(ctx.saved)
         listed, entries, recorded = saved if saved else (ctx.sections.of_kind("skill"), [], [])
+        command = self._setting.skill_choice == "command"
         if not ctx.read_only:
             entries = await self._still_kept(ctx, entries)
-            entries = entries + IndexNotes.gone(ctx, listed, entries)
-            if ctx.tools:
+            entries = entries + IndexNotes.gone(ctx, listed, entries) + IndexNotes.asked(ctx, entries, command)
+            if ctx.tools and not command:  # the model may read a skill too: its reads, and what it should know
                 loads, recorded = IndexNotes.used(ctx, entries, recorded)
                 entries = entries + loads
                 entries = entries + IndexNotes.new(ctx, listed, entries) + IndexNotes.changed(ctx, entries)
-            else:
+            if not command:
                 entries = entries + await self._loads(ctx, entries)
+            if ctx.tools and ctx.tool_specs is not None:
+                entries = entries + ToolIndexNotes.notes(ctx, entries)
             entries = await self._still_kept(ctx, entries)
-        system = "\n\n".join(p for p in (self.index_text(listed, ctx.tools), ctx.sections.notes_text()) if p)
-        texts = {s.title: s.text for s in ctx.sections.of_kind("skill")} if ctx.tools else {}
-        layout = PromptLayout(system, skill_texts=texts, **self.delivered(ctx, self._notes(entries)))
+        intro = self.index_text(listed, ctx.tools and not command, command)
+        system = "\n\n".join(p for p in (intro, ctx.sections.notes_text()) if p)
+        texts = {s.title: s.text for s in ctx.sections.of_kind("skill")} if ctx.tools and not command else None
+        index = ctx.tools and ctx.tool_specs is not None
+        layout = PromptLayout(system, skill_texts=texts, tool_index=index, **self.delivered(ctx, self._notes(entries)))
         if ctx.read_only:
             return layout, ctx.saved
         listed_state = [s.to_dict() for s in listed]
         return layout, {"mode": self.mode, "listed": listed_state, "entries": entries, "recorded": recorded}
 
     @staticmethod
-    def index_text(listed: list[PromptSection], tools: bool = False) -> str:
+    def index_text(listed: list[PromptSection], tools: bool = False, command: bool = False) -> str:
         if not listed:
             return ""
         lines = "\n".join(f"- {s.title}: {IndexNotes.purpose(s)}" for s in listed)
+        if command:
+            return (
+                "Skills for this conversation. The user picks one for a message; its full instructions then come "
+                "with that message, and apply to it:\n" + lines
+            )
         if tools:
             how = (
                 "Most requests need no skill: answer them directly. Only when a request is exactly the task a skill is "
@@ -71,15 +86,24 @@ class IndexLayout(PromptStrategy):
         )
 
     async def _loads(self, ctx: LayoutContext, entries: list[dict]) -> list[dict]:
-        """Without tools: the skills the question is close to (or every waiting one, with nothing to judge by)."""
+        """The pre-check: the skills the question is close to in meaning, added before the reply. With nothing to
+        judge by, every waiting skill for a model without tools (so none is missing), none for one that can read
+        a skill itself. A slow embedding (a busy server) skips it for this message: never a slower reply."""
         loaded = {e["key"]: e["digest"] for e in entries if e["type"] == "load"}  # the newest load wins
         waiting = [s for s in ctx.sections.of_kind("skill") if loaded.get(s.key) != s.digest]
         if not waiting or ctx.has_image:
             return []
         if self._relevance.available and ChatFollowUp.is_small_talk(ctx.question):
             return []  # "OK", "thanks": nothing to look up
-        scores = await self._relevance.scores(ctx.question, waiting) if self._relevance.available else None
+        scores = None
+        if self._relevance.available:
+            try:
+                scores = await asyncio.wait_for(self._relevance.scores(ctx.question, waiting), _PRECHECK_SECONDS)
+            except TimeoutError:
+                return []
         if scores is None:
+            if ctx.tools:
+                return []  # it can read one itself
             chosen = waiting  # nothing to judge by: every skill now, rather than one missing when it's needed
         else:
             ranked = sorted(
@@ -95,13 +119,15 @@ class IndexLayout(PromptStrategy):
         kept = await ctx.kept(self._inserts(entries))
         return [e for e in entries if e["message_id"] in kept]
 
-    @staticmethod
-    def _notes(entries: list[dict]) -> dict[str, list[ToolNote]]:
+    def _notes(self, entries: list[dict]) -> dict[str, list[ToolNote]]:
         """Each entry as the app tells it at its message: a skill's text as use_skill's result, a note as an
-        instruction_updates result (text before the message for a model without tools; base.delivered)."""
+        instruction_updates result (text before the message for a model without tools; base.delivered). With
+        skills chosen by command use_skill isn't offered, so a skill comes as an instruction_updates result too."""
+        by_skill_tool = self._setting.skill_choice != "command"
         parts: dict[str, list[ToolNote]] = {}
         for e in entries:
-            note = ToolNote(NAME, {"name": e.get("title", "")}, e["text"]) if e["type"] == "load" else None
+            load = e["type"] == "load" and by_skill_tool
+            note = ToolNote(NAME, {"name": e.get("title", "")}, e["text"]) if load else None
             parts.setdefault(e["message_id"], []).append(note or ToolNote(NOTICE_NAME, {}, e["text"]))
         return parts
 

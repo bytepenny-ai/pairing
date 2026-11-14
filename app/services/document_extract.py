@@ -17,21 +17,12 @@ from pypdf import PdfReader
 from striprtf.striprtf import rtf_to_text
 
 from app.config import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
+from app.services.text_files import KNOWN_EXTENSIONS, TextFiles
 
 # File types the folder scanner can read. Anything else is ignored, not an error: these are plain folders
 # an admin may also use for other files (e.g. a README).
-SUPPORTED_EXTENSIONS = {
-    ".txt",
-    ".md",
-    ".pdf",
-    ".docx",
-    ".rtf",
-    ".html",
-    ".htm",
-    ".csv",
-    ".json",
-    ".odt",
-}
+# The formats read by type (any other file is read if its content is text: text_files.py).
+SUPPORTED_EXTENSIONS = KNOWN_EXTENSIONS
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -92,7 +83,7 @@ def extract_text(raw: bytes, suffix: str) -> str:
         data = json.loads(raw.decode("utf-8", errors="ignore"))
         return json.dumps(data, indent=2, ensure_ascii=False)
 
-    return raw.decode("utf-8", errors="ignore")
+    return TextFiles.decode(raw)  # .txt, .md and any other text file (code, config, logs)
 
 
 def hash_bytes(raw: bytes) -> str:

@@ -41,10 +41,10 @@ async def test_save_attachments_classifies_a_document_extension_as_text():
 
 
 @pytest.mark.asyncio
-async def test_save_attachments_rejects_an_unsupported_extension():
+async def test_save_attachments_rejects_a_binary_file():
     with pytest.raises(HTTPException) as exc_info:
-        await chat_attachment_service.save_attachments([_upload("virus.exe", b"x")], "conv-1")
-    assert exc_info.value.status_code == 400
+        await chat_attachment_service.save_attachments([_upload("virus.exe", b"MZ\x90\x00\x03\x00")], "conv-1")
+    assert exc_info.value.status_code == 400 and "isn't a text file" in exc_info.value.detail
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,7 @@ from app.services.auth_service import get_current_user
 from app.services.chat_tool_set import ChatToolSet
 from app.services.engines.registry import registry
 from app.services.mcp_tool_catalog import McpToolCatalog
+from app.services.prompt_cache_setting import PromptCacheSettings
 
 router = APIRouter(prefix="/api/mcp", tags=["mcp"])
 
@@ -27,7 +28,8 @@ async def _chat_tools(db: AsyncSession, conversation) -> McpChatTools:
     enabled = registry.active().capabilities.tools and await mcp_settings_service.get_enabled(db)
     live = await McpToolCatalog(db).tools() if enabled else []
     saved = (conversation.params or {}).get("tool_snapshot") or []
-    if not saved:
+    # Options 2 and 3 (tool index): the chat follows the current tools, so nothing to offer as new (tool_loop_service).
+    if not saved or (await PromptCacheSettings(db).get()).mode in ("append", "index"):
         return McpChatTools(
             enabled=enabled, frozen=False, tools=[McpChatTool(name=t.name, description=t.description) for t in live]
         )

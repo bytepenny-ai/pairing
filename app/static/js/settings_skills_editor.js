@@ -1,4 +1,4 @@
-/* The skill form shared by Admin settings > Skills (settings_skills_admin.js) and Settings > Skills
+/* The skill form shared by Admin settings > Skills (settings_skills_admin.js) and Settings > Private skills
  * (settings_skills_user.js): name, category, description, the instructions, and for the library "enabled". */
 class SkillEditor {
   constructor(root, { onSave, withEnabled }) {

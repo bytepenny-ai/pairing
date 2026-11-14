@@ -52,8 +52,9 @@ def test_only_successful_use_skill_calls_by_replies_count():
     assert SkillTool.uses(messages) == [("r1", ["Review"])]
 
 
-def test_the_tool_comes_from_the_reply_params_only_with_skills():
-    assert SkillTool.from_params({}) == [] and SkillTool.from_params({PARAM_KEY: {}}) == []
+def test_the_tool_comes_from_the_reply_params_even_before_the_first_skill():
+    assert SkillTool.from_params({}) == []
+    assert len(SkillTool.from_params({PARAM_KEY: {}})) == 1  # adding a first skill never changes the tool list
     assert len(SkillTool.from_params({PARAM_KEY: {"Review": "x"}})) == 1
 
 
@@ -124,7 +125,7 @@ async def test_without_tools_a_skill_never_goes_on_an_image_message():
     layout = IndexLayout(PromptCacheSetting(mode="index"), FakeRelevance(None))
     ctx = LayoutContext(PromptSections([REVIEW]), {}, "Describe it.", "m1", ALL, has_image=True)
     result, state = await layout.layout(ctx)
-    assert result.inserts == {} and result.skill_texts == {} and state["entries"] == []
+    assert result.inserts == {} and result.skill_texts is None and state["entries"] == []
 
 
 @pytest.mark.asyncio
@@ -156,7 +157,7 @@ async def test_the_skill_tool_comes_after_the_chats_mcp_tools_and_only_for_a_too
     async def can(_model):
         return True
 
-    monkeypatch.setattr(tool_loop_service, "_mcp_tools", mcp_tools)
+    monkeypatch.setattr(tool_loop_service, "chat_mcp_tools", mcp_tools)
     monkeypatch.setattr(tool_loop_service, "model_can_use_tools", can)
     tools = await tool_loop_service.offered_tools(db, "m", {PARAM_KEY: {"Review": "x"}})
     assert [t.name for t in tools] == ["search", NAME]

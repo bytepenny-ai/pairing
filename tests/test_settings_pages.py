@@ -32,7 +32,7 @@ async def test_user_settings_has_only_user_tabs_even_for_an_admin(db, user, admi
     for who in (user, admin_user):
         response = await pages.settings_page(_request(who.id), db=db)
         html = response.body.decode()
-        assert _tabs(response) == ["model", "behavior", "knowledge", "my-skills", "account"]
+        assert _tabs(response) == ["model", "behavior", "knowledge", "private-skills", "account"]
         assert "will not affect other users" in html
         assert 'id="hf-search-input"' not in html and 'id="mcp-panel"' not in html
         admin_only_panels = ("tab-system-service", "tab-system-chat", "tab-external-servers", "tab-mcp-servers")

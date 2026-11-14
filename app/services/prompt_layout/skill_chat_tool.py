@@ -21,6 +21,7 @@ NAME = "use_skill"
 PARAM_KEY = "skill_tool"  # reply params: {skill title: full text}
 NOTICE_NAME = "instruction_updates"
 NOTICE_PARAM_KEY = "notice_tool"  # reply params: True offers it
+TOOL_INDEX_PARAM_KEY = "tool_index"  # reply params: True offers "use_tool" instead of MCP definitions (tool_index.py)
 # Before every skill text the model gets: a skill it read for a request it doesn't fit costs a step, not the reply.
 GUARD = "Follow this skill only if the user's request is the task it is for; otherwise ignore it and answer normally."
 _DESCRIPTION = (
@@ -40,7 +41,7 @@ class SkillTool:
     @classmethod
     def from_params(cls, params: dict[str, Any]) -> list["SkillTool"]:
         skills = params.get(PARAM_KEY)
-        return [cls(skills)] if isinstance(skills, dict) and skills else []
+        return [cls(skills)] if isinstance(skills, dict) else []  # also with no skills: the tool list stays the same
 
     @staticmethod
     def definition() -> dict[str, Any]:

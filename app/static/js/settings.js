@@ -97,7 +97,7 @@ const paramSlidersEl = document.getElementById("param-sliders");
 const paramsSectionHintEl = document.getElementById("params-section-hint");
 const ragUnavailableEl = document.getElementById("rag-unavailable");
 const ragUnavailableReasonEl = document.getElementById("rag-unavailable-reason");
-// Set by loadRagAvailability, read by applyRagAvailabilityToKnowledgeTab and renderDocumentRow's Delete button. Starts
+// Set by loadRagAvailability, read by applyRagAvailabilityToKnowledgeTab and KnowledgeBrowser's file actions. Starts
 // true so Knowledge controls don't flash disabled before the first check.
 let ragAvailable = true;
 const embeddingModelCatalogEl = document.getElementById("embedding-model-catalog");
@@ -1089,11 +1089,11 @@ async function loadRagAvailability() {
   applyRagAvailabilityToKnowledgeTab();
 }
 
-/* Grays out (never hides; the banner explains why) the Knowledge tab's file controls when RAG is off: Upload, the top-k slider, each document's Delete (renderDocumentRow reads ragAvailable, so re-rendering the page picks up a change) and the shared Save button, the last only while on the Knowledge tab, since that button also saves Behavior's params, unrelated to RAG. Called after each availability check (loadRagAvailability) and tab switch (activateTab), as either can change this. */
+/* Grays out (never hides; the banner explains why) the Knowledge tab's file controls when RAG is off: Upload, the top-k slider, Add files and each file's actions (KnowledgeBrowser reads ragAvailable when it renders) and the shared Save button, the last only while on the Knowledge tab, since that button also saves Behavior's params, unrelated to RAG. Called after each availability check (loadRagAvailability) and tab switch (activateTab), as either can change this. */
 function applyRagAvailabilityToKnowledgeTab() {
   document.getElementById("my-docs-upload-btn").disabled = !ragAvailable;
   document.getElementById("rag-top-k").disabled = !ragAvailable;
-  renderMyDocsPage();
+  if (typeof knowledgeBrowser !== "undefined") knowledgeBrowser.render();
   document.getElementById("save-btn").disabled = activeTabName === "knowledge" && !ragAvailable;
 }
 
@@ -1246,87 +1246,9 @@ async function loadKnowledgeSummary() {
   renderKnowledgeSummary(await api("/api/documents/summary"));
 }
 
-/* One row in a document list: name, chunk count and, for whoever may remove it, a Delete button. Follows the model catalog's uninstall pattern (confirm, remove, refresh). */
-function renderDocumentRow(doc, canDelete) {
-  const row = document.createElement("div");
-  row.className = "flex items-center justify-between gap-3 px-3 py-2";
-
-  const info = document.createElement("div");
-  info.className = "min-w-0";
-  info.innerHTML =
-    `<span class="block truncate text-slate-200">${escapeHtml(doc.filename)}</span>` +
-    `<span class="block text-xs text-slate-500">${doc.chunk_count} chunk${doc.chunk_count === 1 ? "" : "s"}</span>`;
-  row.appendChild(info);
-
-  if (canDelete) {
-    const delBtn = document.createElement("button");
-    delBtn.type = "button";
-    delBtn.className =
-      "shrink-0 rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-400 hover:border-red-500 hover:text-red-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-700 disabled:hover:text-slate-400";
-    // Still rendered when RAG is off (applyRagAvailabilityToKnowledgeTab), disabled not hidden, like the Upload button,
-    // top-k slider and Save button.
-    delBtn.disabled = !ragAvailable;
-    delBtn.textContent = "Delete";
-    delBtn.addEventListener("click", async () => {
-      if (!confirm(`Delete "${doc.filename}"?`)) return;
-      delBtn.disabled = true;
-      try {
-        await api(`/api/documents/${doc.id}`, { method: "DELETE" });
-        await Promise.all([loadDocumentLists(), loadKnowledgeSummary()]);
-      } catch (err) {
-        alert(`Failed to delete: ${err.message}`);
-        delBtn.disabled = false;
-      }
-    });
-    row.appendChild(delBtn);
-  }
-
-  return row;
-}
-
-// Own documents shown per page (renderMyDocsPage). The full list is fetched in one request (no server paging at this
-// scale) but not all rendered at once.
-const MY_DOCS_PAGE_SIZE = 10;
-let myDocsAll = [];
-let myDocsPage = 1;
-
-function renderMyDocsPage() {
-  const containerEl = document.getElementById("my-docs-list");
-  const paginationEl = document.getElementById("my-docs-pagination");
-
-  const totalPages = Math.max(1, Math.ceil(myDocsAll.length / MY_DOCS_PAGE_SIZE));
-  // Clamped, since the list can shrink (a delete) between renders and leave the page past the new last page.
-  myDocsPage = Math.min(Math.max(1, myDocsPage), totalPages);
-
-  const start = (myDocsPage - 1) * MY_DOCS_PAGE_SIZE;
-  const pageItems = myDocsAll.slice(start, start + MY_DOCS_PAGE_SIZE);
-
-  containerEl.innerHTML = "";
-  if (pageItems.length === 0) {
-    containerEl.innerHTML = `<p class="px-3 py-2 text-xs text-slate-500">No documents yet.</p>`;
-  } else {
-    for (const doc of pageItems) containerEl.appendChild(renderDocumentRow(doc, true));
-  }
-
-  paginationEl.classList.toggle("hidden", myDocsAll.length <= MY_DOCS_PAGE_SIZE);
-  document.getElementById("my-docs-page-info").textContent = `Page ${myDocsPage} of ${totalPages}`;
-  document.getElementById("my-docs-prev-btn").disabled = myDocsPage <= 1;
-  document.getElementById("my-docs-next-btn").disabled = myDocsPage >= totalPages;
-}
-
-document.getElementById("my-docs-prev-btn")?.addEventListener("click", () => {
-  myDocsPage -= 1;
-  renderMyDocsPage();
-});
-document.getElementById("my-docs-next-btn")?.addEventListener("click", () => {
-  myDocsPage += 1;
-  renderMyDocsPage();
-});
-
+/* The Knowledge page's file list is settings_knowledge_files.js (KnowledgeBrowser); this reloads it after an upload. */
 async function loadDocumentLists() {
-  const docs = await api("/api/documents");
-  myDocsAll = docs.filter((d) => d.scope === "mine");
-  renderMyDocsPage();
+  if (typeof knowledgeBrowser !== "undefined") await knowledgeBrowser.reload();
 }
 
 // How often to poll an upload job's progress. Plain GET/POST + polling instead of a streamed response: reading a
@@ -1439,6 +1361,8 @@ async function handleUpload() {
   const formData = new FormData();
   for (const entry of valid) formData.append("files", entry.file);
   formData.append("scope", "mine");
+  // Into the folder the browser shows (settings_knowledge_files.js); the top level when none.
+  if (typeof knowledgeBrowser !== "undefined" && knowledgeBrowser.folderId) formData.append("folder_id", knowledgeBrowser.folderId);
 
   // Progress events are matched to a slot by filename, not position: the server processes files in its own order
   // (alphabetical in the embedding pass, not upload order; app.rag.sync_folder_stream).
@@ -1666,7 +1590,7 @@ const saveBarHomeParent = saveBarEl?.parentNode;
 const saveBarHomeNextSibling = saveBarEl?.nextSibling;
 // System is split into five pages; Default models sits under Models (settings/system.html), each its own tab.
 const SYSTEM_TABS = ["system-service", "system-database", "system-proxy", "system-rag", "system-chat"];
-const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "my-skills", "account", "default-models", ...SYSTEM_TABS, "external-servers", "memory-pinning", "prompt-cache", "mcp-servers", "users", "channels", "skills", "update"];
+const TAB_CONTENT_IDS = ["model", "behavior", "knowledge", "private-skills", "account", "default-models", ...SYSTEM_TABS, "external-servers", "memory-pinning", "prompt-cache", "mcp-servers", "users", "channels", "skills", "update"];
 
 let activeTabName = "model";
 
@@ -3872,7 +3796,7 @@ function renderUserRow(user) {
   return row;
 }
 
-// Users shown per page. The full list is fetched in one request (no server paging at this scale, as MY_DOCS_PAGE_SIZE),
+// Users shown per page. The full list is fetched in one request (no server paging at this scale),
 // but not all rendered at once.
 const USER_PAGE_SIZE = 20;
 let allUsers = [];
@@ -3991,7 +3915,7 @@ if (addUserBtn) {
 // Channels (admin only; these elements don't exist for non-admins, like System/Users)
 //
 // The member/manager picker makes channel creation usable with 1000+ users. A fixed-height <select multiple> becomes an
-// unscrollable wall, and server-side paging goes against this app's convention (USER_PAGE_SIZE/MY_DOCS_PAGE_SIZE: fetch
+// unscrollable wall, and server-side paging goes against this app's convention (USER_PAGE_SIZE: fetch
 // the full list once, do the rest client-side). So it is a search box over the fetched user list plus a capped checkbox
 // list that always shows the current selection (buildChannelForm).
 
@@ -4271,8 +4195,9 @@ if (addChannelBtn) {
   } catch (_err) {
     // Storage blocked: falls back to the default tab.
   }
-  // Or a link to one tab, such as the chat's "My skills" (/settings#my-skills).
+  // Or a link to one tab, such as /settings#private-skills (#my-skills, its old name, still opens it).
   savedTab = savedTab || decodeURIComponent(location.hash.slice(1));
+  savedTab = { "my-skills": "private-skills" }[savedTab] || savedTab;
   if (savedTab && document.querySelector(`[data-tab="${savedTab}"]`)) {
     activateTab(savedTab);
     if (savedTab !== "model") loadTabData(savedTab); // Models: init below loads it (once)
@@ -4287,8 +4212,7 @@ if (addChannelBtn) {
   PageViews.whenShown(embeddingModelCatalogEl, loadEmbeddingCatalog);
   if (hasUserTabs) {
     const knowledgeTab = document.getElementById("tab-knowledge");
-    PageViews.whenShown(knowledgeTab, loadKnowledgeSummary);
-    PageViews.whenShown(knowledgeTab, loadDocumentLists);
+    PageViews.whenShown(knowledgeTab, loadKnowledgeSummary); // the file list loads itself (KnowledgeBrowser)
   }
   const steps = [
     ...(PageViews.isShown(document.getElementById("tab-model")) ? [initModelTab] : []),

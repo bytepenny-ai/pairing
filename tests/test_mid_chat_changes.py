@@ -44,6 +44,7 @@ async def test_the_chat_page_is_told_whether_started_chats_may_change(db, user, 
 
 @pytest.mark.asyncio
 async def test_stable_order_still_locks_skills_and_notes_after_the_first_message(db, user):
+    await _use(db, "ordered")
     skill = await SkillLibrary(db).create(SkillIn(name="Any", content="Do it."))
     chat = await _started_chat(db, user)
 

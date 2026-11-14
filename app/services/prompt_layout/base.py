@@ -17,8 +17,12 @@ from typing import Any, ClassVar
 
 from app.models import Message
 from app.schemas.prompt_cache import PromptCacheSetting
-from app.services.prompt_layout.sections import PromptSections
-from app.services.prompt_layout.skill_chat_tool import NOTICE_PARAM_KEY, PARAM_KEY as SKILL_PARAM_KEY
+from app.services.prompt_layout.sections import PromptSection, PromptSections
+from app.services.prompt_layout.skill_chat_tool import (
+    NOTICE_PARAM_KEY,
+    PARAM_KEY as SKILL_PARAM_KEY,
+    TOOL_INDEX_PARAM_KEY,
+)
 
 TextOf = Callable[[Message], str]
 # Which messages stay in the history window when these inserts are added (longer text pushes old ones out).
@@ -43,10 +47,11 @@ class PromptLayout:
     system_prompt: str
     inserts: dict[str, str] = field(default_factory=dict)  # message id -> text put before that message
     engine_options: dict[str, Any] = field(default_factory=dict)  # added to the reply's params
-    # The skills the "use_skill" tool serves this reply ({title: text}; skill_chat_tool.py); empty: no such tool.
-    skill_texts: dict[str, str] = field(default_factory=dict)
+    # The skills the "use_skill" tool serves this reply ({title: text}; skill_chat_tool.py); None: no such tool.
+    skill_texts: dict[str, str] | None = None
     notes: dict[str, list[ToolNote]] = field(default_factory=dict)  # message id -> tool results before it
     notice_tool: bool = False  # offers "instruction_updates", the tool `notes` come from (skill_chat_tool.py)
+    tool_index: bool = False  # the chat's MCP tools only through "use_tool" (tool_index.py)
 
     def notes_of(self, message: Message) -> list[ToolNote]:
         return self.notes.get(message.id, [])
@@ -65,8 +70,14 @@ class PromptLayout:
 
     def reply_params(self) -> dict[str, Any]:
         """What this layout adds to the reply's (and the warm-up's) params."""
-        params = {**self.engine_options, **({SKILL_PARAM_KEY: self.skill_texts} if self.skill_texts else {})}
-        return {**params, NOTICE_PARAM_KEY: True} if self.notice_tool else params
+        params = dict(self.engine_options)
+        if self.skill_texts is not None:
+            params[SKILL_PARAM_KEY] = self.skill_texts
+        if self.notice_tool:
+            params[NOTICE_PARAM_KEY] = True
+        if self.tool_index:
+            params[TOOL_INDEX_PARAM_KEY] = True
+        return params
 
     @staticmethod
     def add_after_insert(content: str, insert: str, text: str) -> str:
@@ -92,7 +103,12 @@ class LayoutContext:
     kept: KeptIds
     has_image: bool = False  # the message being answered has an image: no long text goes on it (it hides the image)
     tools: bool = False  # the chat's model can call tools ("index" then offers use_skill)
-    skill_uses: list[tuple[str, list[str]]] = field(default_factory=list)  # (reply id, skills it read), skill_chat_tool
+    skill_uses: list[tuple[str, list[str]]] = field(default_factory=list)  # (reply id, skills it read)
+    # The chat's MCP tool definitions when a tool index can be offered (MCP on for the server), else None.
+    tool_specs: list[dict] | None = None
+    tools_on: bool = False  # the chat's Tools switch
+    asked_skill: str | None = None  # the skill the message asks for with /use_skill (chat_skill_command.py)
+    asked_section: PromptSection | None = None  # that skill, when it isn't one of the chat's (any the user may use)
 
     @property
     def read_only(self) -> bool:

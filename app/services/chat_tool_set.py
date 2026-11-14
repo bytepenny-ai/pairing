@@ -77,6 +77,6 @@ class ChatToolSet:
 
     async def save(self, conversation_id: str, snapshot: list[dict[str, Any]]) -> None:
         conversation = await self._db.get(Conversation, conversation_id)
-        if conversation is not None:
+        if conversation is not None and (conversation.params or {}).get("tool_snapshot") != snapshot:
             conversation.params = {**(conversation.params or {}), "tool_snapshot": snapshot}
             await self._db.commit()

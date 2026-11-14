@@ -21,6 +21,7 @@ from app.services.chat_file_memory_setting import ChatFileMemorySettings
 from app.services.image_relevance import ImageRelevance
 from app.services.inference_client import InferenceError, embed
 from app.services.prompt_layout.base import PromptLayout
+from app.services.question_vectors import QuestionVectors
 from app.services.turn_context_fit import TokenEstimate
 
 logger = logging.getLogger(__name__)
@@ -172,7 +173,7 @@ class ChatFollowUp:
         """The question's embedding, once per reply (file search and image relevance share it)."""
         if question not in self._question_vectors:
             try:
-                vector = np.asarray(await embed(question, self._embedding_model), dtype=np.float32)
+                vector = await QuestionVectors.of(question, self._embedding_model, embed)
             except InferenceError as error:
                 logger.warning("Could not embed the question: %s", error)
                 vector = None

@@ -11,7 +11,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import KNOWLEDGE_DIR
 from app.database import get_db
 from app.models import Document, User
 from app.schemas import DocumentOut, EmbeddingStatus, KnowledgeSummary, OkResponse, ReembedResult, UploadJobStatus
@@ -19,6 +18,7 @@ from app.services import document_sync, document_upload
 from app.services.auth_service import get_current_user, require_admin
 from app.services.document_embedding_status import DocumentEmbeddingStatus
 from app.services.document_ingest import MAX_UPLOAD_FILES
+from app.services.knowledge_files import KnowledgeFiles
 from app.services.upload_jobs import upload_jobs
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -74,11 +74,13 @@ async def upload_documents(
     background_tasks: BackgroundTasks,
     files: list[UploadFile] = File(...),
     scope: str = Form("mine"),
+    folder_id: str | None = Form(None),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """Validates and saves up to MAX_UPLOAD_FILES documents to the user's folder ("mine", default) or the shared
     folder ("global", admin-only), then embeds in the background and returns a job id. Poll GET /upload/{job_id}.
+    `folder_id`: one of the user's knowledge folders the files go in (their own scope only).
     """
     if scope not in ("mine", "global"):
         raise HTTPException(status_code=400, detail="scope must be 'mine' or 'global'.")
@@ -89,8 +91,11 @@ async def upload_documents(
     if len(files) > MAX_UPLOAD_FILES:
         raise HTTPException(status_code=400, detail=f"Upload at most {MAX_UPLOAD_FILES} files at a time.")
 
+    folder_id = await document_upload.upload_folder(db, user, scope, folder_id)
     accepted, rejects, target_dir, owner_id = await document_upload.stage_upload(db, files, scope, user)
-    return await document_upload.start_upload_job(db, background_tasks, target_dir, owner_id, accepted, rejects, user)
+    return await document_upload.start_upload_job(
+        db, background_tasks, target_dir, owner_id, accepted, rejects, user, folder_id
+    )
 
 
 @router.get("/upload/{job_id}", response_model=UploadJobStatus)
@@ -112,17 +117,6 @@ async def delete_document(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Deletes a document and its chunks (own, or shared if admin). Returns 404, not 403, otherwise, so ids can't be
-    probed."""
-    document = await db.get(Document, document_id)
-    owns_it = document is not None and document.owner_id == user.id
-    can_delete_shared = document is not None and document.owner_id is None and user.role == "admin"
-    if document is None or not (owns_it or can_delete_shared):
-        raise HTTPException(status_code=404, detail="Document not found.")
-
-    # File first: a failure between steps leaves a row without its file, which the next sync cleans; the
-    # reverse order would silently re-ingest a leftover file.
-    (KNOWLEDGE_DIR / document.filename).unlink(missing_ok=True)
-    await db.delete(document)
-    await db.commit()
+    """Deletes a document and its chunks (own, or shared if admin; app/services/knowledge_files.py)."""
+    await KnowledgeFiles(db, user).delete(document_id)
     return OkResponse()

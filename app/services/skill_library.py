@@ -1,5 +1,5 @@
 """Skills an admin manages (Admin settings > Skills: the shared library, owner_id NULL) and a user's private ones
-(Settings > Skills, owner_id = that user). One class for both scopes: `owner_id=None` is the library.
+(Settings > Private skills, owner_id = that user). One class for both scopes: `owner_id=None` is the library.
 Adding gallery templates (skill_templates.py) copies them into the library, enabled.
 """
 

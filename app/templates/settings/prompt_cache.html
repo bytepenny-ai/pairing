@@ -15,8 +15,8 @@
          "What changes least comes first: skills, then notes. A change (e.g. changing skills mid-chat) makes the engine read again from that part to the end, never what comes before it. Skills and notes lock at a chat's first message."),
         ("append", "Add changes as updates", "Exact · every engine",
          "The prompt stays as the chat started. A change (e.g. changing skills mid-chat) is added as a short update to the message where it happened, so nothing is read again. Once the updates grow past the limits below, the prompt is rebuilt (one full read). Started chats can still change their skills and notes mid-chat."),
-        ("index", "Skill index, full text when needed", "Exact · every engine",
-         "The prompt lists each skill in one line, and a skill's full text joins the chat only when a request needs it, so long skills nobody uses are never read. Chat models that can call tools (Gemma 4, Qwen 3.5, Llama 3.2, Ministral 3: models with the tools capability) read a skill themselves when they need it and need no embedding model. For other models the default embedding model judges which skill fits (without one, every skill is added with the chat's first message). Started chats can change their skills, not their notes."),
+        ("index", "Short index, details when needed", "Exact · every engine",
+         "The prompt holds only a short index, one line per item. An item's full details join the chat only when a request needs them, and then stay, so details nobody asks for are never read. After a change (e.g. changing skills mid-chat), only a one-line notice is read, never the whole chat. Who picks a skill is set below: pAIring, by meaning, or the user, with /use_skill. A model with function calling (Gemma 4, Qwen 3.5, Llama 3.2, Ministral 3: models with the tools capability) also fetches tools and, when picked automatically, skills itself."),
         ("blocks", "Keep unchanged blocks", "Approximate · Matricxon",
          "Laid out like Stable order. After a change (e.g. changing skills mid-chat), Matricxon reads only the changed part and copies the rest of the chat from what it already read, instead of reading it all again: much faster. The copied parts were read next to the old text, so a reply may differ slightly from a full re-read. Matricxon only: other engines re-read as with Stable order (for llama.cpp, adding --cache-reuse 256 to its extra arguments on the Engine page does something similar). Started chats can still change their skills and notes."),
       ] %}
@@ -48,7 +48,23 @@
     </div>
 
     <div data-mode-fields="index" class="hidden rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-3">
-      <div class="grid grid-cols-2 gap-3">
+      <!-- Who picks a skill for a message (PromptCacheSetting.skill_choice). -->
+      <fieldset class="space-y-2">
+        <legend class="text-xs font-medium text-slate-300">How a skill is chosen in a chat</legend>
+        <label class="flex cursor-pointer gap-2">
+          <input type="radio" name="prompt-cache-skill-choice" value="auto" class="mt-0.5 accent-brand-500" />
+          <span class="text-xs text-slate-400"><span class="text-slate-200">Automatic.</span> Before each reply,
+            pAIring compares the message with the chat's skills by meaning (the default embedding model) and adds
+            the ones that clearly fit. A model with function calling can still read one itself.</span>
+        </label>
+        <label class="flex cursor-pointer gap-2">
+          <input type="radio" name="prompt-cache-skill-choice" value="command" class="mt-0.5 accent-brand-500" />
+          <span class="text-xs text-slate-400"><span class="text-slate-200">By chat command.</span> A skill is used
+            only when the user asks for it: typing <code class="font-mono">/use_skill</code> at the start or end of a
+            message lists the chat's skills to pick one, for that message.</span>
+        </label>
+      </fieldset>
+      <div data-skill-choice-fields="auto" class="grid grid-cols-2 gap-3">
         <label class="block">
           <span class="text-xs text-slate-400">Add a skill from this closeness (0 to 1)</span>
           <input type="number" id="prompt-cache-load-above" min="0" max="1" step="0.01"
@@ -60,9 +76,9 @@
             class="mt-1 w-full rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500" />
         </label>
       </div>
-      <p class="text-xs text-slate-500">Only for chat models that can't call tools (one that can reads the skill
-        itself, with no embedding model). Each question is compared in meaning with each skill not added yet (0
-        unrelated, 1 the same). Short replies like "OK" add none. The mark suits
+      <p data-skill-choice-fields="auto" class="text-xs text-slate-500">Automatic only. Each question is compared in
+        meaning with each skill not added yet (0 unrelated, 1 the same); one embedding per message, shared with the
+        knowledge-base search, and skipped for that message if the server is too busy to answer within a second. Short replies like "OK" add none. The mark suits
         <strong class="text-slate-400">paraphrase-multilingual-MiniLM-L12-v2</strong> (best for chats in several
         languages) and all-MiniLM-L6-v2 (English only). multilingual-e5 doesn't suit it: every question
         scores high there, so every skill is added. A skill's text never goes on a message with an image: it would

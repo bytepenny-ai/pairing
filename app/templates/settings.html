@@ -28,7 +28,7 @@
   {% set system_pages = [("system-service", "Service"), ("system-database", "Database"), ("system-proxy", "HTTP proxy"), ("system-chat", "Chat")] %}
   {% set inference_pages = [("external-servers", "Engine"), ("memory-pinning", "Memory pinning"), ("prompt-cache", "Prompt cache"), ("mcp-servers", "MCP servers"), ("system-rag", "RAG")] %}
   {% set model_pages = [("model", "Manage models"), ("default-models", "Default models")] %}
-  {% set tabs = [("model", "Models")] + ([("system", "System"), ("inference", "Inference"), ("users", "Users"), ("channels", "Channels"), ("skills", "Skills"), ("update", "Update")] if admin_page else [("behavior", "Behavior"), ("knowledge", "Knowledge"), ("my-skills", "Skills"), ("account", "Account")]) %}
+  {% set tabs = [("model", "Models")] + ([("system", "System"), ("inference", "Inference"), ("users", "Users"), ("channels", "Channels"), ("skills", "Skills"), ("update", "Update")] if admin_page else [("behavior", "Behavior"), ("knowledge", "Knowledge"), ("private-skills", "Private skills"), ("account", "Account")]) %}
   {# Admin settings groups, folding like the cluster page's categories: a heading and one page per entry. #}
   {% set groups = {"model": ("Models", model_pages), "system": ("System", system_pages), "inference": ("Inference", inference_pages)} if admin_page else {} %}
   {% macro tab_button(name, label, active) -%}
@@ -71,7 +71,7 @@
     {% include "settings/knowledge.html" %}
 
     <!-- Skills: the user's private skills (settings_skills_user.js). -->
-    <div id="tab-my-skills" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
+    <div id="tab-private-skills" class="hidden mx-auto max-w-[55.2rem] px-4 py-8 space-y-8">
       {% include "settings/skills_user.html" %}
     </div>
 
@@ -139,6 +139,10 @@
 {% if admin_page %}<script src="/static/js/settings_update.js?v={{ static_version }}"></script>{% endif %}
 {% if admin_page %}<script src="/static/js/settings_update_source.js?v={{ static_version }}"></script>{% endif %}
 <script src="/static/js/settings_skills_editor.js?v={{ static_version }}"></script>
+{% if not admin_page %}<script src="/static/js/chat_file_viewer.js?v={{ static_version }}"></script>
+<script src="/static/js/settings_knowledge_dialog.js?v={{ static_version }}"></script>
+<script src="/static/js/settings_knowledge_view.js?v={{ static_version }}"></script>
+<script src="/static/js/settings_knowledge_files.js?v={{ static_version }}"></script>{% endif %}
 {% if admin_page %}<script src="/static/js/settings_skills_admin.js?v={{ static_version }}"></script>{% else %}<script src="/static/js/settings_skills_user.js?v={{ static_version }}"></script>{% endif %}
 {% if admin_page %}<script src="/static/js/settings_engine_token.js?v={{ static_version }}"></script>{% endif %}
 {% if admin_page %}

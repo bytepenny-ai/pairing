@@ -15,9 +15,10 @@ from app.schemas.chat import AttachmentVerdictOut
 from app.services import context_window_setting, model_catalog_service
 from app.services.chat_attachment_service import SUPPORTED_IMAGE_EXTENSIONS
 from app.services.chat_commands import ChatCommand
-from app.services.document_extract import SUPPORTED_EXTENSIONS, extract_text
+from app.services.document_extract import extract_text
 from app.services.engines.registry import registry
 from app.services.read_speed import ReadSpeed
+from app.services.text_files import HEAD_BYTES, TextFiles
 from app.services.turn_context_fit import TokenEstimate
 
 
@@ -53,14 +54,15 @@ class AttachmentCheck:
 
     async def verdict(self, filename: str, raw: bytes) -> AttachmentVerdictOut:
         suffix = Path(filename).suffix.lower()
-        kind = "image" if suffix in SUPPORTED_IMAGE_EXTENSIONS else "text" if suffix in SUPPORTED_EXTENSIONS else None
+        text = suffix not in SUPPORTED_IMAGE_EXTENSIONS and TextFiles.readable(filename, raw[:HEAD_BYTES])
+        kind = "image" if suffix in SUPPORTED_IMAGE_EXTENSIONS else "text" if text else None
 
         def no(reason: str) -> AttachmentVerdictOut:
             return AttachmentVerdictOut(filename=filename, kind=kind, ok=False, reason=reason)
 
         if kind is None:
             return no(
-                f"{filename}: chats can't read {suffix or 'this'} files. Use an image or a text, PDF or Word file."
+                f"{filename} isn't a text file. Chats read pictures, text files (code, notes, data...), PDF and Word."
             )
         if len(raw) > MAX_ATTACHMENT_MB * 1024 * 1024:
             return no(f"{filename} is larger than the {MAX_ATTACHMENT_MB} MB limit.")

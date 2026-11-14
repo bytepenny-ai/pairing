@@ -20,14 +20,15 @@ from app.config import ATTACHMENTS_DIR, MAX_ATTACHMENT_DOCUMENTS, MAX_ATTACHMENT
 from app.models import Message
 from app.services import model_catalog_service
 from app.services.chat_attachment_memory import AttachmentMemory
-from app.services.document_extract import SUPPORTED_EXTENSIONS, extract_text
+from app.services.document_extract import extract_text
 from app.services.document_retrieval import build_attachment_system_prompt
 from app.services.document_upload import safe_filename
+from app.services.text_files import HEAD_BYTES, TextFiles
 from app.services.turn_context_fit import TurnContextFit
 
-# `type="image"` goes to the default vision model with the request (chat_service.py). Extensions in
-# document_extract.SUPPORTED_EXTENSIONS become `"text"`: extracted into the system prompt, using the
-# conversation's model (build_attachment_system_prompt in document_retrieval.py).
+# `type="image"` goes to the default vision model with the request (chat_service.py). A document (a format with a
+# reader, or any file whose content is text: text_files.py) becomes `"text"`: extracted into the system prompt, using
+# the conversation's model (build_attachment_system_prompt in document_retrieval.py).
 SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 
@@ -56,13 +57,14 @@ class AttachmentServing:
         return cls("application/octet-stream", "attachment")
 
 
-def _classify(filename: str) -> str:
+def _classify(filename: str, head: bytes) -> str:
+    """An image by its type; any other file is a document when it has a reader or its content is text (text_files)."""
     suffix = Path(filename).suffix.lower()
     if suffix in SUPPORTED_IMAGE_EXTENSIONS:
         return "image"
-    if suffix in SUPPORTED_EXTENSIONS:
+    if TextFiles.readable(filename, head):
         return "text"
-    raise HTTPException(status_code=400, detail=f"Unsupported attachment type: {suffix or 'unknown'}")
+    raise HTTPException(status_code=400, detail=f"{filename} isn't a text file, a document or a picture.")
 
 
 async def save_attachments(uploads: list[UploadFile], conversation_id: str) -> list[AttachmentInfo]:
@@ -70,8 +72,10 @@ async def save_attachments(uploads: list[UploadFile], conversation_id: str) -> l
     returning where each ended up. Raises HTTPException(400) naming the limit, rejecting the whole batch before
     writing anything; call from routers/chat.py before streaming starts.
     """
+    raws = [await upload.read() for upload in uploads]
     classified = [
-        (upload, safe_filename(upload.filename), _classify(safe_filename(upload.filename))) for upload in uploads
+        (raw, safe_filename(upload.filename), _classify(safe_filename(upload.filename), raw[:HEAD_BYTES]))
+        for upload, raw in zip(uploads, raws, strict=True)
     ]
 
     image_count = sum(1 for _, _, t in classified if t == "image")
@@ -91,8 +95,7 @@ async def save_attachments(uploads: list[UploadFile], conversation_id: str) -> l
     max_bytes = MAX_ATTACHMENT_MB * 1024 * 1024
 
     infos = []
-    for upload, name, attachment_type in classified:
-        raw = await upload.read()
+    for raw, name, attachment_type in classified:
         if len(raw) > max_bytes:
             raise HTTPException(status_code=400, detail=f"Attachment exceeds the {MAX_ATTACHMENT_MB}MB limit.")
         # Prefixed with a random token (the placeholder Message doesn't exist yet) so same-named files in one
