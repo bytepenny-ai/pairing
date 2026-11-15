@@ -19,6 +19,7 @@ from app.services.llamacpp_messages import OpenAIMessages, ToolCallCollector
 from app.services.llamacpp_models import LlamaCppCatalog, LlamaCppModelName
 from app.services.reply_stats import ReplyStats
 from app.services.sampling_extras import SamplingExtras
+from app.services.think_mode import ThinkMode
 from app.services.tool_call_sink import add_tools_to_payload, sink_from
 
 __all__ = ["LlamaCppError", "chat_once", "chat_stream", "embed", "list_models", "stop_model"]
@@ -119,8 +120,11 @@ def _chat_payload(model: str, messages: list[dict], params: dict) -> dict:
     if params.get("seed", -1) != -1:
         payload["seed"] = params["seed"]
     payload.update(SamplingExtras.of(params))
-    # The model's template switch, off unless the chat turned Reasoning on; reasoning_content stays out of the text.
-    payload["chat_template_kwargs"] = {"enable_thinking": bool(params.get("think"))}
+    # The model's template switch, off unless the chat turned Reasoning on; left out for the model's choice (its
+    # template's default). reasoning_content stays out of the text.
+    think = ThinkMode.engine_switch(params)
+    if think is not None:
+        payload["chat_template_kwargs"] = {"enable_thinking": think}
     if params.get("usage_events"):  # a reply: stream the prompt read's progress (reply_deadline.py)
         payload["return_progress"] = True
     add_tools_to_payload(payload, params)

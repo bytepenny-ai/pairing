@@ -1,9 +1,11 @@
-"""GenerationParams.think (the chat's Reasoning chip, off by default): always sent, to Matricxon as `think` and to
-llama.cpp as chat_template_kwargs.enable_thinking, so models that would reason on their own don't. Reasoning that
-Matricxon returns in `message.thinking` stays out of the reply text."""
+"""GenerationParams.think (the chat's Reasoning chip, off by default): on and off always sent, to Matricxon as `think`
+and to llama.cpp as chat_template_kwargs.enable_thinking, so models that would reason on their own don't; "auto" (the
+model's choice) sends no switch (think_mode.py). Reasoning that Matricxon returns in `message.thinking` stays out of
+the reply text."""
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from app.schemas import GenerationParams
 from app.services import llamacpp_client, matricxon_client, matricxon_pool
@@ -15,6 +17,16 @@ def _params(**overrides) -> dict:
 
 def test_reasoning_is_off_by_default() -> None:
     assert GenerationParams().think is False
+
+
+def test_the_setting_is_on_off_or_the_models_choice() -> None:
+    assert GenerationParams(think="auto").think == "auto"
+    with pytest.raises(ValidationError):
+        GenerationParams(think="sometimes")
+
+
+def test_the_models_choice_sends_no_template_switch_to_llamacpp() -> None:
+    assert "chat_template_kwargs" not in llamacpp_client._chat_payload("m", [], _params(think="auto"))
 
 
 @pytest.mark.parametrize(("think", "sent"), [(True, True), (False, False), (None, False)])
@@ -61,6 +73,7 @@ async def test_matricxon_gets_think_and_its_reasoning_is_left_out(monkeypatch) -
 
     on = [c async for c in matricxon_client.chat_stream("qwen", [], _params(think=True))]
     _ = [c async for c in matricxon_client.chat_stream("qwen", [], _params())]
+    _ = [c async for c in matricxon_client.chat_stream("qwen", [], _params(think="auto"))]
 
     assert on == ["It is 4."]
-    assert sent[0]["think"] is True and sent[1]["think"] is False
+    assert [s["think"] for s in sent] == [True, False, None]  # None: the model decides

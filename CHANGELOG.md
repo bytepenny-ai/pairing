@@ -5,6 +5,7 @@ https://bytepenny.com/rss/
 
 ## Unreleased
 
+- The chat's **Reasoning** chip has three settings: **Off**, **On** and **Auto** (the model decides). Off is now really off on Matricxon, which blocks the tokens that start reasoning: a Gemma 4 E2B reply with Reasoning off had reasoned silently for 260 tokens (about two minutes) before its first word. Auto sends no thinking switch, so the model's own default applies; its reasoning shows as progress, like On. The admin switch still turns Reasoning off for everyone.
 - Inside: a reply's preparation before the model (history, notes and skills, earlier files, knowledge base, which model) is now a list of small stages (`app/services/chat_turn/`), each checked at startup for running after what it needs and timed in Stats > Visual chat workflow. Replies are unchanged.
 - Prompt cache: a fresh install now starts with **Short index, details when needed**. An existing install keeps Stable order (or what it saved) until an admin changes it.
 - Chat attachments and the knowledge base take **any text file**: code in any language (`.py`, `.js`, `.java`…), config, logs and data, even with no extension (a `Dockerfile`). A file is checked by its content, not its name: no zero bytes and almost no control characters at its start means text; a binary file (a program, a zip) is refused with a plain reason, in the browser at once and again on the server. PDF, Word, ODT, RTF, HTML, CSV and JSON keep their own readers. The file viewer shows code in a code font.

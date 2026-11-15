@@ -5,6 +5,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.services.think_mode import ThinkValue
+
 PinType = Literal["persona", "rules"]  # skills: models/skill.py, chosen per chat
 
 # Shared by LlamaCppServerConfig, MatricxonServerConfig and SdCppConfig: "local" = this app owns the process
@@ -134,9 +136,10 @@ class GenerationParams(BaseModel):
     num_predict: int = Field(1024, ge=-1, le=8192)
     seed: int = -1
     # Reason before answering (models with a thinking switch, e.g. Qwen 3.5, Gemma 4): the chat header's Reasoning
-    # chip, off by default. Always sent (Matricxon `think`, llama.cpp chat_template_kwargs), so models that would reason
-    # on their own don't. None (chats saved before off became the default) counts as off.
-    think: bool | None = False
+    # chip, off by default. True/False always sent (Matricxon `think`, llama.cpp chat_template_kwargs), so models that
+    # would reason on their own don't; "auto" leaves it to the model (think_mode.py). None (chats saved before off
+    # became the default) counts as off.
+    think: ThinkValue = False
     # Independent of the chat `model`: all models share the knowledge base and retrieval settings
     # (document_service.py). Only the generation knobs above vary per model.
     rag_top_k: int = Field(4, ge=1, le=10)

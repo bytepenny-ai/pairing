@@ -28,6 +28,7 @@ from app.services import matricxon_http, matricxon_pool, matricxon_telemetry
 from app.services.matricxon_errors import MatricxonError, MatricxonHostError, MatricxonReply
 from app.services.reply_stats import ReplyStats
 from app.services.sampling_extras import SamplingExtras
+from app.services.think_mode import ThinkMode
 from app.services.tool_call_sink import add_tools_to_payload, sink_from
 
 logger = logging.getLogger("llama_chat")
@@ -131,7 +132,9 @@ async def chat_stream(model: str, messages: list[dict], params: dict) -> AsyncGe
     options.update(SamplingExtras.of(params))
 
     payload = {"model": model, "messages": messages, "options": options, "stream": True}
-    payload["think"] = bool(params.get("think"))  # off unless the chat turned Reasoning on; reasoning stays out of text
+    # Off unless the chat turned Reasoning on; None (the model's choice) leaves it to the model. Reasoning stays out of
+    # the text.
+    payload["think"] = ThinkMode.engine_switch(params)
     add_tools_to_payload(payload, params)
     sink = sink_from(params)
     # The reply's id (reply_generation_service): stop_model cancels just this reply, the model stays for others.

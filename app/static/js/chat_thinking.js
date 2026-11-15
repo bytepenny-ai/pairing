@@ -1,14 +1,21 @@
-/* Chat header "Reasoning" chip (conversation.params.think: the engines' thinking switch; hidden while Admin settings > System > Reasoning is off): click switches off/on (off by
-default; a chat saved with no value counts as off), saved for this chat
+/* Chat header "Reasoning" chip (conversation.params.think: the engines' thinking switch; hidden while Admin settings > System > Reasoning is off): click goes off -> on -> auto
+(the model's choice: think "auto", services/think_mode.py) -> off. Off by default; a chat saved with no value counts as off. Saved for this chat
 like the Tools switch (chat_tools.js). Shown only when the chat's model can think (GET
 /api/settings/model-capabilities reports "thinking"). When the model's switch sits early in the prompt
 ("thinking_rereads", e.g. Gemma 4), a chat with messages is re-read once after a change, so it asks first, like the
 model picker. Uses api from app.js and activeHasMessages from chat.js. */
 class ThinkingChip {
   static STATES = {
-    on: { label: "Reasoning: on", title: "Reasons before answering (slower, better on hard questions). Click: off" },
-    off: { label: "Reasoning: off", title: "Answers right away. Click: reason before answering" },
+    off: { label: "Reasoning: off", title: "Answers right away, never reasons first. Click: always reason" },
+    on: { label: "Reasoning: on", title: "Reasons before answering (slower, better on hard questions). Click: let the model decide" },
+    auto: { label: "Reasoning: auto", title: "The model decides when to reason (most answer right away). Click: off" },
   };
+  static NEXT = { off: true, on: "auto", auto: false };
+
+  /* "on", "off" or "auto" from the chat's saved value (anything else counts as off). */
+  static stateOf(think) {
+    return think === true ? "on" : think === "auto" ? "auto" : "off";
+  }
 
   constructor(button) {
     this.button = button;
@@ -94,15 +101,15 @@ class ThinkingChip {
   }
 
   render() {
-    const think = this.params?.think === true;
-    const state = ThinkingChip.STATES[think ? "on" : "off"];
+    const key = ThinkingChip.stateOf(this.params?.think);
+    const state = ThinkingChip.STATES[key];
     this.button.textContent = state.label;
     this.button.title = this.button.disabled ? "Only a channel manager can change this" : state.title;
-    this.button.classList.toggle("text-brand-500", think);
+    this.button.classList.toggle("text-brand-500", key !== "off");
   }
 
   async next() {
-    const params = { ...this.params, think: this.params?.think !== true };
+    const params = { ...this.params, think: ThinkingChip.NEXT[ThinkingChip.stateOf(this.params?.think)] };
     const id = this.conversationId;
     try {
       const conversation = await api(`/api/conversations/${id}`, { method: "PATCH", body: JSON.stringify({ params }) });
