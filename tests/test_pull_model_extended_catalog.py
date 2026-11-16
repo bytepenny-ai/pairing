@@ -146,7 +146,7 @@ async def test_pull_model_still_enforces_hardware_gating_for_an_extended_tag(db,
 
 
 @pytest.mark.asyncio
-async def test_get_embedding_model_catalog_returns_both_entries(db, user, monkeypatch):
+async def test_get_embedding_model_catalog_returns_every_entry(db, user, monkeypatch):
     """GET /api/settings/embedding-model-catalog: any logged-in user, not just admins (install status isn't
     admin-secret; see the endpoint)."""
     monkeypatch.setattr(embedding_model_catalog_service, "list_models", lambda: _async_return([]))
@@ -157,4 +157,5 @@ async def test_get_embedding_model_catalog_returns_both_entries(db, user, monkey
     assert {e.tag for e in response.entries} == {
         "hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0",
         "hf.co/leliuga/all-MiniLM-L6-v2-GGUF:Q8_0",
+        "hf.co/mykor/paraphrase-multilingual-MiniLM-L12-v2.gguf:paraphrase-multilingual-MiniLM-L12-118M-v2-Q4_K_M",
     }

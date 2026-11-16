@@ -183,6 +183,22 @@
       "unavailable_reason": null,
       "embedding_dim": 384,
       "note": "Highest-downloaded (402k) community GGUF conversion of sentence-transformers' all-MiniLM-L6-v2 — confirmed live: arch \"bert\", 22.6M params, 512 ctx, 384-dim embeddings, Capabilities: embedding. A real /api/embed call returned a correct 384-dim vector. Offered as the lighter/faster alternative, not the default."
+    },
+    {
+      "family": "Paraphrase Multilingual MiniLM L12 v2",
+      "vendor": "sentence-transformers (mykor GGUF)",
+      "tag": "hf.co/mykor/paraphrase-multilingual-MiniLM-L12-v2.gguf:paraphrase-multilingual-MiniLM-L12-118M-v2-Q4_K_M",
+      "parameter_size": "118M",
+      "context_length": 512,
+      "download_gb": 0.12,
+      "min_ram_gb": 1,
+      "locally_runnable": true,
+      "architecture": "bert",
+      "quantizations": ["Q4_K"],
+      "vision": false,
+      "unavailable_reason": null,
+      "embedding_dim": 384,
+      "note": "Multilingual (50+ languages) version of the MiniLM embedder: the choice for knowledge bases that aren't only in English. Checked 2026-11-16 on the installed file: arch \"bert\", 117.5M params, 12 layers, 512 ctx, 384-dim embeddings, mean pooling, Apache-2.0, 124,835,104 bytes. Runs on Matricxon (this system's default embedding model)."
     }
   ],
   "diffusion_models": [

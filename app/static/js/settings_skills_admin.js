@@ -65,14 +65,14 @@ class SkillsAdmin {
     const source = s.source ? '<span class="rounded-full border border-slate-700 px-1.5 text-[10px] text-slate-400">Fabric</span>' : "";
     return `<div class="flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-900 p-3 ${s.enabled ? "" : "opacity-60"}">
       <div class="flex items-start gap-2">
-        <label class="mt-0.5 shrink-0" title="Enabled: users can choose it"><input type="checkbox" data-toggle="${escapeHtml(s.id)}" ${s.enabled ? "checked" : ""} class="accent-brand-500"></label>
+        <label class="mt-0.5 shrink-0" title="Enabled: users can choose it. Clear it to disable the skill without removing it."><input type="checkbox" data-toggle="${escapeHtml(s.id)}" ${s.enabled ? "checked" : ""} class="accent-brand-500"></label>
         <p class="min-w-0 flex-1 text-sm font-medium text-slate-200">${escapeHtml(s.name)}</p>
       </div>
       <p class="text-[11px] text-slate-500">${escapeHtml(s.category)} ${source}</p>
       <p class="line-clamp-3 flex-1 text-xs text-slate-400">${escapeHtml(s.description)}</p>
       <div class="flex gap-3">
         <button type="button" data-edit="${escapeHtml(s.id)}" class="text-xs text-slate-400 hover:text-slate-200">Edit</button>
-        <button type="button" data-delete="${escapeHtml(s.id)}" class="text-xs text-slate-500 hover:text-red-400">Delete</button>
+        <button type="button" data-delete="${escapeHtml(s.id)}" class="text-xs text-slate-500 hover:text-red-400">Remove</button>
       </div>
     </div>`;
   }
@@ -88,7 +88,8 @@ class SkillsAdmin {
     if (edit) this.editor.open(this.skills.find((s) => s.id === edit), this.categories());
     if (remove) {
       const skill = this.skills.find((s) => s.id === remove);
-      if (!confirm(`Delete "${skill.name}"? Chats that use it stop using it.`)) return;
+      const back = skill.source ? " Enable it again from the gallery (your edits to it are lost)." : "";
+      if (!confirm(`Remove "${skill.name}"? Chats that use it stop using it.${back}`)) return;
       await api(`${SkillsAdmin.URL}/${remove}`, { method: "DELETE" });
       await this.loadSkills();
       this.loadGallery();
@@ -117,19 +118,19 @@ class SkillsAdmin {
     const credit = page.sources
       .map((s) => `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener" class="underline underline-offset-2">${escapeHtml(s.source_name)}</a> (${escapeHtml(s.license)} License)`)
       .join(", ");
-    this.field("credit").innerHTML = `Ready-made skills from ${credit}. Adding one copies it into your skills, where you can edit it.`;
+    this.field("credit").innerHTML = `Ready-made skills from ${credit}. Enabling one copies it into your skills, where you can edit it.`;
     const notAdded = page.items.filter((t) => !t.added).length;
     const addAll = this.root.querySelector('[data-action="add-category"]');
     addAll.classList.toggle("hidden", !category || !notAdded);
-    addAll.textContent = `Add all ${notAdded} in ${category}`;
+    addAll.textContent = `Enable all ${notAdded} in ${category}`;
     this.field("gallery-status").textContent = `${page.total} template${page.total === 1 ? "" : "s"}${q || category ? " found" : ""}.`;
     this.field("gallery").innerHTML = page.items.map((t) => this.templateRow(t)).join("");
   }
 
   templateRow(t) {
     const action = t.added
-      ? '<span class="shrink-0 text-xs text-emerald-400">Added</span>'
-      : `<button type="button" data-add="${escapeHtml(t.key)}" class="shrink-0 rounded-md border border-slate-700 px-2 py-0.5 text-xs text-slate-200 hover:bg-slate-800">Add</button>`;
+      ? '<span class="shrink-0 text-xs text-emerald-400">Enabled</span>'
+      : `<button type="button" data-add="${escapeHtml(t.key)}" class="shrink-0 rounded-md border border-slate-700 px-2 py-0.5 text-xs text-slate-200 hover:bg-slate-800">Enable</button>`;
     return `<div class="flex flex-col gap-2 rounded-lg border border-slate-800 bg-slate-900 p-3 h-full">
       <p class="text-sm font-medium text-slate-200">${escapeHtml(t.name)}</p>
       <p class="text-[11px] text-slate-500">${t.categories.map(escapeHtml).join(", ")}</p>
@@ -156,14 +157,14 @@ class SkillsAdmin {
 
   async addCategory() {
     const category = this.field("gallery-category").value;
-    if (category && confirm(`Add every template in ${category} to your skills?`)) await this.addTemplates({ category });
+    if (category && confirm(`Enable every template in ${category}?`)) await this.addTemplates({ category });
   }
 
   async addTemplates(body) {
     try {
       const result = await api(`${SkillsAdmin.URL}/templates/add`, { method: "POST", body: JSON.stringify(body) });
       await Promise.all([this.loadSkills(), this.loadGallery()]);
-      this.field("gallery-status").textContent = `Added ${result.added}${result.already ? `, ${result.already} already there` : ""}.`;
+      this.field("gallery-status").textContent = `Enabled ${result.added}${result.already ? `, ${result.already} already enabled` : ""}.`;
     } catch (err) {
       this.field("gallery-status").textContent = err.message;
     }

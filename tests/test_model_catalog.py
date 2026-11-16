@@ -35,7 +35,7 @@ def test_load_reads_the_real_shipped_file():
     catalog = CuratedCatalogLoader.load(_DEFAULT_MODELS_PATH)
 
     assert len(catalog.chat_models) == 9
-    assert len(catalog.embedding_models) == 2
+    assert len(catalog.embedding_models) == 3
     assert catalog.find("hf.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF:Ministral-3-3B-Instruct-2512-Q4_K_M")
     assert catalog.find("hf.co/unsloth/gemma-4-E2B-it-GGUF:gemma-4-E2B-it-Q4_K_M")
     assert catalog.find_embedding("hf.co/nomic-ai/nomic-embed-text-v1.5-GGUF:Q8_0")

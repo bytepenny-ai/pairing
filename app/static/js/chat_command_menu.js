@@ -91,21 +91,33 @@ class ChatCommandMenu {
     this.items.forEach((command, index) => {
       const item = document.createElement("li");
       item.setAttribute("role", "option");
-      item.className =
-        "flex cursor-pointer flex-col px-3 py-1 " + (index === this.active ? "bg-slate-800" : "hover:bg-slate-800/60");
+      item.className = "flex cursor-pointer flex-col border-l-2 px-3 py-1";
       const needs = command.needs ? ` · needs ${command.needs === "image" ? "an image" : "a file"}` : "";
       const label = command.skill ? escapeHtml(command.skill) : `/${escapeHtml(command.name)}`;
       item.innerHTML =
         `<span class="${command.skill ? "" : "font-mono "}text-slate-100">${label}</span>` +
         `<span class="text-[11px] leading-tight text-slate-400">${escapeHtml(command.description)}${escapeHtml(needs)}</span>`;
+      item.addEventListener("mouseenter", () => this.highlight(index));
       item.addEventListener("mousedown", (event) => {
         event.preventDefault(); // keep the box focused
         this.pick(command);
       });
       this.el.appendChild(item);
     });
+    this.highlight(this.active);
     this.el.classList.remove("hidden");
     this.el.children[this.active]?.scrollIntoView({ block: "nearest" }); // a long skill list: keep the pick in view
+  }
+
+  /* One marked row for mouse and keys alike, in the brand color so it shows in light and dark themes. */
+  highlight(index) {
+    this.active = index;
+    [...this.el.children].forEach((item, i) => {
+      const on = i === index;
+      item.classList.toggle("bg-brand-500/25", on);
+      item.classList.toggle("border-brand-500", on);
+      item.classList.toggle("border-transparent", !on);
+    });
   }
 
   onKey(event) {
