@@ -695,6 +695,7 @@ function handleReplyLiveEvent(conversationId, payload) {
     bubble._toolEvents = payload.tool_events;
     bubble._reasoning = payload.reasoning;
     if (payload.read_progress != null) ReadProgress.set(bubble, payload.read_progress);
+    if (payload.compacting) ReadProgress.compacting(bubble);
     renderReplyBody(bubble, replyLiveContent.get(messageId), payload.status);
     chatScroll.follow();
     if (created) reconcileConversationMessages(conversationId);
@@ -710,9 +711,10 @@ function handleReplyLiveEvent(conversationId, payload) {
     ReasoningSteps.set(bubble, payload.reasoning);
     renderReplyBody(bubble, replyLiveContent.get(messageId) || "", "streaming");
   }
-  if (payload.read_progress != null) {
+  if (payload.read_progress != null || payload.compacting) {
     const { bubble } = findOrCreateBubbleForMessage(messageId, "assistant", "AI");
-    ReadProgress.set(bubble, payload.read_progress);
+    if (payload.read_progress != null) ReadProgress.set(bubble, payload.read_progress);
+    if (payload.compacting) ReadProgress.compacting(bubble);
     renderReplyBody(bubble, replyLiveContent.get(messageId) || "", "streaming");
   }
   if (payload.chunk) {
@@ -820,9 +822,24 @@ async function runChannelPoll(conversationId) {
     renderAttachment(bubble, message);
     chatScroll.follow();
   }
+  showWaitingReply(result.live);
   updateAskAiButtonState();
   if (messagesEl.children.length === 0) showEmptyState(true);
   scheduleChannelPoll(conversationId);
+}
+
+/* The channel poll's reply still waiting for its first words (MessagesLatestResponse.live): keeps its label (reasoning,
+   "Compacting cache…", read progress) as a live connection would show it, also after leaving the channel and coming
+   back. */
+function showWaitingReply(live) {
+  if (!live || liveMessageIds.has(live.message_id)) return;
+  const wrapper = messagesEl.querySelector(`[data-message-id="${live.message_id}"]`);
+  const bubble = wrapper?.querySelector(".markdown-body") || null; // as findOrCreateBubbleForMessage finds it
+  if (!bubble) return;
+  bubble._reasoning = live.reasoning;
+  if (live.read_progress != null) ReadProgress.set(bubble, live.read_progress);
+  if (live.compacting) ReadProgress.compacting(bubble);
+  renderReplyBody(bubble, "", "streaming");
 }
 
 /* Scrolls #messages to the bottom, re-checking over a few animation frames until scrollHeight stops growing. The Tailwind CDN runtime restyles new elements asynchronously (see base.html), so right after a big batch of bubbles scrollHeight is briefly too small. Capped, so a pathological case gives up. */
@@ -1796,8 +1813,9 @@ async function readAssistantReplyStream(
         ReasoningSteps.set(bubble, payload.reasoning);
         renderReplyBody(bubble, fullText, "streaming");
       }
-      if (bubble && payload.read_progress != null) {
-        ReadProgress.set(bubble, payload.read_progress);
+      if (bubble && (payload.read_progress != null || payload.compacting)) {
+        if (payload.read_progress != null) ReadProgress.set(bubble, payload.read_progress);
+        if (payload.compacting) ReadProgress.compacting(bubble);
         renderReplyBody(bubble, fullText, "streaming");
       }
       if (bubble && payload.chunk) {

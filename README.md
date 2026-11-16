@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License">
   <img src="https://img.shields.io/badge/docker-compose_ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   <a href="https://www.bestpractices.dev/projects/16359"><img src="https://img.shields.io/cii/level/16359?label=OpenSSF%20Best%20Practices&color=3b5bdb" alt="OpenSSF Best Practices"></a>
+  <a href="https://www.linkedin.com/company/bytepenny/"><img src="https://img.shields.io/badge/LinkedIn-follow_BytePenny-0A66C2" alt="Follow BytePenny on LinkedIn"></a>
   <img src="https://img.shields.io/badge/SQLAlchemy-2.0_async-D71F00" alt="SQLAlchemy">
   <img src="https://img.shields.io/badge/Pydantic-v2-E92063" alt="Pydantic">
   <img src="https://img.shields.io/badge/database-SQLite_%7C_MySQL-003B57" alt="Database">

@@ -126,9 +126,9 @@ async def test_an_earlier_image_is_shown_again_only_when_allowed_and_asked_about
     plain = await ChatFollowUp(db, messages, 4096, 512).plan("what kind of a bird is that?", [])
     assert plain.image_again is not None
     # A short reply needs no image (it would re-read the whole chat and the image); a short question still does.
-    for reply in ("OK", "thanks a lot", "great!", "תודה"):
+    for reply in ("OK", "thanks a lot", "great!", "\u05ea\u05d5\u05d3\u05d4"):
         assert (await ChatFollowUp(db, messages, 4096, 512).plan(reply, [])).image_again is None, reply
-    for short_question in ("count the birds", "why?", "מה זה"):
+    for short_question in ("count the birds", "why?"):  # other languages: test_question_words.py
         assert (await ChatFollowUp(db, messages, 4096, 512).plan(short_question, [])).image_again, short_question
 
     later = [*messages[:-1]]

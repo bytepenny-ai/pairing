@@ -5,7 +5,6 @@ is about it and the admin allows it (Admin settings > System > Chat > Files in a
 """
 
 import logging
-import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -22,6 +21,7 @@ from app.services.image_relevance import ImageRelevance
 from app.services.inference_client import InferenceError, embed
 from app.services.prompt_layout.base import PromptLayout
 from app.services.question_vectors import QuestionVectors
+from app.services.question_words import QuestionWords
 from app.services.turn_context_fit import TokenEstimate
 
 logger = logging.getLogger(__name__)
@@ -29,18 +29,8 @@ logger = logging.getLogger(__name__)
 _MAX_EXCERPTS = 8
 # An image among this many of the latest earlier questions is shown again for any question (setting on).
 _RECENT_QUESTIONS = 3
-# A question about a picture: "in the image", "what colour is…", "בתמונה".
-_ABOUT_AN_IMAGE = re.compile(
-    r"\b(image|picture|photo|pic|screenshot|diagram|drawing|logo|colou?rs?|shown)\b|תמונה|בתמונה|צילום|צבע",
-    re.IGNORECASE,
-)
 # A short reply like "OK" or "thanks" needs no image: up to this many words, without "?" or a question word.
 _SMALL_TALK_WORDS = 3
-_ASKS = re.compile(
-    r"^\s*(what|which|who|whose|where|when|why|how|is|are|was|were|does|do|did|can|could|would|will|should|tell|"
-    r"describe|explain|show|count|list|name|find|read|compare|zoom)\b|^\s*(מה|איזה|איזו|אילו|כמה|למה|מדוע|איפה|מי|האם|תאר|ספר)",
-    re.IGNORECASE,
-)
 
 
 @dataclass
@@ -49,6 +39,7 @@ class FollowUpPlan:
     notices: list[str] = field(default_factory=list)
     image_again: AttachmentInfo | None = None  # shown to the vision model with this question
     image_if_needed: AttachmentInfo | None = None  # shown only if the chat's model asks for it (image_fallback_stream)
+    compacting: bool = False  # this turn trims the chat's oldest messages: the engine compacts its cache
 
 
 class ChatFollowUp:
@@ -112,8 +103,10 @@ class ChatFollowUp:
                 self._messages, self._num_ctx, self._reserved, text_of, images_of, notes_of
             )
         )
-        forgotten = self._memory.forgotten_notice(self._messages, self._last_window_start(text_of), start)
-        if forgotten:
+        last_start = self._last_window_start(text_of)
+        plan.compacting = start > last_start
+        forgotten = self._memory.forgotten_notice(self._messages, last_start, start)
+        if forgotten and not plan.compacting:  # the reply's label says the cache is compacted; no notice too
             plan.notices.append(forgotten)
         self._prepend(plan.history, AttachmentMemory.summaries(self._messages, start), first=True)
         excerpts = await self._excerpts(question, whole_limit, setting.unrelated_below)
@@ -203,7 +196,7 @@ class ChatFollowUp:
             if score is not None and score < setting.unrelated_below:
                 return None
         recent = any_question or back < _RECENT_QUESTIONS
-        return image if recent or _ABOUT_AN_IMAGE.search(question) else None
+        return image if recent or QuestionWords.pattern("about_an_image").search(question) else None
 
     def _latest_image(self) -> tuple[AttachmentInfo, int, str] | None:
         """(the image, how many questions back it was sent, its description: the message's words and the reply)."""
@@ -225,7 +218,11 @@ class ChatFollowUp:
     @staticmethod
     def is_small_talk(question: str) -> bool:
         """ "OK", "thanks a lot", "great!": short, with no "?" and no question word."""
-        return len(question.split()) <= _SMALL_TALK_WORDS and "?" not in question and not _ASKS.search(question)
+        return (
+            len(question.split()) <= _SMALL_TALK_WORDS
+            and "?" not in question
+            and not QuestionWords.pattern("asks").search(question)
+        )
 
     @staticmethod
     def _prepend(history: list[dict], text: str, first: bool, insert: str = "") -> None:

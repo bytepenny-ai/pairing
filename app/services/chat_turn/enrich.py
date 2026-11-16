@@ -1,7 +1,7 @@
 """The stages that add what the question needs, each may embed it (one shared vector: question_vectors.py): the
 notes and skills (prompt layout), earlier files, and the knowledge base."""
 
-from app.services import chat_prompt_service
+from app.services import chat_prompt_service, reply_broadcast_service
 from app.services.chat_turn.sanitize import EnrichStage
 from app.services.chat_turn.turn import ChatTurn
 from app.services.prompt_layout.layouts import PromptLayouts
@@ -39,6 +39,8 @@ class FollowUpStage(EnrichStage):
     async def run(self, turn: ChatTurn) -> list[str]:
         assert turn.follow_up is not None
         turn.plan = await turn.follow_up.plan(turn.question, turn.attachments, turn.layout)
+        if turn.plan.compacting:  # the reply's waiting label says "Compacting cache..." (reply_broadcast_service)
+            reply_broadcast_service.expect_compacting(turn.conversation.id)
         # An earlier image the question is about, shown to the vision model again (admin setting, off by default).
         image_again = turn.plan.image_again
         turn.reply_files = [*turn.attachments, image_again] if image_again else turn.attachments

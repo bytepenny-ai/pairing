@@ -16,7 +16,7 @@ from app.services.turn_context_fit import TokenEstimate, TurnContextFit
 
 def test_non_latin_text_counts_as_more_tokens():
     assert TokenEstimate.of("a" * 400) == 101
-    assert TokenEstimate.of("א" * 120) == 101  # Hebrew: far fewer characters per token
+    assert TokenEstimate.of("\u05d0" * 120) == 101  # Hebrew: far fewer characters per token
 
 
 def _fit(room_tokens: int) -> TurnContextFit:

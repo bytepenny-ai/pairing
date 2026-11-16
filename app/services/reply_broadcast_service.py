@@ -47,6 +47,8 @@ class GenerationState:
     reasoning: list[str] = field(default_factory=list)
     # How much of a long prompt the engine has read (0 to 1), before the first word (reply_side_events.py).
     read_progress: float | None = None
+    # The engine is compacting its cache (the chat was trimmed): the waiting label says so.
+    compacting: bool = False
 
 
 class _Topic:
@@ -73,11 +75,22 @@ def _get_or_create_topic(conversation_id: str) -> _Topic:
     return topic
 
 
+# Chats whose next reply compacts the cache (expect_compacting), taken by start_topic.
+_compacting_next: set[str] = set()
+
+
+def expect_compacting(conversation_id: str) -> None:
+    """The chat's next reply trims its oldest messages, so the engine compacts its cache first."""
+    _compacting_next.add(conversation_id)
+
+
 def start_topic(conversation_id: str, message_id: str) -> None:
     """Begins a new generation: resets the snapshot for `message_id` but never touches `subscribers`, so existing
     connections keep working and receive the new message's events.
     """
-    _get_or_create_topic(conversation_id).state = GenerationState(message_id=message_id)
+    compacting = conversation_id in _compacting_next
+    _compacting_next.discard(conversation_id)
+    _get_or_create_topic(conversation_id).state = GenerationState(message_id=message_id, compacting=compacting)
 
 
 def _publish(conversation_id: str, event: dict) -> None:
@@ -126,6 +139,30 @@ def publish_read_progress(conversation_id: str, fraction: float) -> None:
         return
     topic.state.read_progress = fraction
     _publish(conversation_id, {"read_progress": fraction, "message_id": topic.state.message_id})
+
+
+def publish_compacting(conversation_id: str, known: bool = False) -> None:
+    """Tells the reply's subscribers the cache is being compacted. `known`: only if this reply was expected to
+    (expect_compacting), at its start; otherwise the engine said so (a read progress chunk)."""
+    topic = _topics.get(conversation_id)
+    if topic is None or topic.state is None or (known and not topic.state.compacting):
+        return
+    topic.state.compacting = True
+    _publish(conversation_id, {"compacting": True, "message_id": topic.state.message_id})
+
+
+def waiting_reply(conversation_id: str) -> dict | None:
+    """The reply still waiting for its first words (its label's state), for the channel poll; None otherwise."""
+    topic = _topics.get(conversation_id)
+    state = topic.state if topic is not None else None
+    if state is None or state.status != "streaming" or state.content:
+        return None
+    return {
+        "message_id": state.message_id,
+        "reasoning": state.reasoning,
+        "read_progress": state.read_progress,
+        "compacting": state.compacting,
+    }
 
 
 def publish_done(conversation_id: str, sources: list[str] | None, stats: dict | None = None) -> None:

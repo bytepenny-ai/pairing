@@ -12,9 +12,12 @@ from app.services.text_files import HEAD_BYTES, TextFiles
     ("head", "text"),
     [
         (b"def first(items):\n    return items[0]\n", True),  # code
-        ("שלום עולם".encode(), True),  # UTF-8 Hebrew
-        ("א".encode() * (HEAD_BYTES // 2) + "ב".encode()[:1], True),  # a character cut at the 8 KB edge
-        ("שלום".encode("cp1255") + b" and some English text " * 10, True),  # an older 8-bit encoding
+        ("\u05e9\u05dc\u05d5\u05dd \u05e2\u05d5\u05dc\u05dd".encode(), True),  # UTF-8 Hebrew
+        ("\u05d0".encode() * (HEAD_BYTES // 2) + "\u05d1".encode()[:1], True),  # a character cut at the 8 KB edge
+        (
+            "\u05e9\u05dc\u05d5\u05dd".encode("cp1255") + b" and some English text " * 10,
+            True,
+        ),  # an older 8-bit encoding
         ("hi".encode("utf-16"), True),  # UTF-16 with its mark
         (b"\x1b[32mOK\x1b[0m done\n", True),  # a coloured log
         (b"PK\x03\x04\x14\x00\x00\x00", False),  # a zip (and so a .docx renamed)

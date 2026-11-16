@@ -36,7 +36,10 @@ async def test_markdown_has_the_title_and_visible_turns_only(db, user):
 @pytest.mark.asyncio
 async def test_file_name_is_safe_and_keeps_hebrew(db, user):
     assert ChatExport(await _chat(db, user, "Trip / plan?")).filename("md") == "trip-plan.md"
-    assert ChatExport(await _chat(db, user, "תכנון טיול")).filename("md") == "תכנון-טיול.md"
+    assert (
+        ChatExport(await _chat(db, user, "\u05ea\u05db\u05e0\u05d5\u05df \u05d8\u05d9\u05d5\u05dc")).filename("md")
+        == "\u05ea\u05db\u05e0\u05d5\u05df-\u05d8\u05d9\u05d5\u05dc.md"
+    )
 
 
 @pytest.mark.asyncio

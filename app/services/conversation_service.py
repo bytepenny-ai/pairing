@@ -142,7 +142,8 @@ async def get_messages_since(
             .scalars()
             .all()
         )
-    return MessagesLatestResponse(messages=messages, server_time=server_time)
+    live = reply_broadcast_service.waiting_reply(conversation.id)
+    return MessagesLatestResponse(messages=messages, server_time=server_time, live=live)
 
 
 async def has_active_reply(db: AsyncSession, conversation: Conversation) -> bool:

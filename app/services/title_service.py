@@ -65,7 +65,6 @@ def maybe_set_title(conversation: Conversation, first_user_message: str) -> None
     conversation.title = _summarize_as_title(first_user_message)
 
 
-_HEBREW_LETTER_RE = re.compile(r"[֐-׿]")
 _LATIN_LETTER_RE = re.compile(r"[A-Za-z]")
 
 # "Smart" mode's budget for the model's title call. A "thinking" model reasons before its answer, and
@@ -84,24 +83,24 @@ _TITLE_MAX_WORDS = 12
 
 
 def _build_title_prompt(message: str) -> str:
-    """Builds "smart" mode's "invent a short title" instruction in the language of `message` where we can tell.
-    An English "reply in Hebrew" is unreliable (models default to English for short output); writing the
-    *instruction itself* in Hebrew keeps the model in Hebrew, which continues in its context's language. Hebrew
-    only for now.
-    """
-    hebrew_count = len(_HEBREW_LETTER_RE.findall(message))
-    latin_count = len(_LATIN_LETTER_RE.findall(message))
-    if hebrew_count > latin_count:
-        return (
-            "כתוב כותרת קצרה (עד 6 מילים) בעברית לשיחה הבאה. "
-            "אל תתרגם לאנגלית. ללא מרכאות וללא סימני פיסוק בסוף.\n\n"
-            f"{message}"
-        )
+    """Builds "smart" mode's "invent a short title" instruction. The title is asked for in the message's own language;
+    small models often answer in English anyway, which _translated catches."""
     return (
-        "Summarize the following message as a short chat title "
-        "(max 6 words, no quotes, no punctuation at the end):\n\n"
+        "Write a short title for the chat message below, in the same language as the message (do not translate it). "
+        "At most 6 words, no quotes, no punctuation at the end.\n\n"
         f"{message}"
     )
+
+
+def _translated(message: str, title: str) -> bool:
+    """A message written mostly in another alphabet (not Latin letters) got a title in Latin letters: the model
+    translated it, so the chat's own words make the better title."""
+    letters = [c for c in message if c.isalpha()]
+    latin = len(_LATIN_LETTER_RE.findall(message))
+    if not letters or latin * 2 >= len(letters):
+        return False
+    title_letters = [c for c in title if c.isalpha()]
+    return bool(title_letters) and len(_LATIN_LETTER_RE.findall(title)) * 2 > len(title_letters)
 
 
 async def maybe_generate_title_with_model(
@@ -133,6 +132,8 @@ async def maybe_generate_title_with_model(
         title = title.strip().strip('"').strip()
         # A title this long is almost certainly truncated reasoning (_TITLE_MAX_WORDS); saving it would show part of the
         # model's internal monologue in the sidebar instead of a title or the honest "New chat".
+        if title and _translated(first_user_message, title):
+            title = _summarize_as_title(first_user_message)
         if title and len(title.split()) <= _TITLE_MAX_WORDS:
             conversation.title = title[:80]
             await db.commit()

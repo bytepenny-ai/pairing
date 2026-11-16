@@ -177,6 +177,7 @@ async def subscribe_to_reply(
                             "tool_events": state.tool_events,
                             "reasoning": state.reasoning,
                             "read_progress": state.read_progress,
+                            "compacting": state.compacting,
                         }
                     )
                     + "\n\n"

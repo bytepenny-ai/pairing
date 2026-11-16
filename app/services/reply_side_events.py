@@ -34,6 +34,8 @@ class ReplySideEvents:
         self._last_check = time.monotonic()
         self.stats = ReplyStats(model=model)
         self._read_shown = 0.0  # the read progress last shown, published again from 1% more
+        self._compacting_shown = False
+        reply_broadcast_service.publish_compacting(conversation_id, known=True)  # a trimmed chat: say so at once
 
     def text(self) -> None:
         """Call on every text chunk."""
@@ -64,6 +66,9 @@ class ReplySideEvents:
         if "read_progress" in chunk:  # the engine is still reading the prompt: not stuck
             if self._deadline is not None:
                 self._deadline.progress()
+            if chunk["read_progress"].get("compacting") and not self._compacting_shown:  # Matricxon trims its cache
+                self._compacting_shown = True
+                reply_broadcast_service.publish_compacting(self._conversation_id)
             fraction = self.read_fraction(chunk["read_progress"])
             if fraction is not None and fraction - self._read_shown >= 0.01:
                 self._read_shown = fraction

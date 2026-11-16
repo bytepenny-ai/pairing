@@ -1,0 +1,9 @@
+{
+  "_about": "Words that tell a question's kind, per language, as regular expression parts (case is ignored). about_an_image: a question about a picture. asks: a question (not small talk like OK or thanks), at its start.",
+  "about_an_image": {
+    "en": "\\b(image|picture|photo|pic|screenshot|diagram|drawing|logo|colou?rs?|shown)\\b"
+  },
+  "asks": {
+    "en": "^\\s*(what|which|who|whose|where|when|why|how|is|are|was|were|does|do|did|can|could|would|will|should|tell|describe|explain|show|count|list|name|find|read|compare|zoom)\\b"
+  }
+}

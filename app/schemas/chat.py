@@ -81,6 +81,16 @@ class MessagesLatestResponse(BaseModel):
     messages: list[MessageOut]
     # Sent back as the next `since`; the server's clock avoids client skew gaps or duplicates.
     server_time: datetime
+    # The reply still waiting for its first words, sent on every poll so its label (reasoning, compacting the cache,
+    # read progress) stays right; null when there is none (reply_broadcast_service.waiting_reply).
+    live: "WaitingReplyOut | None" = None
+
+
+class WaitingReplyOut(BaseModel):
+    message_id: str
+    reasoning: list[str] = []
+    read_progress: float | None = None
+    compacting: bool = False
 
 
 class DeleteMessageResponse(BaseModel):
@@ -125,3 +135,6 @@ class ChatCommandOut(BaseModel):
 
 class ChatCommandListOut(BaseModel):
     commands: list[ChatCommandOut]
+
+
+MessagesLatestResponse.model_rebuild()

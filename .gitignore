@@ -26,3 +26,6 @@ external/
 
 # Primary server PID file (scripts/start.sh, stop.sh, status.sh)
 /run/
+
+# per-server language words
+app/language_data/*.local.json

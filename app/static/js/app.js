@@ -117,7 +117,7 @@ const STRONG_LETTER_RE = /[A-Za-z\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\uFB1D-\
  * 
  * - `dir="auto"` uses the first strong character, so a message opening with a digit, punctuation or markdown guesses
  * "ltr" for mostly-Hebrew text and mirrors "?" or "!".
- * - Counting letters over the whole string lets a longer English word outvote a short Hebrew one ("שלום world"), giving
+ * - Counting letters over the whole string lets a longer English word outvote a short Hebrew one (a Hebrew greeting, then "world"), giving
  * an "ltr" base that puts the Hebrew word on the left, the reverse of Hebrew reading order.
  * 
  * Skipping digits, punctuation and markdown to the first letter matches the Unicode bidi paragraph rule without those

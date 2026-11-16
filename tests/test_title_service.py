@@ -57,7 +57,7 @@ def test_summarize_as_title_falls_back_to_new_chat_for_empty_input():
 def test_summarize_as_title_preserves_non_english_text_as_is():
     """No model call, so no per-language handling: whatever language the message is in carries through, unlike "smart"
     mode's model-prompted approach."""
-    text = "מה בירת צרפת?"
+    text = "\u05de\u05d4 \u05d1\u05d9\u05e8\u05ea \u05e6\u05e8\u05e4\u05ea?"
     assert _summarize_as_title(text) == text
 
 
@@ -187,3 +187,33 @@ async def test_schedule_smart_title_generation_does_not_block_the_caller(monkeyp
     release.set()
     await asyncio.gather(*title_service._background_title_tasks)
     await engine.dispose()
+
+
+HEBREW_QUESTION = "מה בירת צרפת?"  # "What is the capital of France?"
+
+
+@pytest.mark.asyncio
+async def test_a_title_the_model_translated_falls_back_to_the_chats_own_words(db, monkeypatch):
+    asked: list[str] = []
+
+    async def fake_chat_once(_model, messages, **_kwargs):
+        asked.append(messages[0]["content"])
+        return "Capital of France"
+
+    monkeypatch.setattr(title_service, "chat_once", fake_chat_once)
+    conversation = Conversation(title="New chat")
+    await maybe_generate_title_with_model(db, conversation, HEBREW_QUESTION)
+    assert conversation.title == HEBREW_QUESTION  # the chat's language, from its own text
+    instruction = asked[0].split("\n\n")[0]
+    assert "same language as the message" in instruction and instruction.isascii()  # the prompt is English
+
+
+@pytest.mark.asyncio
+async def test_a_title_in_the_chats_own_language_is_kept(db, monkeypatch):
+    async def fake_chat_once(*_args, **_kwargs):
+        return "בירת צרפת"
+
+    monkeypatch.setattr(title_service, "chat_once", fake_chat_once)
+    conversation = Conversation(title="New chat")
+    await maybe_generate_title_with_model(db, conversation, HEBREW_QUESTION)
+    assert conversation.title == "בירת צרפת"
