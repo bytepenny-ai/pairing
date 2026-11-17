@@ -22,7 +22,8 @@ class ChatExport:
                 continue
             lines += [f"## {self._speaker(message)}", f"*{self._time(message)}*", "", message.content.strip(), ""]
             if message.sources:
-                lines += [f"Sources: {', '.join(message.sources)}", ""]
+                names = (source if isinstance(source, str) else source["name"] for source in message.sources)
+                lines += [f"Sources: {', '.join(names)}", ""]
         return "\n".join(lines).rstrip() + "\n"
 
     def filename(self, extension: str) -> str:

@@ -198,8 +198,15 @@ RAG_RERANK_CANDIDATES = 20
 RAG_RERANK_CANDIDATES_MIN, RAG_RERANK_CANDIDATES_MAX = 5, 50
 # Knowledge passages below this cosine similarity to the question are left out (Admin settings > Inference > RAG >
 # Knowledge in chats), so small talk gets no excerpts or sources. 0 sends the closest ones always.
-RAG_MIN_SIMILARITY = 0.25
+RAG_MIN_SIMILARITY = 0.39
 RAG_MIN_SIMILARITY_MIN, RAG_MIN_SIMILARITY_MAX = 0.0, 0.9
+# Source check (same place, knowledge_source_check.py): after a reply, its parts are embedded and a document stays
+# under "Sources" only if a part is at least this close to one of its excerpts. Replies that ignored the excerpts
+# measured about 0.35, ones that used them about 0.5. Off = every searched document is listed.
+RAG_CHECK_SOURCES = True
+RAG_SOURCE_MIN_SIMILARITY = 0.45
+# Most reply parts embedded for that check (spread over a long reply), so it stays a few embedding calls.
+RAG_SOURCE_CHECK_PARTS = 8
 # Keep a message's Knowledge excerpts in the later turns' history (same place), so the prompt cache keeps matching.
 # Off by default: it uses more of the context window; an admin turns it on (Knowledge in chats > Cache).
 RAG_KEEP_EXCERPTS = False

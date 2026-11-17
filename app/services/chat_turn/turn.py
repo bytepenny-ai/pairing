@@ -38,7 +38,7 @@ class ChatTurn:
     reply_files: list[AttachmentInfo] = field(default_factory=list)
     system_prompt: str = ""
     turn_context: str = ""
-    source_filenames: list[str] = field(default_factory=list)
+    knowledge_sources: list[dict] = field(default_factory=list)
     chat_messages: list[dict] = field(default_factory=list)
     reply_model: str | None = None  # the vision model for this reply only, else None (the chat's model)
     fallback: ImageFallback | None = None

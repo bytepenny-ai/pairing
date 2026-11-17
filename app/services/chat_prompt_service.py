@@ -27,8 +27,9 @@ async def build_system_prompt(
     reserved_tokens: int,
     sees_images: bool = False,
     system_prompt: str | None = None,
-) -> tuple[str, str, list[str], list[str], str]:
-    """Returns (system_prompt, turn_context, source_filenames, notices, knowledge_excerpts) for this turn.
+) -> tuple[str, str, list[dict], list[str], str]:
+    """Returns (system_prompt, turn_context, knowledge_sources, notices, knowledge_excerpts) for this turn.
+    `knowledge_sources`: {name, id} of each document the excerpts came from, best match first.
     `knowledge_excerpts`: this turn's new Knowledge base text (part of turn_context), to keep with the message.
     Passages already in `history` (kept from an earlier turn) are not added again, but still count as sources.
 
@@ -55,7 +56,7 @@ async def build_system_prompt(
         system_prompt = await notes_and_skills_prompt(db, conversation, user.id, has_image)
 
     fit = TurnContextFit(params["num_ctx"], reserved_tokens, system_prompt, history)
-    source_filenames: list[str] = []
+    knowledge_sources: list[dict] = []
     rag_scope_user_id = user.id if conversation.channel_id is None else None
     try:
         retrieved = await retrieve_context(db, content, rag_scope_user_id, top_k=params.get("rag_top_k", 4))
@@ -69,16 +70,21 @@ async def build_system_prompt(
     if new:
         live_workflow.pulse("rag_augment")
     # De-duplicated in first-seen (best-match-first) order: a document may give several chunks but is listed once
-    # under "Sources".
+    # under "Sources", which open it in the file viewer (routers/knowledge_files.py). "chunks": its excerpts, for the
+    # check after the reply (knowledge_source_check.py), which drops that key.
     for chunk in used:
-        if chunk["filename"] not in source_filenames:
-            source_filenames.append(chunk["filename"])
+        source = next((s for s in knowledge_sources if s["id"] == chunk["document_id"]), None)
+        if source is None:
+            source = {"name": chunk["filename"], "id": chunk["document_id"], "chunks": []}
+            knowledge_sources.append(source)
+        if chunk.get("chunk_id"):
+            source["chunks"].append(chunk["chunk_id"])
 
     if attachments:
         turn_context = chat_attachment_service.fold_text_attachments_into_prompt(turn_context, attachments, fit).strip()
 
     live_workflow.exit("chat_prompt_service")
-    return system_prompt, turn_context, source_filenames, fit.notices, knowledge_excerpts
+    return system_prompt, turn_context, knowledge_sources, fit.notices, knowledge_excerpts
 
 
 def _in_history(text: str, history: list[dict]) -> bool:

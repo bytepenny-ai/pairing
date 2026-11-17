@@ -41,7 +41,7 @@ class GenerationState:
     message_id: str
     content: str = ""
     status: str = "streaming"
-    sources: list[str] | None = None
+    sources: list[dict[str, str]] | None = None
     tool_events: list[dict] = field(default_factory=list)
     # Stages of the model's reasoning so far (reasoning_stages.py), for the chat's live "Reasoning..." list.
     reasoning: list[str] = field(default_factory=list)
@@ -165,7 +165,7 @@ def waiting_reply(conversation_id: str) -> dict | None:
     }
 
 
-def publish_done(conversation_id: str, sources: list[str] | None, stats: dict | None = None) -> None:
+def publish_done(conversation_id: str, sources: list[dict[str, str]] | None, stats: dict | None = None) -> None:
     topic = _topics.get(conversation_id)
     if topic is None or topic.state is None:
         return

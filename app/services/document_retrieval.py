@@ -62,24 +62,31 @@ async def _retrieve(db: AsyncSession, query: str, user_id: str | None, top_k: in
     best = await ChunkReranker(db).order(query, candidates, top_k)
     # chunk.document is selectin-loaded (models/document.py), so access is safe under the async session.
     return [
-        {"text": chunk.text, "filename": Path(chunk.document.filename).name, "document_id": chunk.document_id}
+        {
+            "text": chunk.text,
+            "filename": Path(chunk.document.filename).name,
+            "document_id": chunk.document_id,
+            "chunk_id": chunk.id,
+        }
         for chunk in best
     ]
 
 
 def build_augmented_system_prompt(base_prompt: str, retrieved_chunks: list[dict]) -> str:
     """Appends retrieved excerpts to the system prompt, labeled so the model tells background material from
-    instructions."""
+    instructions. Search returns the closest passages, not proven answers: a broad question can match a document on a
+    narrower topic, so the model answers from its own knowledge and adds only what the excerpts say on the question."""
     if not retrieved_chunks:
         return base_prompt
     context_block = "\n\n---\n\n".join(chunk["text"] for chunk in retrieved_chunks)
     return (
         f"{base_prompt}\n\n"
-        "Use the following reference material to answer the user's next "
-        "question if it's relevant. If it isn't relevant, ignore it and "
-        "answer normally. Do not mention that you were given reference "
-        "material.\n\n"
-        f"### Reference material\n{context_block}"
+        "The excerpts below come from the organization's documents. A search found them for the user's next "
+        "message, so they may be only loosely related to it. Answer the message as you would without them, using "
+        "all you know, and use the excerpts only where they directly address what was asked, for example facts, "
+        "names or rules specific to the organization. Never narrow or slant your answer to the excerpts' topic, "
+        "and ignore them if they don't help. Do not mention that you were given excerpts.\n\n"
+        f"### Excerpts\n{context_block}"
     )
 
 

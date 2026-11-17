@@ -63,7 +63,7 @@ async def test_kept_excerpts_make_the_earlier_message_match_exactly(db, user, se
     assert _first_question(second) == _first_question(first)  # same text: the engine's cache matches
     # The same passages are already in the chat: not added again, but still listed as sources.
     assert "Refunds within 30 days." not in second[-1]["content"]
-    assert next(e for e in events if e.get("done"))["sources"] == ["policy.txt"]
+    assert next(e for e in events if e.get("done"))["sources"] == [{"name": "policy.txt", "id": "a"}]
 
 
 @pytest.mark.asyncio

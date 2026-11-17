@@ -68,9 +68,10 @@ class KnowledgeFiles:
         await self._db.commit()
 
     async def file(self, file_id: str) -> tuple[Path, str]:
-        """(where it is on disk, its name) for one of the user's own files, to view or download it."""
+        """(where it is on disk, its name) for one of the user's own files or a shared one, to view or download it
+        (Settings > Knowledge, and a reply's sources). Every chat searches shared files, so anyone may read them."""
         document = await self._db.get(Document, file_id)
-        if document is None or document.owner_id != self._user.id:
+        if document is None or document.owner_id not in (self._user.id, None):
             raise HTTPException(status_code=404, detail="Document not found.")
         return KNOWLEDGE_DIR / document.filename, Path(document.filename).name
 

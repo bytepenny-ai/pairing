@@ -36,8 +36,8 @@ async def list_files(
 async def get_file(
     file_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ) -> FileResponse:
-    """The file itself, for the viewer and Download: a PDF inline (the browser's viewer), anything else as a
-    download that never runs in the page (as chat attachments)."""
+    """One of the user's files or a shared one, for the viewer and Download: a PDF inline (the browser's viewer),
+    anything else as a download that never runs in the page (as chat attachments)."""
     path, name = await KnowledgeFiles(db, user).file(file_id)
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Document not found.")

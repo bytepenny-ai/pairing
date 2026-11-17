@@ -1,13 +1,12 @@
 """Assistant reply generation in a background asyncio.Task, detached from the request.
 
 Mechanism: stream_reply creates the placeholder assistant Message, hands the engine call to a detached task
-(_run_generation), then only relays reply_broadcast_service's hub. It never awaits the engine, so a
-disconnecting SSE request cancels just this generator's `await queue.get`, not the task. Whether the task
-continues depends on `cancel_on_disconnect`: False for channels, True for personal chats (only the owner could watch).
-Either way a failed, cancelled or timed-out attempt leaves a clean status="error" record. A channel's
-`/subscribe` connections tap the same hub for "real" delivery, and an owner can reconnect to catch an
-in-flight reply's tail; see reply_cross_instance_service for when the in-process hub isn't enough.
-"""
+(_run_generation), then only relays reply_broadcast_service's hub. It never awaits the engine, so a disconnecting SSE
+request cancels just this generator's `await queue.get`, not the task. Whether the task continues depends on
+`cancel_on_disconnect`: False for channels, True for personal chats (only the owner could watch). Either way a failed,
+cancelled or timed-out attempt leaves a clean status="error" record. A channel's `/subscribe` connections tap the same
+hub for "real" delivery, and an owner can reconnect to catch an in-flight reply's tail; see
+reply_cross_instance_service for when the in-process hub isn't enough."""
 
 import asyncio
 import logging
@@ -31,6 +30,7 @@ from app.services import (
 )
 from app.services.image_fallback_stream import ImageFallback
 from app.services.inference_client import InferenceError, chat_stream, stop_model
+from app.services.knowledge_source_check import KnowledgeSourceCheck
 from app.services.live_workflow_bus import live_workflow
 from app.services.reply_deadline import ReplyDeadline
 from app.services.reply_side_events import ReplySideEvents
@@ -55,7 +55,7 @@ async def stream_reply(
     db: AsyncSession,
     conversation: Conversation,
     chat_messages: list[dict],
-    source_filenames: list[str],
+    knowledge_sources: list[dict],
     *,
     reply_to_message_id: str | None = None,
     cancel_on_disconnect: bool = False,
@@ -93,7 +93,7 @@ async def stream_reply(
         effective_model,
         chat_messages,
         conversation.params if params is None else params,
-        source_filenames,
+        knowledge_sources,
         has_image,
         fallback,
     )
@@ -129,7 +129,7 @@ def _schedule_generation(
     model: str,
     chat_messages: list[dict],
     params: dict,
-    source_filenames: list[str],
+    knowledge_sources: list[dict],
     has_image: bool,
     fallback: ImageFallback | None = None,
 ) -> asyncio.Task:
@@ -138,7 +138,7 @@ def _schedule_generation(
     stream_reply/cancel_generation can cancel it, and spawns reply_cross_instance_service's watchdog beside it
     (needed even with cancel_generation; see that function).
     """
-    work = _run_generation(message_id, model, chat_messages, params, source_filenames, has_image, fallback)
+    work = _run_generation(message_id, model, chat_messages, params, knowledge_sources, has_image, fallback)
     task = asyncio.create_task(live_workflow.track(work, "run_generation_task"))
     _background_generation_tasks.add(task)
     task.add_done_callback(_background_generation_tasks.discard)
@@ -155,7 +155,7 @@ async def _run_generation(
     model: str,
     chat_messages: list[dict],
     params: dict,
-    source_filenames: list[str],
+    knowledge_sources: list[dict],
     has_image: bool,
     fallback: ImageFallback | None = None,
 ) -> None:
@@ -211,8 +211,7 @@ async def _run_generation(
                 await reply_model_unload_service.mark_error(db, message, full_reply, conversation_id, str(exc))
                 return
             except TimeoutError:
-                # asyncio.timeout's deadline, not a raw CancelledError: cancellation state is cleared, so `await` works
-                # here (unlike the CancelledError branch below).
+                # asyncio.timeout's deadline: cancellation is cleared, so `await` works here (unlike the branch below).
                 await reply_model_unload_service.mark_error(
                     db, message, full_reply, conversation_id, f"Reply timed out after {timeout_seconds} seconds."
                 )
@@ -239,10 +238,11 @@ async def _run_generation(
             message.content = full_reply
             message.status = "complete"
             message.completed_at = utcnow()
-            message.sources = source_filenames or None
+            sources = await KnowledgeSourceCheck(db).used(full_reply, knowledge_sources)  # the documents it used
+            message.sources = sources or None
             message.stats = side_events.stats.result()
             await db.commit()
-            reply_broadcast_service.publish_done(conversation_id, source_filenames, message.stats)
+            reply_broadcast_service.publish_done(conversation_id, sources, message.stats)
     except Exception:
         # Broad on purpose: a detached task has no caller to propagate to (as title_service's background task).
         logger.exception("Reply generation failed for message %s", message_id)

@@ -324,12 +324,28 @@ function renderMessageContent(container, text) {
   container.dir = detectTextDirection(text || "");
 }
 
-/* Appends a "Sources: a.txt, b.pdf" line under a reply that used RAG (app/rag.py, app/routers/chat.py), showing which documents contributed. Call it after the bubble's final text is set: a later renderMessageContent replaces the innerHTML. */
+/* Appends the Knowledge base documents a reply drew on ({name, id}; older replies: a plain name) under it. Each one with an id opens in the file viewer (GET /api/knowledge/files/{id}). Call it after the bubble's final text is set: a later renderMessageContent replaces the innerHTML. */
 function appendSourcesFooter(bubble, sources) {
   if (!sources || sources.length === 0) return;
   const footer = document.createElement("div");
-  footer.className = "mt-2 pt-2 border-t border-white/10 text-xs text-slate-400";
-  footer.textContent = "Sources: " + sources.join(", ");
+  footer.className = "mt-2 pt-2 border-t border-white/10 text-xs text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1";
+  footer.appendChild(document.createTextNode("Sources:"));
+  for (const source of sources) {
+    const name = typeof source === "string" ? source : source.name;
+    const item = document.createElement(source.id ? "a" : "span");
+    item.textContent = "📄 " + name;
+    if (source.id) {
+      item.href = `/api/knowledge/files/${encodeURIComponent(source.id)}`;
+      item.target = "_blank";
+      item.rel = "noopener";
+      item.className = "underline decoration-dotted hover:text-slate-200";
+      if (ChatFileViewer.canShow(name)) {
+        item.dataset.chatFile = name;
+        item.title = "Click to view";
+      }
+    }
+    footer.appendChild(item);
+  }
   bubble.appendChild(footer);
 }
 

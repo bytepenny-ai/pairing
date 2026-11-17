@@ -153,7 +153,7 @@ async def test_several_files_are_deleted_together_or_not_at_all(db, user, admin_
 
 
 @pytest.mark.asyncio
-async def test_a_file_can_be_viewed_and_downloaded_by_its_owner_only(db, user, admin_user, tmp_path, monkeypatch):
+async def test_a_file_can_be_viewed_by_its_owner_or_by_anyone_when_shared(db, user, admin_user, tmp_path, monkeypatch):
     from app.services import knowledge_files
 
     monkeypatch.setattr(knowledge_files, "KNOWLEDGE_DIR", tmp_path)
@@ -171,3 +171,8 @@ async def test_a_file_can_be_viewed_and_downloaded_by_its_owner_only(db, user, a
         with pytest.raises(HTTPException) as hidden:
             await call(notes.id, db, admin_user)  # not theirs
         assert hidden.value.status_code == 404
+    # A shared file is in everyone's chat search, so its sources open for anyone.
+    handbook = await doc(db, None, "handbook.md")
+    (tmp_path / handbook.filename).parent.mkdir(parents=True)
+    (tmp_path / handbook.filename).write_text("Shared.")
+    assert (await routes.preview_file(handbook.id, db, user)).text == "Shared."

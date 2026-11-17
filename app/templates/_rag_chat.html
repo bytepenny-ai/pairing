@@ -8,10 +8,26 @@
   <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-3">
     <div class="flex items-center gap-3">
       <label for="rag-min-similarity" class="text-xs font-medium text-slate-400">Minimum similarity</label>
-      <input id="rag-min-similarity" type="number" min="0" max="0.9" step="0.05"
-        title="0 to 0.9, default 0.25. Higher leaves out more; 0 always sends the closest passages."
+      <input id="rag-min-similarity" type="number" min="0" max="0.9" step="0.01"
+        title="0 to 0.9, default 0.39. Higher leaves out more; 0 always sends the closest passages."
         class="w-20 rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
-      <span class="text-xs text-slate-500">0–0.9, default 0.25. 0 = always.</span>
+      <span class="text-xs text-slate-500">0–0.9, default 0.39. 0 = always.</span>
+    </div>
+    <div class="space-y-1">
+      <label class="flex items-start gap-2 text-sm">
+        <input id="rag-check-sources" type="checkbox" class="mt-1">
+        <span><b>Show only the sources a reply used</b> <span class="text-xs text-slate-500">(default on): after the
+          reply, its parts are compared with the excerpts (one more round with the embedding model, a few
+          milliseconds each), and a document stays under Sources only if the answer is this close to it. Off lists
+          every document the search found.</span></span>
+      </label>
+      <div class="flex items-center gap-3 pl-6">
+        <label for="rag-source-min-similarity" class="text-xs font-medium text-slate-400">Answer similarity</label>
+        <input id="rag-source-min-similarity" type="number" min="0" max="0.9" step="0.01"
+          title="0 to 0.9, default 0.45. Replies that ignored their excerpts measured about 0.35, ones that used them about 0.5."
+          class="w-20 rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+        <span class="text-xs text-slate-500">0–0.9, default 0.45.</span>
+      </div>
     </div>
     <div class="space-y-1">
       <span class="text-xs font-medium text-slate-400">Excerpts in later messages</span>

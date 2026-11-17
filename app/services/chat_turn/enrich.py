@@ -54,14 +54,14 @@ class SystemPromptStage(EnrichStage):
 
     name = "system_prompt"
     requires = frozenset({"params", "reserved_tokens", "plan", "reply_files", "layout", "question", "sees_images"})
-    provides = frozenset({"system_prompt", "turn_context", "source_filenames", "params"})
+    provides = frozenset({"system_prompt", "turn_context", "knowledge_sources", "params"})
 
     async def run(self, turn: ChatTurn) -> list[str]:
         assert turn.plan is not None and turn.layout is not None
         (
             turn.system_prompt,
             turn.turn_context,
-            turn.source_filenames,
+            turn.knowledge_sources,
             notices,
             knowledge_excerpts,
         ) = await chat_prompt_service.build_system_prompt(

@@ -313,7 +313,7 @@ const WORKFLOW_NODES = [
       server: APP_NAME,
       title: "RAG — finding the best-matching chunks",
       location: "app/services/document_retrieval.py — retrieve_context · app/services/chunk_vector_index.py",
-      body: "Plain math, not machine learning — every stored chunk the user may see (own plus shared; shared only in channels) is scored by cosine similarity against the embedding vector the AI model just produced, in one matrix product over an in-memory index (rebuilt only when documents change), and the top-k (default 4, adjustable per conversation as rag_top_k) are kept, leaving out any below the minimum similarity (Admin settings > Inference > RAG > Knowledge in chats, default 0.25), so an unrelated message gets no excerpts and no sources. With a reranker installed and switched on, a wider shortlist goes to the reranking step below instead (Admin settings > System > Reranker: Passages to rerank, default 20), which picks the final top-k.",
+      body: "Plain math, not machine learning — every stored chunk the user may see (own plus shared; shared only in channels) is scored by cosine similarity against the embedding vector the AI model just produced, in one matrix product over an in-memory index (rebuilt only when documents change), and the top-k (default 4, adjustable per conversation as rag_top_k) are kept, leaving out any below the minimum similarity (Admin settings > Inference > RAG > Knowledge in chats, default 0.39), so an unrelated message gets no excerpts and no sources. With a reranker installed and switched on, a wider shortlist goes to the reranking step below instead (Admin settings > System > Reranker: Passages to rerank, default 20), which picks the final top-k.",
     },
   },
   {
@@ -358,7 +358,7 @@ const WORKFLOW_NODES = [
       server: APP_NAME,
       title: "RAG — folding results into the prompt",
       location: "app/services/document_retrieval.py — build_augmented_system_prompt",
-      body: "The top-k matched chunks are appended to the system prompt as clearly-labeled reference material, with explicit instructions for the model to use them only if relevant. These same results also become the \"sources\" shown to the user under the finished reply. If RAG itself fails (e.g. the embedding model is unreachable), this degrades silently to no RAG context rather than failing the whole chat request.",
+      body: "The top-k matched chunks are appended to the system prompt as clearly-labeled excerpts, telling the model to answer from its own knowledge as usual and use them only where they directly address the question (search returns the closest passages, which a broad question can match on a narrower topic). Their documents become the \"sources\" under the finished reply, each opening in the file viewer. With the source check on (Knowledge in chats, default on), the finished reply is embedded in a few parts and a document stays listed only if a part is close enough to one of its excerpts (default 0.45), so a reply that ignored the excerpts lists none. If RAG itself fails (e.g. the embedding model is unreachable), this degrades silently to no RAG context rather than failing the whole chat request.",
     },
   },
 

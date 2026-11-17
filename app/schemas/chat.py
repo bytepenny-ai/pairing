@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class AttachmentOut(BaseModel):
@@ -25,6 +25,14 @@ class AttachmentPreviewOut(BaseModel):
     truncated: bool
 
 
+class KnowledgeSourceOut(BaseModel):
+    """A Knowledge base document a reply drew on; `id` opens it (GET /api/knowledge/files/{id})."""
+
+    name: str
+    # None for replies saved before sources had ids (a plain file name).
+    id: str | None = None
+
+
 class ReplyStatsOut(BaseModel):
     first_token_ms: int
     total_ms: int
@@ -39,7 +47,7 @@ class MessageOut(BaseModel):
     id: str
     role: str
     content: str
-    sources: list[str] | None = None
+    sources: list[KnowledgeSourceOut] | None = None
     # MCP tool calls the reply made, in order (Message.tool_events); null if none.
     tool_events: list[dict] | None = None
     # Only for "user" messages sent with files (chat_attachment_service, Message.attachments).
@@ -70,6 +78,12 @@ class MessageOut(BaseModel):
     completed_at: datetime | None = None
     # A finished reply's speed (Message.stats); chat_reply_stats.js shows it beside the time.
     stats: ReplyStatsOut | None = None
+
+    @field_validator("sources", mode="before")
+    @classmethod
+    def _named_sources(cls, value: list | None) -> list | None:
+        """Older replies saved sources as plain file names."""
+        return [{"name": item} if isinstance(item, str) else item for item in value] if value else value
 
 
 class MessagesLatestResponse(BaseModel):
