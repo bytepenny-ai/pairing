@@ -158,7 +158,7 @@
 
     <div id="empty-state" class="flex-1 flex items-center justify-center px-4 hidden">
       <div class="text-center max-w-md">
-        {% with mark_class="block mx-auto mb-4 h-14 w-14" %}{% include "_logo_mark.html" %}{% endwith %}
+        {% with mark_class="block mx-auto mb-4 h-14 w-14", mark_tone="watermark" %}{% include "_logo_mark.html" %}{% endwith %}
         <h2 class="text-lg font-semibold text-slate-100">{{ app_name }}</h2>
         {% if engine_self_hosted %}
         <p class="mt-1 text-sm text-slate-400">Everything here runs locally. Ask anything to get started.</p>
@@ -200,6 +200,7 @@
 <script src="/static/js/chat_thinking.js?v={{ static_version }}"></script>
 <script src="/static/js/chat_reasoning.js?v={{ static_version }}"></script>
 <script src="/static/js/chat_read_progress.js?v={{ static_version }}"></script>
+<script src="/static/js/chat_vector_space.js?v={{ static_version }}"></script>
 <script src="/static/js/chat_tables.js?v={{ static_version }}"></script>
 <script src="/static/js/chat_scroll.js?v={{ static_version }}"></script>
 <script src="/static/js/chat_reply_stats.js?v={{ static_version }}"></script>

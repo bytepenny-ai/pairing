@@ -38,7 +38,7 @@ NotesOf = Callable[[Message], list]
 
 def _plain_text(message: Message) -> str:
     """A user's /describe or /summarize becomes its full instruction (chat_commands.py); the chat shows the command."""
-    return ChatCommand.expand(message.content) if message.role == "user" else message.content
+    return ChatCommand.for_model(message.content) if message.role == "user" else message.content
 
 
 def trim_history(

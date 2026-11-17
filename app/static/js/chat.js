@@ -1494,6 +1494,7 @@ async function sendMessage(askAi) {
     activeChannelInfo ? currentUserId : null
   );
   chatScroll.jump(); // the reader just wrote: show it and follow the reply
+  if (askAi && attachmentFiles.length > 0) VectorSpace.cover(userWrapper, "files", attachmentFiles.length);
   if (!activeHasMessages) {
     activeHasMessages = true;
     renderPinnedBadges();
@@ -1548,6 +1549,7 @@ async function sendMessage(askAi) {
       showInlineSendError(userWrapper, err.message);
     }
   } finally {
+    VectorSpace.reveal(userWrapper); // however the send ended
     ownSendInFlight = false;
     sendBtn.disabled = false;
     updateAskAiButtonState();
@@ -1808,6 +1810,9 @@ async function readAssistantReplyStream(
       if (payload.title && !isChannel) {
         updateConversationTitleDisplay(conversationId, payload.title);
       }
+      // Knowledge excerpts go into the prompt (chat_service.build_reply_stream): the vector space until the reply starts.
+      if (bubble && payload.retrieval) VectorSpace.cover(userWrapper, "knowledge", payload.retrieval);
+      if (payload.read_progress != null) VectorSpace.progress(userWrapper, payload.read_progress);
       if (bubble && payload.tool) ToolBlocks.add(bubble, payload.tool);
       if (bubble && payload.reasoning) {
         ReasoningSteps.set(bubble, payload.reasoning);
@@ -1819,6 +1824,7 @@ async function readAssistantReplyStream(
         renderReplyBody(bubble, fullText, "streaming");
       }
       if (bubble && payload.chunk) {
+        VectorSpace.reveal(userWrapper); // thinking is over: the message comes back
         fullText += payload.chunk;
         renderReplyBody(bubble, fullText, "streaming");
         chatScroll.follow();

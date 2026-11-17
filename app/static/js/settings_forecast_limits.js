@@ -1,4 +1,4 @@
-/* Admin settings > Models > Forecasting models > limits form: max file size and time limit, for every pAIring server of a ring (GET/PUT /api/settings/forecast-limits). */
+/* Admin settings > System > Chat > Forecasting models: the limits form, max file size and time limit, for every pAIring server of a ring (GET/PUT /api/settings/forecast-limits). */
 class ForecastLimitsForm {
   static URL = "/api/settings/forecast-limits";
 

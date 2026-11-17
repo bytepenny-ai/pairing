@@ -196,6 +196,13 @@ RAG_TOP_K = DEFAULT_GENERATION_PARAMS["rag_top_k"]
 RAG_RERANK_CANDIDATES = 20
 # Range for the admin's "Passages to rerank" (Settings > System > Reranker), which defaults to the value above.
 RAG_RERANK_CANDIDATES_MIN, RAG_RERANK_CANDIDATES_MAX = 5, 50
+# Knowledge passages below this cosine similarity to the question are left out (Admin settings > Inference > RAG >
+# Knowledge in chats), so small talk gets no excerpts or sources. 0 sends the closest ones always.
+RAG_MIN_SIMILARITY = 0.25
+RAG_MIN_SIMILARITY_MIN, RAG_MIN_SIMILARITY_MAX = 0.0, 0.9
+# Keep a message's Knowledge excerpts in the later turns' history (same place), so the prompt cache keeps matching.
+# Off by default: it uses more of the context window; an admin turns it on (Knowledge in chats > Cache).
+RAG_KEEP_EXCERPTS = False
 
 # Chunk size in characters (not tokens) and overlap between chunks. Kept well under EMBEDDING_NUM_CTX
 # (512): non-Latin scripts tokenize ~4x worse (measured for Hebrew). app.rag.ingest_document_stream skips

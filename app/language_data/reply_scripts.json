@@ -1,0 +1,18 @@
+{
+  "_about": "Writing systems that tell the reply language (reply_language.py). language: its English name, or null when the script is shared by several languages (the hint then says 'the language of this message'). A non-Latin script not listed here gets that generic line too; list one only to name its language. ranges: Unicode code points, hex, inclusive.",
+  "scripts": [
+    {"language": "Hebrew", "ranges": [["0590", "05FF"], ["FB1D", "FB4F"]]},
+    {"language": null, "ranges": [["0600", "06FF"], ["0750", "077F"], ["FB50", "FDFF"], ["FE70", "FEFF"]]},
+    {"language": null, "ranges": [["0400", "052F"]]},
+    {"language": "Greek", "ranges": [["0370", "03FF"]]},
+    {"language": "Armenian", "ranges": [["0530", "058F"]]},
+    {"language": "Georgian", "ranges": [["10A0", "10FF"]]},
+    {"language": null, "ranges": [["0900", "097F"]]},
+    {"language": "Bengali", "ranges": [["0980", "09FF"]]},
+    {"language": "Tamil", "ranges": [["0B80", "0BFF"]]},
+    {"language": "Thai", "ranges": [["0E00", "0E7F"]]},
+    {"language": "Korean", "ranges": [["AC00", "D7AF"], ["1100", "11FF"], ["3130", "318F"]]},
+    {"language": "Japanese", "ranges": [["3040", "30FF"]]},
+    {"language": null, "ranges": [["4E00", "9FFF"], ["3400", "4DBF"]]}
+  ]
+}

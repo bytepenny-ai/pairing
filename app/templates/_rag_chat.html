@@ -1,0 +1,38 @@
+<!-- Admin settings > Inference > RAG: how chats use the Knowledge base. Wired by app/static/js/settings_rag_chat.js to /api/settings/rag-chat (app/routers/rag_chat_admin.py). -->
+<div class="space-y-3" id="rag-chat-panel">
+  <h3 class="text-xs font-semibold uppercase tracking-wide text-brand-500">Knowledge in chats</h3>
+  <p class="text-xs text-slate-500 -mt-2">
+    Only passages at least this close to the question (cosine similarity) go into the prompt and show as sources, so
+    unrelated messages get none and answer faster.
+  </p>
+  <div class="rounded-lg bg-slate-900 border border-slate-800 px-4 py-3 space-y-3">
+    <div class="flex items-center gap-3">
+      <label for="rag-min-similarity" class="text-xs font-medium text-slate-400">Minimum similarity</label>
+      <input id="rag-min-similarity" type="number" min="0" max="0.9" step="0.05"
+        title="0 to 0.9, default 0.25. Higher leaves out more; 0 always sends the closest passages."
+        class="w-20 rounded-md border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-sm focus:outline-none focus:border-brand-500">
+      <span class="text-xs text-slate-500">0–0.9, default 0.25. 0 = always.</span>
+    </div>
+    <div class="space-y-1">
+      <span class="text-xs font-medium text-slate-400">Excerpts in later messages</span>
+      <label class="flex items-start gap-2 text-sm">
+        <input type="radio" name="rag-keep-excerpts" value="keep" class="mt-1">
+        <span><b>Cache</b> <span class="text-xs text-slate-500">: kept with their message and sent again in
+          the same place, so the next replies reuse the cache instead of re-reading. Uses more of the context window;
+          passages already in the chat are not added twice.</span></span>
+      </label>
+      <label class="flex items-start gap-2 text-sm">
+        <input type="radio" name="rag-keep-excerpts" value="drop" class="mt-1">
+        <span><b>No cache</b> <span class="text-xs text-slate-500">(default): sent with their message only. Saves context
+          space; the next reply re-reads that message and its answer. Excerpts kept earlier stay in their chats.</span></span>
+      </label>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <button id="rag-chat-save-btn" type="button"
+      class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 transition-colors">
+      Save
+    </button>
+    <span id="rag-chat-status" class="text-xs text-slate-500"></span>
+  </div>
+</div>

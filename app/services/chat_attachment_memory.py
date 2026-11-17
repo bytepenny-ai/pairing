@@ -28,6 +28,8 @@ from app.services.turn_context_fit import TokenEstimate
 logger = logging.getLogger(__name__)
 
 _SENT_SUFFIX = ".sent.txt"
+# prompt_layout.base.INSERT_SEPARATOR (imported there would be circular): kept excerpts end with it, as on their turn.
+_EXCERPT_SEPARATOR = "\n\n---\n\n"
 _CUT_MARK = "fitted; the rest was left out.]"  # TurnContextFit.cut's note at the end of a cut file
 _SUMMARY_CHARS = 1500  # of the reply kept for a file that left the window
 _SUMMARY_FILES = 4  # the latest files that left the window keep a summary
@@ -94,13 +96,16 @@ class AttachmentMemory:
         """`message` as the model reads it in the history: earlier files and images first, then the words."""
         if message.role != "user":
             return message.content
-        content = ChatCommand.expand(message.content)
-        if message is self._current or not message.attachments:
+        content = ChatCommand.for_model(message.content)
+        if message is self._current:
             return content
-        if id(message) not in self._texts:
+        if message.attachments and id(message) not in self._texts:
             parts = [part for part in map(self._part, message.attachments) if part]
             self._texts[id(message)] = "\n\n---\n\n".join(("\n\n".join(parts), content)) if parts else content
-        return self._texts[id(message)]
+        text = self._texts.get(id(message), content)
+        # Knowledge excerpts kept with the message: in front, as on its own turn (prepend_turn_context).
+        excerpts = getattr(message, "knowledge_excerpts", None)
+        return f"{excerpts}{_EXCERPT_SEPARATOR}{text}" if excerpts else text
 
     @staticmethod
     def summaries(messages: Sequence[Message], start: int) -> str:

@@ -185,3 +185,13 @@ dimmer than code text: comments 6.6:1, numbers 5.2:1 (was 4.4:1). Same in every 
 /* Phones: nearly full width; a picture's window only as tall as the picture. */
 @media (max-width: 640px) { .chat-viewer-panel { width: 92vw; } .chat-viewer-panel[data-kind="image"] { height: auto; max-height: 75vh; } .chat-viewer-panel .chat-viewer-img { max-height: calc(75vh - 4.5rem); } }
 @media (prefers-reduced-motion: reduce) { .chat-viewer, .chat-viewer-panel { transition: none; } }
+
+/* Vector space (chat_vector_space.js): stands in for a user bubble while its files or knowledge are read. */
+.vector-space { position: relative; width: 132px; height: 132px; flex-shrink: 0; overflow: hidden; animation: vector-space-in 220ms ease; }
+.vector-space canvas { display: block; width: 132px; height: 132px; }
+.vector-space-label { position: absolute; top: 5px; left: 8px; right: 6px; font: 600 9.5px ui-monospace, Menlo, Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+/* the cosine readout, above the progress bar */
+.vector-space-score { top: auto; bottom: 8px; }
+.vector-space-reveal { animation: vector-space-in 260ms ease; }
+@keyframes vector-space-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .vector-space, .vector-space-reveal { animation: none; } }

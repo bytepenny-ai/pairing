@@ -14,6 +14,7 @@ from app.services.document_rerank import ChunkReranker
 from app.services.inference_client import embed
 from app.services.live_workflow_bus import live_workflow
 from app.services.question_vectors import QuestionVectors
+from app.services.rag_chat_settings import RagChatSettings
 
 
 async def retrieve_context(
@@ -51,7 +52,10 @@ async def _retrieve(db: AsyncSession, query: str, user_id: str | None, top_k: in
     # A reranker, if set, gets a wider shortlist (Settings > System > Reranker: passages to rerank).
     shortlist = max(top_k, await DefaultModelSettings(db).rerank_candidates())
     async with live_workflow.stage("rag_rank"):
-        ids = await chunk_vector_index.search(db, query_vector, user_id, embedding_model, shortlist, refresh=False)
+        min_score = await RagChatSettings(db).min_similarity()
+        ids = await chunk_vector_index.search(
+            db, query_vector, user_id, embedding_model, shortlist, refresh=False, min_score=min_score
+        )
         by_id = {c.id: c for c in (await db.execute(select(Chunk).where(Chunk.id.in_(ids)))).scalars()}
     # A reranker, if set, picks the best top_k from a wider similarity shortlist.
     candidates = [by_id[chunk_id] for chunk_id in ids if chunk_id in by_id]

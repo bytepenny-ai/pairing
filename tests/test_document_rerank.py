@@ -150,7 +150,7 @@ async def test_retrieval_shortlists_the_configured_passages_to_rerank(db, monkey
     async def visible(*_a):
         return True
 
-    async def search(_db, _vector, _user, _model, limit, refresh=True):
+    async def search(_db, _vector, _user, _model, limit, refresh=True, min_score=None):
         limits.append(limit)
         return []
 

@@ -96,6 +96,9 @@ class Message(Base):
     error_message = Column(Text, nullable=True)
     # A finished reply's speed (services/reply_stats.py): first_token_ms, total_ms, tokens; null otherwise.
     stats = Column(JSON, nullable=True)
+    # Knowledge base excerpts this user message was sent with (Knowledge in chats > Keep excerpts): later turns send
+    # them again in the same place, so the engine's prompt cache keeps matching. Null when none or not kept.
+    knowledge_excerpts = Column(Text, nullable=True)
     created_at = Column(Timestamp, default=utcnow)
     # When an assistant reply ended (complete, error or cancelled); shown as its time. created_at is when it
     # started and still orders the messages. Null for user messages and replies still streaming.

@@ -27,8 +27,10 @@ async def build_system_prompt(
     reserved_tokens: int,
     sees_images: bool = False,
     system_prompt: str | None = None,
-) -> tuple[str, str, list[str], list[str]]:
-    """Returns (system_prompt, turn_context, source_filenames, notices) for this turn.
+) -> tuple[str, str, list[str], list[str], str]:
+    """Returns (system_prompt, turn_context, source_filenames, notices, knowledge_excerpts) for this turn.
+    `knowledge_excerpts`: this turn's new Knowledge base text (part of turn_context), to keep with the message.
+    Passages already in `history` (kept from an earlier turn) are not added again, but still count as sources.
 
     The turn context gets only the room `history` (already trimmed) and `reserved_tokens` leave in num_ctx
     (turn_context_fit.py): excerpts that don't fit are dropped, attachments cut, and `notices` tells the user.
@@ -53,30 +55,35 @@ async def build_system_prompt(
         system_prompt = await notes_and_skills_prompt(db, conversation, user.id, has_image)
 
     fit = TurnContextFit(params["num_ctx"], reserved_tokens, system_prompt, history)
-    turn_context = ""
     source_filenames: list[str] = []
     rag_scope_user_id = user.id if conversation.channel_id is None else None
     try:
         retrieved = await retrieve_context(db, content, rag_scope_user_id, top_k=params.get("rag_top_k", 4))
     except InferenceError:
         retrieved = []
-    retrieved = [chunk for chunk in retrieved if fit.take(chunk["text"])]  # best match first
-    if retrieved:
-        turn_context = build_augmented_system_prompt("", retrieved).strip()
+    in_chat = [chunk for chunk in retrieved if _in_history(chunk["text"], history)]
+    used = [chunk for chunk in retrieved if chunk in in_chat or fit.take(chunk["text"])]  # best match first
+    new = [chunk for chunk in used if chunk not in in_chat]
+    knowledge_excerpts = build_augmented_system_prompt("", new).strip() if new else ""
+    turn_context = knowledge_excerpts
+    if new:
         live_workflow.pulse("rag_augment")
-        # De-duplicated in first-seen (best-match-first) order: a document may give several chunks but is listed once
-        # under "Sources".
-        seen = set()
-        for chunk in retrieved:
-            if chunk["filename"] not in seen:
-                seen.add(chunk["filename"])
-                source_filenames.append(chunk["filename"])
+    # De-duplicated in first-seen (best-match-first) order: a document may give several chunks but is listed once
+    # under "Sources".
+    for chunk in used:
+        if chunk["filename"] not in source_filenames:
+            source_filenames.append(chunk["filename"])
 
     if attachments:
         turn_context = chat_attachment_service.fold_text_attachments_into_prompt(turn_context, attachments, fit).strip()
 
     live_workflow.exit("chat_prompt_service")
-    return system_prompt, turn_context, source_filenames, fit.notices
+    return system_prompt, turn_context, source_filenames, fit.notices, knowledge_excerpts
+
+
+def _in_history(text: str, history: list[dict]) -> bool:
+    """Whether a passage is already in the chat (kept with an earlier message)."""
+    return any(isinstance(m.get("content"), str) and text in m["content"] for m in history)
 
 
 async def notes_and_skills_prompt(db: AsyncSession, conversation: Conversation, user_id: str, has_image: bool) -> str:

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Message
 from app.services import chat_attachment_service, chat_prompt_service, model_catalog_service
+from app.services.chat_commands import ChatCommand
 from app.services.chat_turn.sanitize import AssembleStage, CheckStage
 from app.services.chat_turn.turn import ChatTurn
 from app.services.image_fallback_stream import ImageFallback, image_question
@@ -28,7 +29,7 @@ class MessagesStage(AssembleStage):
         # omitting it makes some chat-template layers (e.g. Matricxon's VicunaPromptBuilder) add their own default.
         turn.chat_messages = [{"role": "system", "content": turn.system_prompt}] + history
         if turn.plan.image_again:  # the vision model needs the image and the question, not the chat (image_question)
-            turn.chat_messages = image_question(turn.system_prompt, turn.question)
+            turn.chat_messages = image_question(turn.system_prompt, ChatCommand.for_model(turn.content))
         return []
 
 
@@ -71,7 +72,7 @@ class ImageFallbackStage(AssembleStage):
             vision_system = await chat_prompt_service.notes_and_skills_prompt(
                 turn.db, turn.conversation, turn.user.id, True
             )
-            vision_messages = image_question(vision_system, turn.question)
+            vision_messages = image_question(vision_system, ChatCommand.for_model(turn.content))
             turn.fallback = await ImageFallback.prepare(
                 turn.db, turn.plan.image_if_needed, turn.chat_messages, vision_messages
             )

@@ -6,6 +6,7 @@ import re
 
 from app.services.chat_command_catalog import Command, CommandCatalog
 from app.services.chat_skill_command import SkillCommand
+from app.services.reply_language import ReplyLanguage
 
 
 class ChatCommand:
@@ -36,6 +37,11 @@ class ChatCommand:
             return rest  # the message, without a /use_skill command
         instructions = "\n".join(command.instruction for command in commands)
         return f"{instructions}\n\n{rest}" if rest else instructions
+
+    @classmethod
+    def for_model(cls, content: str) -> str:
+        """`expand`, plus a reply-language line when the user's own words are in a non-Latin script."""
+        return ReplyLanguage.add(cls.expand(content), cls.parse(content)[1])
 
     @classmethod
     def missing_attachment(cls, content: str, attachment_types: list[str]) -> str | None:

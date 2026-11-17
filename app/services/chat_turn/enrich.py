@@ -5,6 +5,7 @@ from app.services import chat_prompt_service, reply_broadcast_service
 from app.services.chat_turn.sanitize import EnrichStage
 from app.services.chat_turn.turn import ChatTurn
 from app.services.prompt_layout.layouts import PromptLayouts
+from app.services.rag_chat_settings import RagChatSettings
 
 
 class LayoutStage(EnrichStage):
@@ -62,6 +63,7 @@ class SystemPromptStage(EnrichStage):
             turn.turn_context,
             turn.source_filenames,
             notices,
+            knowledge_excerpts,
         ) = await chat_prompt_service.build_system_prompt(
             turn.db,
             turn.conversation,
@@ -75,4 +77,8 @@ class SystemPromptStage(EnrichStage):
             turn.layout.system_prompt,
         )
         turn.params = {**turn.params, **turn.layout.reply_params()}
+        if knowledge_excerpts and await RagChatSettings(turn.db).keep_excerpts():
+            # Sent again with this message in later turns (chat_attachment_memory.history_text): the cache matches.
+            turn.message.knowledge_excerpts = knowledge_excerpts
+            await turn.db.commit()
         return notices

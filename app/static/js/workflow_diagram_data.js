@@ -313,7 +313,7 @@ const WORKFLOW_NODES = [
       server: APP_NAME,
       title: "RAG — finding the best-matching chunks",
       location: "app/services/document_retrieval.py — retrieve_context · app/services/chunk_vector_index.py",
-      body: "Plain math, not machine learning — every stored chunk the user may see (own plus shared; shared only in channels) is scored by cosine similarity against the embedding vector the AI model just produced, in one matrix product over an in-memory index (rebuilt only when documents change), and the top-k (default 4, adjustable per conversation as rag_top_k) are kept. With a reranker installed and switched on, a wider shortlist goes to the reranking step below instead (Admin settings > System > Reranker: Passages to rerank, default 20), which picks the final top-k.",
+      body: "Plain math, not machine learning — every stored chunk the user may see (own plus shared; shared only in channels) is scored by cosine similarity against the embedding vector the AI model just produced, in one matrix product over an in-memory index (rebuilt only when documents change), and the top-k (default 4, adjustable per conversation as rag_top_k) are kept, leaving out any below the minimum similarity (Admin settings > Inference > RAG > Knowledge in chats, default 0.25), so an unrelated message gets no excerpts and no sources. With a reranker installed and switched on, a wider shortlist goes to the reranking step below instead (Admin settings > System > Reranker: Passages to rerank, default 20), which picks the final top-k.",
     },
   },
   {

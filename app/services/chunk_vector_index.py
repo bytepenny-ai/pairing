@@ -43,10 +43,11 @@ class ChunkVectorIndex:
         model: str,
         limit: int,
         refresh: bool = True,
+        min_score: float | None = None,
     ) -> list[str]:
         """Ids of the `limit` chunks most similar to `query_vector` (cosine), best first: chunks `user_id` may see
         (None = shared only), embedded with `model` (or unrecorded) and of the same vector size. `refresh=False`
-        skips the change check when the caller just ran it (has_visible)."""
+        skips the change check when the caller just ran it (has_visible). `min_score` drops weaker matches."""
         if refresh:
             await self.refresh(db)
         block = self._blocks.get(query_vector.shape[0])
@@ -60,6 +61,8 @@ class ChunkVectorIndex:
         count = min(limit, int(allowed.sum()))
         best = np.argpartition(-scores, count - 1)[:count]
         best = best[np.argsort(-scores[best], kind="stable")]
+        if min_score is not None:
+            best = best[scores[best] >= min_score]
         return [str(chunk_id) for chunk_id in block.chunk_ids[best]]
 
     async def has_visible(self, db: AsyncSession, user_id: str | None) -> bool:
