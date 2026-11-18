@@ -1,7 +1,7 @@
 /* The "/" menu of the chat box: typing "/" at the start of a message (or after other commands) lists the matching
    commands (ChatCommands, chat_commands.js) with what each does; arrows move, Enter or Tab picks, Escape closes, a
    click picks too. While it's open, Enter picks instead of sending (its keydown runs before chat.js's).
-   /use_skill too, when the Prompt cache's Short index picks skills by command (chat.js midChatChanges.skill_command)
+   /use_skill too, when the Prompt cache's Short index picks skills by command (chat_pinned_badges.js midChatChanges.skill_command)
    and the chat has skills (chat_skills.js): at the start or after the words at the end; "/use_skill " then lists the
    chat's skills, and picking one puts /use_skill "<name>" in the message (app/services/chat_skill_command.py). */
 const USE_SKILL = { name: "use_skill", description: "Use one of this chat's skills for this message", aliases: [] };
@@ -37,7 +37,7 @@ class ChatCommandMenu {
   /* The skills /use_skill offers when it's on: the chat's, or every one the user may use when the chat has none
      (picking one only adds the badge; the chat's own skills don't change). [] when it's off. */
   skills() {
-    const on = typeof midChatChanges !== "undefined" && midChatChanges.skill_command;
+    const on = typeof pinnedBadges !== "undefined" && pinnedBadges.midChatChanges.skill_command;
     if (!on || typeof chatSkills === "undefined") return [];
     const chosen = chatSkills.chosen.map((s) => s.name);
     return chosen.length ? chosen : chatSkills.libraryNames();

@@ -42,9 +42,9 @@ def _fake_model_is_installed(monkeypatch):
 @pytest.mark.asyncio
 async def test_build_reply_stream_yields_the_user_message_id_first(db, user, monkeypatch):
     """Regression: chat.js needs this dedicated event (not folded into "title" or the first "chunk") to tag the *user*
-    message's optimistic bubble (chat.js readAssistantReplyStream). Without it that bubble has no data-message-id,
+    message's optimistic bubble (chat_reply_stream.js ReplyStream.tag). Without it that bubble has no data-message-id,
     and a later channel poll/live-watch catch-up (reply_generation_service.stream_reply's cancel_on_disconnect,
-    chat.js ownSendInFlight) treats the same user message as unrecognized and duplicates it (a shipped bug).
+    ChatPage.ownSendInFlight) treats the same user message as unrecognized and duplicates it (a shipped bug).
     """
 
     async def fake_chat_stream(_model, _messages, _params):
@@ -184,7 +184,7 @@ async def test_build_reply_stream_yields_the_title_before_the_reply_starts(db, u
 
 @pytest.mark.asyncio
 async def test_build_reply_stream_smart_mode_schedules_title_after_done(db, user, monkeypatch):
-    """Regression: title generation ran *before* "done", so the Send button (chat.js streamAssistantReply stops
+    """Regression: title generation ran *before* "done", so the Send button (chat_send.js MessageSender stops
     waiting right after "done") stayed disabled for the whole second model call. In "smart" mode
     (chat_settings_service.set_title_mode) title_service.schedule_smart_title_generation must run only *after*
     "done" (see tests/test_title_service.py for why it's scheduled, not awaited).
@@ -377,7 +377,7 @@ async def test_build_reply_stream_cancels_a_personal_reply_on_disconnect(db, use
 @pytest.mark.asyncio
 async def test_build_reply_stream_tags_the_user_message_with_its_sender(db, user, monkeypatch):
     """A "user" Message records who typed it (Message.sender_id) so a channel can label messages
-    (MessageOut.sender_display_name, chat.js bubbleFor); a personal chat never shows it.
+    (MessageOut.sender_display_name, chat_bubbles.js ChatBubbles.create); a personal chat never shows it.
     """
 
     async def fake_chat_stream(_model, _messages, _params):

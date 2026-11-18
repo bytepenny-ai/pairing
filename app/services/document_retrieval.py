@@ -26,9 +26,9 @@ async def retrieve_context(
     """Embeds `query` and returns the top_k most similar chunks `user_id` may see, best first. `user_id` set =
     personal chat: own private documents plus shared "global" ones. `user_id=None` = channel chat
     (Conversation.channel_id): global only, so one member's private uploads are never exposed to the channel
-    (chat_service.py call site). Each result has the chunk text and its document's display name (not the
-    owner-scoped path), to build the prompt (build_augmented_system_prompt) and show sources. Empty list if
-    nothing exists in scope.
+    (chat_service.py call site). Each result has the chunk text, its document's display name (not the owner-scoped
+    path) and its similarity score, to build the prompt (build_augmented_system_prompt) and show sources. Empty
+    list if nothing exists in scope.
     """
     async with live_workflow.stage("rag_retrieve"):
         return await _retrieve(db, query, user_id, top_k)
@@ -47,15 +47,18 @@ async def _retrieve(db: AsyncSession, query: str, user_id: str | None, top_k: in
     async with live_workflow.stage("rag_embed", "rag_embed_ml_engine"):
         query_vector = await QuestionVectors.of(query, embedding_model, embed)
 
-    # Cosine similarity over the in-memory index. Only vectors from the current model compare: another model's
-    # (recorded, or of another size when unknown) waits for the next sync to re-embed it instead of matching badly.
+    # Cosine similarity over the in-memory index, raised for passages with the question's rare words (keyword_match.py).
+    # Only vectors from the current model compare: another model's (recorded, or of another size when unknown) waits
+    # for the next sync to re-embed it instead of matching badly.
     # A reranker, if set, gets a wider shortlist (Settings > System > Reranker: passages to rerank).
     shortlist = max(top_k, await DefaultModelSettings(db).rerank_candidates())
     async with live_workflow.stage("rag_rank"):
         min_score = await RagChatSettings(db).min_similarity()
-        ids = await chunk_vector_index.search(
-            db, query_vector, user_id, embedding_model, shortlist, refresh=False, min_score=min_score
+        found = await chunk_vector_index.scored(
+            db, query_vector, user_id, embedding_model, shortlist, refresh=False, min_score=min_score, question=query
         )
+        score = dict(found)
+        ids = list(score)
         by_id = {c.id: c for c in (await db.execute(select(Chunk).where(Chunk.id.in_(ids)))).scalars()}
     # A reranker, if set, picks the best top_k from a wider similarity shortlist.
     candidates = [by_id[chunk_id] for chunk_id in ids if chunk_id in by_id]
@@ -67,6 +70,7 @@ async def _retrieve(db: AsyncSession, query: str, user_id: str | None, top_k: in
             "filename": Path(chunk.document.filename).name,
             "document_id": chunk.document_id,
             "chunk_id": chunk.id,
+            "score": round(score[chunk.id], 2),  # similarity to the question, keywords included
         }
         for chunk in best
     ]

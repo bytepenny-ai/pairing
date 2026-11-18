@@ -31,6 +31,8 @@ class KnowledgeSourceOut(BaseModel):
     name: str
     # None for replies saved before sources had ids (a plain file name).
     id: str | None = None
+    # Its cosine similarity to the question in the search; None for replies saved before scores were kept.
+    score: float | None = None
 
 
 class ReplyStatsOut(BaseModel):

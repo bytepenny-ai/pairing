@@ -2,8 +2,9 @@
 
 Names are `<server>__<tool>`, so servers can't clash and a call routes back to its server. Each server's tool
 list is cached a minute per instance (a miss costs one request), keyed on the server's saved settings so edits
-never serve a stale list. A failing server is remembered as empty for a few seconds, so a dead one doesn't add its
-timeout to every reply.
+never serve a stale list. A failing server is noted (last_error) and skipped for a few minutes, so a dead one doesn't
+add its timeout to every reply. Servers are contacted only to run a reply with tools on, or on request ("Update tools",
+"Test connection"); the chat page reads what was fetched before (known), with no outside call.
 """
 
 import asyncio
@@ -19,17 +20,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import McpServer
 from app.schemas.mcp import McpServerDetails, McpTestResult, McpTestTool
 from app.services.mcp_client import McpConnection, McpError, McpToolInfo, McpToolResult
+from app.services.mcp_known_tools import McpKnownTools
 from app.services.mcp_server_service import McpServerService
 
 logger = logging.getLogger("llama_chat")
 
 _CACHE_SECONDS = 60.0
 LIST_TIMEOUT_SECONDS = 15.0  # asking a server for its tools (a tool call uses the server's own timeout)
-_FAILURE_CACHE_SECONDS = 15.0
+_FAILURE_CACHE_SECONDS = 300.0
 _MAX_NAME = 64
 _MAX_TOOL_DESCRIPTION = 400  # definitions are re-sent and re-read every round: keep them short
 _MAX_PARAM_DESCRIPTION = 160
 _cache: dict[str, tuple[float, tuple, list[McpToolInfo]]] = {}
+_fresh: dict[str, list[McpToolInfo]] = {}  # listings just fetched, to save as known (mcp_known_tools.py)
+_failures: dict[str, str] = {}  # each server's last error, until it lists again
 
 
 @dataclass(frozen=True)
@@ -78,10 +82,35 @@ def _shortened(schema: Any) -> Any:
 class McpToolCatalog:
     def __init__(self, db: AsyncSession) -> None:
         self._service = McpServerService(db)
+        self._known = McpKnownTools(db)
 
     async def tools(self) -> list[ExposedTool]:
         servers = await self._service.list(only_enabled=True)
         listings = await asyncio.gather(*(self._tools_of(s) for s in servers))
+        for server in servers:
+            if server.id in _fresh:
+                await self._known.save(server, _fresh.pop(server.id))
+        return self._expose(servers, listings)
+
+    async def known(self, servers: list[McpServer]) -> list[ExposedTool]:
+        """The tools last fetched from `servers` (saved, any age), without contacting them."""
+        saved = await self._known.load(servers)
+        return self._expose(servers, [saved.get(s.id, []) for s in servers])
+
+    async def listed(self, servers: list[McpServer]) -> set[str]:
+        """Names of the servers whose tools were fetched before (with their current settings)."""
+        saved = await self._known.load(servers)
+        return {s.name for s in servers if s.id in saved}
+
+    @staticmethod
+    def last_error(server: McpServer) -> str | None:
+        return _failures.get(server.id)
+
+    @staticmethod
+    def _fingerprint(server: McpServer) -> tuple:
+        return (server.url, server.headers_encrypted)
+
+    def _expose(self, servers: list[McpServer], listings: list[list[McpToolInfo]]) -> list[ExposedTool]:
         exposed: list[ExposedTool] = []
         taken: set[str] = set()
         for server, listing in zip(servers, listings, strict=True):
@@ -98,7 +127,7 @@ class McpToolCatalog:
 
     @staticmethod
     async def _tools_of(server: McpServer) -> list[McpToolInfo]:
-        fingerprint = (server.url, server.headers_encrypted)
+        fingerprint = McpToolCatalog._fingerprint(server)
         cached = _cache.get(server.id)
         if cached and cached[0] > time.monotonic() and cached[1] == fingerprint:
             return cached[2]
@@ -107,8 +136,11 @@ class McpToolCatalog:
             listing = await McpConnection(server.url, headers, timeout=LIST_TIMEOUT_SECONDS).list_tools()
         except McpError as exc:
             logger.warning("MCP server %r is unavailable: %s", server.name, exc)
+            _failures[server.id] = str(exc)[:300]
             _cache[server.id] = (time.monotonic() + _FAILURE_CACHE_SECONDS, fingerprint, [])
             return []
+        _failures.pop(server.id, None)
+        _fresh[server.id] = listing
         _cache[server.id] = (time.monotonic() + _CACHE_SECONDS, fingerprint, listing)
         return listing
 
@@ -163,3 +195,5 @@ class McpToolCatalog:
 
 def clear_cache() -> None:
     _cache.clear()
+    _fresh.clear()
+    _failures.clear()

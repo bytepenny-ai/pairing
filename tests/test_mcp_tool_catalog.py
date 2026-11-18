@@ -128,3 +128,20 @@ async def test_a_tool_runs_with_its_servers_timeout_and_listing_has_its_own(db, 
 
     assert tools and all(t.connection._timeout == 7.0 for t in tools)
     assert mcp_tool_catalog.LIST_TIMEOUT_SECONDS == 15.0
+
+
+async def test_fetched_tools_are_known_after_a_restart_without_contacting_the_server(db, server, monkeypatch) -> None:
+    service = McpServerService(db)
+    await service.create(McpServerIn(name="fake", url=server.url))
+    await McpToolCatalog(db).tools()  # a reply with tools on
+    mcp_tool_catalog.clear_cache()  # as a restart
+
+    async def refused(self):
+        raise AssertionError("contacted the server")
+
+    monkeypatch.setattr(mcp_tool_catalog.McpConnection, "list_tools", refused)
+    servers = await service.list(only_enabled=True)
+    assert "fake__add" in {t.name for t in await McpToolCatalog(db).known(servers)}
+    assert await McpToolCatalog(db).listed(servers) == {"fake"}
+    await service.update(servers[0].id, McpServerIn(name="fake", url=server.url + "?v=2"))  # other settings
+    assert await McpToolCatalog(db).known(await service.list(only_enabled=True)) == []

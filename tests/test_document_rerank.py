@@ -150,7 +150,7 @@ async def test_retrieval_shortlists_the_configured_passages_to_rerank(db, monkey
     async def visible(*_a):
         return True
 
-    async def search(_db, _vector, _user, _model, limit, refresh=True, min_score=None):
+    async def scored(_db, _vector, _user, _model, limit, refresh=True, min_score=None, question=""):
         limits.append(limit)
         return []
 
@@ -161,7 +161,7 @@ async def test_retrieval_shortlists_the_configured_passages_to_rerank(db, monkey
         return [1.0, 0.0]
 
     monkeypatch.setattr(chunk_vector_index, "has_visible", visible)
-    monkeypatch.setattr(chunk_vector_index, "search", search)
+    monkeypatch.setattr(chunk_vector_index, "scored", scored)
     monkeypatch.setattr(document_retrieval.model_catalog_service, "get_default_embedding_model", embedding_model)
     monkeypatch.setattr(document_retrieval, "embed", fake_embed)
     _engine(monkeypatch, rerank=False)

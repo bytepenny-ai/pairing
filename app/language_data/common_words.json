@@ -1,0 +1,18 @@
+{
+  "_about": "Common words that carry no topic, per language, lower case (keyword_match.py). A question's other words raise the search score of passages that contain them; these never do. A small knowledge base can't tell them apart by how often they appear. English only for now: add a language as its own key, e.g. \"fr\": [...].",
+  "en": [
+    "a", "about", "after", "again", "all", "also", "am", "an", "and", "any", "are", "as", "at", "be", "because",
+    "been", "before", "being", "between", "both", "but", "by", "can", "could", "did", "do", "does", "doing", "done",
+    "each", "few", "for", "from", "get", "give", "had", "has", "have", "he", "her", "here", "hers", "him", "his",
+    "how", "i", "if", "in", "into", "is", "it", "its", "just", "let", "like", "list", "make", "me", "more", "most",
+    "much", "my", "no", "not", "now", "of", "on", "one", "only", "or", "other", "our", "out", "over", "please",
+    "shall", "she", "short", "should", "show", "so", "some", "such", "tell", "than", "that", "the", "their", "them",
+    "then", "there", "these", "they", "thing", "things", "this", "those", "to", "too", "up", "us", "use", "very",
+    "want", "was", "way", "we", "were", "what", "when", "where", "which", "while", "who", "whom", "why", "will",
+    "with", "would", "you", "your", "explain", "describe", "know", "need", "mean", "means", "word", "words",
+    "sentence", "sentences", "line", "lines", "paragraph", "paragraphs", "point", "points", "summary", "summarize",
+    "summarise", "brief", "briefly", "simple", "simply", "plain", "terms", "detail", "details", "detailed", "example",
+    "examples", "overview", "quick", "quickly", "easy", "basic", "basics", "general", "generally", "definition",
+    "define"
+  ]
+}

@@ -58,3 +58,5 @@ async def test_search_leaves_out_matches_below_the_cutoff(db):
     assert len(await index.search(db, query, None, "emb", 5)) == 2
     assert await index.search(db, query, None, "emb", 5, min_score=0.5) == [near]
     assert await index.search(db, query, None, "emb", 5, min_score=0.999) == []
+    scored = await index.scored(db, query, None, "emb", 5)
+    assert [chunk_id for chunk_id, _ in scored][0] == near and scored[0][1] == pytest.approx(0.995, abs=0.001)

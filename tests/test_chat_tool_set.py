@@ -4,9 +4,11 @@ import pytest
 
 from app.models import Conversation
 from app.routers import mcp_tools
-from app.services import inference_client, mcp_settings_service
+from app.schemas.mcp import McpServerIn
+from app.services import inference_client, mcp_settings_service, mcp_tool_catalog
 from app.services.chat_tool_set import ChatTool, ChatToolSet
-from app.services.mcp_client import McpConnection
+from app.services.mcp_client import McpConnection, McpError
+from app.services.mcp_server_service import McpServerService
 from app.services.mcp_tool_catalog import ExposedTool, McpToolCatalog
 from app.services.tool_loop_service import ToolLoop
 from tests.test_prompt_layouts import use
@@ -80,7 +82,17 @@ async def test_the_chat_tools_endpoint_lists_unavailable_and_new_tools(db, user,
     async def fake_tools(self):
         return _live("a", "c")
 
-    monkeypatch.setattr(McpToolCatalog, "tools", fake_tools)
+    await McpServerService(db).create(McpServerIn(name="s", url="http://127.0.0.1:1/mcp"))
+    monkeypatch.setattr(McpToolCatalog, "tools", fake_tools)  # "Update tools" contacts the servers
+
+    async def known(self, servers):  # fetched before
+        return _live("a", "c")
+
+    async def listed(self, servers):
+        return {"s"}
+
+    monkeypatch.setattr(McpToolCatalog, "known", known)
+    monkeypatch.setattr(McpToolCatalog, "listed", listed)
     saved = ChatToolSet.snapshot_of(_live("a", "b"))
     conversation = Conversation(owner_id=user.id, params={"tool_snapshot": saved})
     db.add(conversation)
@@ -112,3 +124,29 @@ async def test_a_params_update_never_changes_the_saved_tools(db, user):
     await conversation_service.update_conversation(db, conversation, ConversationUpdate(params=forged), user)
 
     assert conversation.params["tool_snapshot"] == saved and conversation.params["use_tools"] is True
+
+
+@pytest.mark.asyncio
+async def test_opening_a_chat_contacts_no_tool_server(db, user, monkeypatch):
+    """The Tools button is drawn from what is known; a server failing during a reply shows with its reason."""
+    mcp_tool_catalog.clear_cache()
+    contacted = []
+
+    async def failing(self):
+        contacted.append(self)
+        raise McpError("503 Service Unavailable")
+
+    monkeypatch.setattr(McpConnection, "list_tools", failing)
+    await McpServerService(db).create(McpServerIn(name="w", url="http://127.0.0.1:1/mcp"))
+    await mcp_settings_service.set_enabled(db, True)
+    conversation = Conversation(owner_id=user.id, params={})
+    db.add(conversation)
+    await db.commit()
+
+    out = await mcp_tools.chat_tools(conversation.id, db=db, user=user)
+    assert contacted == [] and out.enabled and out.tools == []
+    assert [(s.name, s.error) for s in out.servers] == [("w", None)]
+
+    assert await McpToolCatalog(db).tools() == []  # a reply with tools on: contacted, fails, noted
+    out = await mcp_tools.chat_tools(conversation.id, db=db, user=user)
+    assert len(contacted) == 1 and out.servers[0].error == "503 Service Unavailable"

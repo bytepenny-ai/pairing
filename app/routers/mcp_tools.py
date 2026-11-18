@@ -5,13 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import User
-from app.schemas.mcp import McpChatTool, McpChatTools, McpToolOut
+from app.schemas.mcp import McpChatTools, McpToolOut
 from app.services import channel_service, conversation_service, mcp_settings_service
 from app.services.auth_service import get_current_user
 from app.services.chat_tool_set import ChatToolSet
-from app.services.engines.registry import registry
+from app.services.chat_tools_view import ChatToolsView
 from app.services.mcp_tool_catalog import McpToolCatalog
-from app.services.prompt_cache_setting import PromptCacheSettings
 
 router = APIRouter(prefix="/api/mcp", tags=["mcp"])
 
@@ -24,29 +23,13 @@ async def list_tools(db: AsyncSession = Depends(get_db), _user: User = Depends(g
 
 
 async def _chat_tools(db: AsyncSession, conversation) -> McpChatTools:
-    # Off too when the active engine can't pass tools to its models (e.g. a connector): the button would mislead.
-    enabled = registry.active().capabilities.tools and await mcp_settings_service.get_enabled(db)
-    live = await McpToolCatalog(db).tools() if enabled else []
-    saved = (conversation.params or {}).get("tool_snapshot") or []
-    # Options 2 and 3 (tool index): the chat follows the current tools, so nothing to offer as new (tool_loop_service).
-    if not saved or (await PromptCacheSettings(db).get()).mode in ("append", "index"):
-        return McpChatTools(
-            enabled=enabled, frozen=False, tools=[McpChatTool(name=t.name, description=t.description) for t in live]
-        )
-    return McpChatTools(
-        enabled=enabled,
-        frozen=True,
-        tools=[
-            McpChatTool(name=t.name, description=t.spec["function"].get("description", ""), available=t.available)
-            for t in ChatToolSet.tools(saved, live)
-        ],
-        new_tools=[McpToolOut(name=t.name, description=t.description) for t in ChatToolSet.new_tools(saved, live)],
-    )
+    return await ChatToolsView(db).of(conversation.params)
 
 
 @router.get("/conversations/{conversation_id}/tools", response_model=McpChatTools)
 async def chat_tools(conversation_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
-    """The chat's tools, plus ones an admin removed since (listed as unavailable) and new ones."""
+    """The chat's tools, plus ones an admin removed since (listed as unavailable) and new ones. No tool server is
+    contacted (chat_tools_view.py)."""
     conversation = await conversation_service.get_accessible_conversation_or_404(db, conversation_id, user)
     return await _chat_tools(db, conversation)
 
@@ -55,7 +38,8 @@ async def chat_tools(conversation_id: str, db: AsyncSession = Depends(get_db), u
 async def refresh_chat_tools(
     conversation_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
-    """Replaces the chat's saved tools with the current ones; the next reply re-reads the whole chat once."""
+    """Replaces the chat's saved tools with the current ones (asked by the user, so the servers are contacted); the
+    next reply re-reads the whole chat once."""
     conversation = await conversation_service.get_accessible_conversation_or_404(db, conversation_id, user)
     if conversation.channel_id is not None and not channel_service.can_manage_channel_conversation(conversation, user):
         raise HTTPException(status_code=403, detail="Only admins and this channel's managers can change its tools.")

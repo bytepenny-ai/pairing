@@ -27,8 +27,9 @@ class KnowledgeSourceCheck:
         self._db = db
 
     async def used(self, reply: str, sources: list[dict]) -> list[dict]:
-        """`sources` ({name, id, chunks}) as saved and shown: {name, id}, those the reply used if the check is on."""
-        shown = [{"name": source["name"], "id": source["id"]} for source in sources]
+        """`sources` ({name, id, score, chunks}) as saved and shown, without chunks: those the reply used if the
+        check is on."""
+        shown = [{key: value for key, value in source.items() if key != "chunks"} for source in sources]
         settings = RagChatSettings(self._db)
         if not shown or not reply.strip() or not await settings.check_sources():
             return shown

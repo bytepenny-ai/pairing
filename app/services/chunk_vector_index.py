@@ -16,7 +16,9 @@ import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import RAG_KEYWORD_WEIGHT
 from app.models import Chunk, Document
+from app.services.keyword_match import KeywordMatch
 
 
 @dataclass
@@ -27,6 +29,7 @@ class _Block:
     chunk_ids: np.ndarray  # (n,) object
     owners: np.ndarray  # (n,) object, None = shared
     models: np.ndarray  # (n,) object, None = not recorded
+    keywords: KeywordMatch  # the words of each row's text
 
 
 class ChunkVectorIndex:
@@ -44,10 +47,27 @@ class ChunkVectorIndex:
         limit: int,
         refresh: bool = True,
         min_score: float | None = None,
+        question: str = "",
     ) -> list[str]:
-        """Ids of the `limit` chunks most similar to `query_vector` (cosine), best first: chunks `user_id` may see
-        (None = shared only), embedded with `model` (or unrecorded) and of the same vector size. `refresh=False`
-        skips the change check when the caller just ran it (has_visible). `min_score` drops weaker matches."""
+        """Ids of the best chunks, as `scored` finds them."""
+        found = await self.scored(db, query_vector, user_id, model, limit, refresh, min_score, question)
+        return [chunk_id for chunk_id, _score in found]
+
+    async def scored(
+        self,
+        db: AsyncSession,
+        query_vector: np.ndarray,
+        user_id: str | None,
+        model: str,
+        limit: int,
+        refresh: bool = True,
+        min_score: float | None = None,
+        question: str = "",
+    ) -> list[tuple[str, float]]:
+        """(id, score) of the `limit` chunks most similar to `query_vector` (cosine), best first: chunks `user_id`
+        may see (None = shared only), embedded with `model` (or unrecorded) and of the same vector size. `refresh=False`
+        skips the change check when the caller just ran it (has_visible). `min_score` drops weaker matches.
+        `question`, the text of `query_vector`, adds the keyword part of the score (RAG_KEYWORD_WEIGHT)."""
         if refresh:
             await self.refresh(db)
         block = self._blocks.get(query_vector.shape[0])
@@ -57,13 +77,16 @@ class ChunkVectorIndex:
         if not allowed.any():
             return []
         query = query_vector.astype(np.float32) / (np.linalg.norm(query_vector) or 1.0)
-        scores = np.where(allowed, block.vectors @ query, -np.inf)
+        scores = block.vectors @ query
+        if question.strip():
+            scores = scores + RAG_KEYWORD_WEIGHT * block.keywords.strength(question)
+        scores = np.where(allowed, scores, -np.inf)
         count = min(limit, int(allowed.sum()))
         best = np.argpartition(-scores, count - 1)[:count]
         best = best[np.argsort(-scores[best], kind="stable")]
         if min_score is not None:
             best = best[scores[best] >= min_score]
-        return [str(chunk_id) for chunk_id in block.chunk_ids[best]]
+        return [(str(block.chunk_ids[index]), float(scores[index])) for index in best]
 
     async def has_visible(self, db: AsyncSession, user_id: str | None) -> bool:
         """Whether `user_id` can see any chunk at all (lets retrieval skip embedding the question)."""
@@ -99,12 +122,12 @@ class ChunkVectorIndex:
     @staticmethod
     async def _build(db: AsyncSession) -> dict[int, _Block]:
         rows = await db.execute(
-            select(Chunk.id, Chunk.embedding, Document.owner_id, Document.embedding_model).join(Document)
+            select(Chunk.id, Chunk.embedding, Chunk.text, Document.owner_id, Document.embedding_model).join(Document)
         )
         grouped: dict[int, list[tuple]] = {}
-        for chunk_id, embedding, owner, model in rows:
+        for chunk_id, embedding, text, owner, model in rows:
             vector = np.frombuffer(embedding, dtype=np.float32)
-            grouped.setdefault(vector.shape[0], []).append((chunk_id, vector, owner, model))
+            grouped.setdefault(vector.shape[0], []).append((chunk_id, vector, owner, model, text))
         blocks = {}
         for dim, items in grouped.items():
             vectors = np.stack([item[1] for item in items]).astype(np.float32)
@@ -115,6 +138,7 @@ class ChunkVectorIndex:
                 chunk_ids=np.array([item[0] for item in items], dtype=object),
                 owners=np.array([item[2] for item in items], dtype=object),
                 models=np.array([item[3] for item in items], dtype=object),
+                keywords=KeywordMatch([item[4] or "" for item in items]),
             )
         return blocks
 

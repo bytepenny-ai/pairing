@@ -2,7 +2,7 @@
 class ToolBlocks {
   static RESULT_PREVIEW_CHARS = 2000;
 
-  /* Draws `bubble._toolEvents` as a block at the top of the bubble, replacing any earlier one. Called after every renderReplyBody, which rewrites the bubble. */
+  /* Draws `bubble._toolEvents` as a block at the top of the bubble, replacing any earlier one. Called after every ReplyBody.render, which rewrites the bubble. */
   static render(bubble) {
     bubble.querySelector(":scope > .tool-blocks")?.remove();
     const events = bubble._toolEvents;
@@ -48,6 +48,7 @@ class ToolToggle {
     this.params = null;
     this.tools = [];
     this.newTools = [];
+    this.servers = []; // enabled tool servers: {name, error}
     this.canManage = false;
     this.popover = document.createElement("div");
     this.popover.className =
@@ -64,13 +65,14 @@ class ToolToggle {
     });
   }
 
-  /* Called when a conversation opens: show the switch only if some MCP tool exists. */
+  /* Called when a conversation opens: shows the switch if a tool server is set up. The server side answers without
+  contacting any tool server (chat_tools_view.py). */
   async sync(conversationId, conversation, canManage) {
     this.conversationId = conversationId;
     this.params = conversation.params || {};
     this.canManage = canManage;
     this.popover.classList.add("hidden");
-    let info = { enabled: false, tools: [], new_tools: [] };
+    let info = { enabled: false, tools: [], new_tools: [], servers: [] };
     try {
       info = await api(`/api/mcp/conversations/${conversationId}/tools`);
     } catch (_) {
@@ -79,7 +81,8 @@ class ToolToggle {
     if (this.conversationId !== conversationId) return;
     this.tools = info.tools;
     this.newTools = info.new_tools;
-    this.button.classList.toggle("hidden", !info.enabled || info.tools.length === 0);
+    this.servers = info.servers || [];
+    this.button.classList.toggle("hidden", !info.enabled || (info.tools.length === 0 && this.servers.length === 0));
     this.paint();
   }
 
@@ -126,7 +129,25 @@ class ToolToggle {
       item.append(name, description);
       return item;
     });
-    this.popover.replaceChildren(head, note, ...items, ...this.newToolsNotice());
+    this.popover.replaceChildren(head, note, ...items, ...this.serverNotes(), ...this.newToolsNotice());
+  }
+
+  /* With no tools known yet, which servers they come from; and each server that failed when last contacted. */
+  serverNotes() {
+    const notes = [];
+    if (!this.tools.length && this.servers.length) {
+      const known = document.createElement("p");
+      known.className = "text-slate-400";
+      known.textContent = `Tools from ${this.servers.map((s) => s.name).join(", ")} are fetched when a reply first uses them.`;
+      notes.push(known);
+    }
+    for (const server of this.servers.filter((s) => s.error)) {
+      const failed = document.createElement("p");
+      failed.className = "text-warning-400 break-words";
+      failed.textContent = `${server.name} was unavailable when last tried, so it is skipped for a few minutes: ${server.error}`;
+      notes.push(failed);
+    }
+    return notes;
   }
 
   /* If an admin added tools after this chat started, suggest them but change the chat only on request: a new tool list makes the model re-read the whole chat once. */
@@ -167,10 +188,10 @@ class ToolToggle {
   async flip() {
     // Tools sit at the start of the prompt, so switching them in a chat with messages makes the engine re-read it all
     // on the next reply. Say so and let the person choose; not when the Prompt cache setting makes it cheap
-    // (chat.js midChatChanges: Add changes as updates, Short index, Keep unchanged blocks).
+    // (chat_pinned_badges.js midChatChanges: Add changes as updates, Short index, Keep unchanged blocks).
     const turningOn = !this.on;
-    const cheap = typeof midChatChanges !== "undefined" && midChatChanges.tools;
-    const rereads = typeof activeHasMessages !== "undefined" && activeHasMessages && !cheap;
+    const cheap = typeof pinnedBadges !== "undefined" && pinnedBadges.midChatChanges.tools;
+    const rereads = typeof chatPage !== "undefined" && chatPage.activeHasMessages && !cheap;
     if (rereads && !confirm(`Turning tools ${turningOn ? "on" : "off"} changes this chat's prompt, so its next reply will re-read the whole chat (slower). Continue?`)) {
       this.drawPopover();
       return;

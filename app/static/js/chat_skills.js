@@ -1,5 +1,5 @@
 /* The composer's Skills chip and picker (chat.html #skills-badge, #skills-picker): which skills this chat uses,
- * via /api/skills (routers/skills.py). Drawn with the persona/rules icons (chat.js renderPinnedBadges calls render),
+ * via /api/skills (routers/skills.py). Drawn with the persona/rules icons (chat_pinned_badges.js PinnedBadges.render calls render),
  * and locked the same way: only before the first message (unless the Prompt cache layout allows changes, chat.js
  * skillsLocked), and in a channel only for its admins and managers. */
 class ChatSkills {
@@ -36,7 +36,7 @@ class ChatSkills {
       this.close();
       await this.load();
     }
-    if (conversationId !== activeConversationId) return; // switched again meanwhile
+    if (conversationId !== chatPage.activeConversationId) return; // switched again meanwhile
     this.editable = editable && this.serverEditable;
     this.drawBadge();
   }
@@ -69,15 +69,15 @@ class ChatSkills {
     }
     this.badge.className = "relative shrink-0 rounded-xl px-2.5 py-1.5 text-sm leading-5 transition-colors hover:bg-slate-800";
     const names = count ? this.chosen.map((s) => s.name).join(", ") : "none";
-    const locked = skillsLocked() ? " — locked: can only change before the first message" : this.reason ? ` — ${this.reason}` : "";
+    const locked = pinnedBadges.skillsLocked() ? " — locked: can only change before the first message" : this.reason ? ` — ${this.reason}` : "";
     this.badge.title = `Skills: ${names}${this.editable ? "" : locked}`;
   }
 
   async open() {
-    closeHeaderPopups("skills");
+    chatPage.closeHeaderPopups("skills");
     this.selected = new Set(this.chosen.map((s) => s.id));
     // Started chat: the red box (as the model picker's warning); otherwise the reason, e.g. a channel member.
-    const started = skillsLocked();
+    const started = pinnedBadges.skillsLocked();
     this.field("locked").classList.toggle("hidden", !started);
     this.field("header").classList.toggle("hidden", started);
     this.field("note").textContent = this.editable || started ? "" : this.reason;

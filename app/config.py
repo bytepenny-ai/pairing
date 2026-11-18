@@ -200,6 +200,9 @@ RAG_RERANK_CANDIDATES_MIN, RAG_RERANK_CANDIDATES_MAX = 5, 50
 # Knowledge in chats), so small talk gets no excerpts or sources. 0 sends the closest ones always.
 RAG_MIN_SIMILARITY = 0.39
 RAG_MIN_SIMILARITY_MIN, RAG_MIN_SIMILARITY_MAX = 0.0, 0.9
+# Keyword part of that score (keyword_match.py): the most a passage can gain from sharing the question's topic words.
+# Four of four shared add 3/4 of it, two of two half, a single shared word nothing.
+RAG_KEYWORD_WEIGHT = 0.3
 # Source check (same place, knowledge_source_check.py): after a reply, its parts are embedded and a document stays
 # under "Sources" only if a part is at least this close to one of its excerpts. Replies that ignored the excerpts
 # measured about 0.35, ones that used them about 0.5. Off = every searched document is listed.

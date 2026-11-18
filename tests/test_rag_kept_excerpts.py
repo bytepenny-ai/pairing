@@ -14,8 +14,8 @@ from app.services import (
 from app.services.rag_chat_settings import RagChatSettings
 
 _CHUNKS = [
-    {"text": "Refunds within 30 days.", "filename": "policy.txt", "document_id": "a"},
-    {"text": "A refund needs the order number.", "filename": "policy.txt", "document_id": "a"},
+    {"text": "Refunds within 30 days.", "filename": "policy.txt", "document_id": "a", "score": 0.41},
+    {"text": "A refund needs the order number.", "filename": "policy.txt", "document_id": "a", "score": 0.52},
 ]
 
 
@@ -63,7 +63,7 @@ async def test_kept_excerpts_make_the_earlier_message_match_exactly(db, user, se
     assert _first_question(second) == _first_question(first)  # same text: the engine's cache matches
     # The same passages are already in the chat: not added again, but still listed as sources.
     assert "Refunds within 30 days." not in second[-1]["content"]
-    assert next(e for e in events if e.get("done"))["sources"] == [{"name": "policy.txt", "id": "a"}]
+    assert next(e for e in events if e.get("done"))["sources"] == [{"name": "policy.txt", "id": "a", "score": 0.52}]
 
 
 @pytest.mark.asyncio

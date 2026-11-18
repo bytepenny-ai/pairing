@@ -1,8 +1,9 @@
 /* While a message with files or knowledge excerpts is being read, its user bubble is swapped for a small vector space:
-   passages as dots drifting around the origin, the question as a pink dot, and its nearest dots by cosine similarity
-   (the angle seen from the origin) lit up. A canvas drawn at ~30 fps, client side only; stops when removed.
-   chat.js: cover() on send with files or on a "retrieval" event, progress() on "read_progress", reveal() at the
-   first words or when the send ends. */
+   dots drifting around the origin, the question as a pink dot, and its nearest dots (by the angle seen from the
+   origin) lit up. The dots only show that a search runs; the numbers are real: the best search score of the excerpts
+   sent (bestMatch) and the prompt's read progress. A canvas drawn at ~30 fps; stops when removed.
+   chat_reply_stream.js: cover() on send with files or on a "retrieval" event, bestMatch() with it, progress() on
+   "read_progress", reveal() at the first words or when the send ends. */
 class VectorSpace {
   static SIZE = 132; // CSS px, square
   static DOTS = 26;
@@ -20,6 +21,14 @@ class VectorSpace {
     if (!bubble) return null;
     wrapper._vectorSpace = new VectorSpace(bubble, kind, count);
     return wrapper._vectorSpace;
+  }
+
+  /* The best similarity score among the excerpts sent (the same score as under Sources); null: unknown. */
+  static bestMatch(wrapper, score) {
+    const space = wrapper?._vectorSpace;
+    if (!space || typeof score !== "number") return;
+    space.best = score;
+    if (space.still) space.draw(0);
   }
 
   static progress(wrapper, fraction) {
@@ -40,6 +49,7 @@ class VectorSpace {
     this.bubble = bubble;
     this.kinds = {};
     this.fraction = null;
+    this.best = null;
     this.box = document.createElement("div");
     this.box.className = "vector-space";
     this.box.setAttribute("role", "status");
@@ -169,9 +179,10 @@ class VectorSpace {
     ctx.shadowBlur = 0;
 
     this.drawProgress(t);
-    const best = ranked[0].cos.toFixed(2);
-    const read = this.fraction == null ? "" : ` · ${Math.floor(this.fraction * 100)}%`;
-    this.score.textContent = `cos ${best}${read}`;
+    const parts = [];
+    if (this.best != null) parts.push(`best match ${this.best.toFixed(2)}`);
+    if (this.fraction != null) parts.push(`${Math.floor(this.fraction * 100)}%`);
+    this.score.textContent = parts.join(" · ");
   }
 
   /* Bottom bar: the prompt's read progress when known, else a sliding glow. */

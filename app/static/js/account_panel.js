@@ -4,8 +4,8 @@ const accountPanelBadgeEl = document.getElementById("account-panel-badge");
 const accountPanelEl = document.getElementById("account-panel");
 const accountPanelBackdropEl = document.getElementById("account-panel-backdrop");
 
-// The badge renders at once from the data attributes base.html puts on <body> (no round trip), as chat.js's
-// currentAvatarUrl/currentInitials.
+// The badge renders at once from the data attributes base.html puts on <body> (no round trip), as chat.js ChatPage.readUser
+// does.
 (function renderAccountPanelBadge() {
   const username = document.body.dataset.username || "";
   const letters = [document.body.dataset.firstName, document.body.dataset.lastName].filter(Boolean).map((n) => n[0]);
@@ -73,7 +73,7 @@ document.getElementById("account-panel-avatar-input").addEventListener("change",
       const body = await response.json().catch(() => ({}));
       throw new Error(body.detail || "Upload failed.");
     }
-    // Full reload, so the header badge and the "user" bubbles chat.js renders (it reads currentAvatarUrl once at load)
+    // Full reload, so the header badge and the "user" bubbles chat.js renders (ChatPage.readUser reads the avatar once at load)
     // pick up the new picture.
     window.location.reload();
   } catch (err) {

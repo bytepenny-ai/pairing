@@ -29,7 +29,7 @@ async def build_system_prompt(
     system_prompt: str | None = None,
 ) -> tuple[str, str, list[dict], list[str], str]:
     """Returns (system_prompt, turn_context, knowledge_sources, notices, knowledge_excerpts) for this turn.
-    `knowledge_sources`: {name, id} of each document the excerpts came from, best match first.
+    `knowledge_sources`: {name, id, score} of each document the excerpts came from, best match first.
     `knowledge_excerpts`: this turn's new Knowledge base text (part of turn_context), to keep with the message.
     Passages already in `history` (kept from an earlier turn) are not added again, but still count as sources.
 
@@ -77,6 +77,8 @@ async def build_system_prompt(
         if source is None:
             source = {"name": chunk["filename"], "id": chunk["document_id"], "chunks": []}
             knowledge_sources.append(source)
+        if "score" in chunk:  # the document's best search score, shown beside its name
+            source["score"] = max(source.get("score", chunk["score"]), chunk["score"])
         if chunk.get("chunk_id"):
             source["chunks"].append(chunk["chunk_id"])
 

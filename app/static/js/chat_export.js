@@ -7,7 +7,7 @@ class ChatExport {
     this.badge.addEventListener("click", (event) => {
       event.stopPropagation();
       const opening = this.menu.classList.contains("hidden");
-      if (opening) closeHeaderPopups("export");
+      if (opening) chatPage.closeHeaderPopups("export");
       this.menu.classList.toggle("hidden", !opening);
     });
     this.menu.addEventListener("click", (event) => this.onPick(event));

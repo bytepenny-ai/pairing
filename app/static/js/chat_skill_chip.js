@@ -30,7 +30,7 @@ class SkillChip {
   }
 
   /* A sent message's /use_skill "<name>" (anywhere, as app/services/chat_skill_command.py reads it): { skill, text }
-     with the command taken out, so the bubble shows a badge instead (chat.js addMessageBubble); skill null without
+     with the command taken out, so the bubble shows a badge instead (chat_bubbles.js ChatBubbles.add); skill null without
      one. */
   static split(content) {
     const text = content || "";

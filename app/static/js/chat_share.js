@@ -1,11 +1,10 @@
 /*
  * "Share to a channel" for private-chat messages, plus the "Shared from a private chat" remark on the channel side
- * (loaded before chat.js, which calls ChannelShare.decorate / ChannelShare.remark in addMessageBubble and
- * streamAssistantReply). The server does the work and all checks (app/services/message_share_service.py); this offers
+ * (loaded before chat.js; ChatBubbles.add and ReplyStream call ChannelShare.decorate / ChannelShare.remark). The server does the work and all checks (app/services/message_share_service.py); this offers
  * the button, lets the user pick a channel and shows the result. The shared copy is plain text posted as the sharer's
  * own message: no AI reply, no link back to the private chat.
  * 
- * Reads chat.js globals (activeConversationId, channelsByConversationId, api) at call time only.
+ * Reads chatPage (activeConversationId, channels) and api at call time only.
  */
 class ChannelShare {
   static #menu = null;
@@ -13,8 +12,8 @@ class ChannelShare {
   /* Adds a share button beside a finished message's timestamp: private chats only, and only if the user is in a channel. Safe to call twice per bubble. */
   static decorate(wrapper, messageId, role) {
     if (!wrapper || !messageId || !["user", "assistant"].includes(role)) return;
-    if (channelsByConversationId[activeConversationId]) return;
-    if (Object.keys(channelsByConversationId).length === 0) return;
+    if (chatPage.channels[chatPage.activeConversationId]) return;
+    if (Object.keys(chatPage.channels).length === 0) return;
     const time = wrapper.querySelector(".message-time");
     if (!time || wrapper.querySelector(".share-message-btn")) return;
 
@@ -83,7 +82,7 @@ class ChannelShare {
     heading.className = "px-3 py-1 text-xs text-slate-500";
     heading.textContent = "Share to channel";
     menu.appendChild(heading);
-    for (const channel of Object.values(channelsByConversationId)) {
+    for (const channel of Object.values(chatPage.channels)) {
       const item = document.createElement("button");
       item.type = "button";
       item.className = "block w-full truncate px-3 py-1.5 text-left text-slate-200 hover:bg-slate-800";
@@ -111,7 +110,7 @@ class ChannelShare {
   static async #share(button, messageId, channel) {
     button.disabled = true;
     try {
-      await api(`/api/conversations/${activeConversationId}/messages/${messageId}/share`, {
+      await api(`/api/conversations/${chatPage.activeConversationId}/messages/${messageId}/share`, {
         method: "POST",
         body: JSON.stringify({ channel_id: channel.id }),
       });

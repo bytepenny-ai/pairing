@@ -1,7 +1,7 @@
 /* While the engine reads a long prompt (a long file on a CPU can take many minutes before the first word), the reply's
    waiting label shows how far it got and an estimate of the time left, from how fast the percentage has been moving:
    "Reading… 35% · about 12 min left". Fed by the reply stream's "read_progress" events (0 to 1,
-   reply_side_events.py); renderReplyBody (chat.js) asks for the label. When the chat outgrew the context window and
+   reply_side_events.py); ReplyBody.render (chat_reply_body.js) asks for the label. When the chat outgrew the context window and
    its oldest messages were trimmed ("compacting" events, reply_broadcast_service.publish_compacting), the engine
    compacts its cache first, so the label says "Compacting cache…" (with the same progress once it comes). */
 class ReadProgress {

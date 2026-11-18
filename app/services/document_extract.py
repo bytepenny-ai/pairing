@@ -17,6 +17,7 @@ from pypdf import PdfReader
 from striprtf.striprtf import rtf_to_text
 
 from app.config import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
+from app.services.pdf_text import PdfText
 from app.services.text_files import KNOWN_EXTENSIONS, TextFiles
 
 # File types the folder scanner can read. Anything else is ignored, not an error: these are plain folders
@@ -55,7 +56,7 @@ def extract_text(raw: bytes, suffix: str) -> str:
     plain UTF-8)."""
     if suffix == ".pdf":
         reader = PdfReader(BytesIO(raw))
-        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+        return PdfText([page.extract_text() or "" for page in reader.pages]).text()
 
     if suffix == ".docx":
         doc = DocxFile(BytesIO(raw))
@@ -93,7 +94,7 @@ def hash_bytes(raw: bytes) -> str:
 
 def chunk_text(text: str, size: int = RAG_CHUNK_SIZE, overlap: int = RAG_CHUNK_OVERLAP) -> list[str]:
     """Splits `text` into overlapping windows of ~`size` characters; the overlap keeps a sentence on a boundary whole in
-    at least one chunk."""
+    at least one chunk. Windows end and start between words where there is a space near the cut."""
     text = text.strip()
     if not text:
         return []
@@ -101,11 +102,23 @@ def chunk_text(text: str, size: int = RAG_CHUNK_SIZE, overlap: int = RAG_CHUNK_O
     start = 0
     while start < len(text):
         end = start + size
-        chunks.append(text[start:end])
+        if end < len(text):
+            end = _word_edge(text, end, start + size // 2, backward=True)
+        chunks.append(text[start:end].strip())
         if end >= len(text):
             break
-        start = end - overlap
+        start = max(_word_edge(text, end - overlap, end, backward=False), start + 1)
     return chunks
+
+
+def _word_edge(text: str, cut: int, limit: int, backward: bool) -> int:
+    """`cut` moved to just after the nearest space toward `limit` (back for an end, forward for a start), or `cut`
+    itself if there is none: a text without spaces is cut where it is."""
+    if backward:
+        space = text.rfind(" ", limit, cut + 1)
+        return space + 1 if space > limit else cut
+    space = text.find(" ", cut, limit)
+    return space + 1 if space != -1 else cut
 
 
 def vector_to_bytes(vector: list[float]) -> bytes:

@@ -45,7 +45,7 @@ async function api(path, options = {}) {
   return response.json();
 }
 
-/* Escapes text inserted as HTML outside markdown rendering (titles, filenames). Message content goes through `marked.parse` then `DOMPurify.sanitize` (chat.js renderMessageContent), as marked does not sanitize. */
+/* Escapes text inserted as HTML outside markdown rendering (titles, filenames). Message content goes through `marked.parse` then `DOMPurify.sanitize` (chat_markdown.js MessageMarkdown.render), as marked does not sanitize. */
 function escapeHtml(value) {
   const div = document.createElement("div");
   div.textContent = value;

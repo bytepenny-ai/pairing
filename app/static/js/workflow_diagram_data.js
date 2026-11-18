@@ -61,7 +61,7 @@ const WORKFLOW_NODES = [
   // ---- Main chain (the linear happy path) --------------------------
   {
     id: "chat_js_send",
-    label: "sendMessage()",
+    label: "MessageSender.send()",
     category: "frontend",
     x: 560,
     y: 40,
@@ -70,13 +70,13 @@ const WORKFLOW_NODES = [
     detail: {
       server: "Browser",
       title: "Optimistic send",
-      location: "app/static/js/chat.js — sendMessage",
+      location: "app/static/js/chat_send.js — MessageSender.send",
       body: "Renders the user's own bubble, and (if asking the AI) an empty streaming assistant bubble, immediately client-side — before any network request has even started. The UI feels instant regardless of server/model latency.",
     },
   },
   {
     id: "chat_js_stream",
-    label: "readAssistantReplyStream()",
+    label: "ReplyStream.run()",
     category: "frontend",
     x: 560,
     y: 150,
@@ -85,7 +85,7 @@ const WORKFLOW_NODES = [
     detail: {
       server: "Browser",
       title: "The actual HTTP request",
-      location: "app/static/js/chat.js — readAssistantReplyStream",
+      location: "app/static/js/chat_reply_stream.js — ReplyStream.run",
       body: "Sends POST /api/chat/{conversation_id}/stream via XMLHttpRequest — deliberately not fetch(). The reason: an attachment upload needs a real progress bar, and only xhr.upload.onprogress exposes upload progress; fetch() has no such event. The body is FormData (content, ask_ai, one or more attachments files), not JSON — the browser sets its own multipart boundary. The response is still genuinely SSE-shaped (data: {...}\\n\\n frames) — this code just parses those frames by hand out of the growing xhr.responseText instead of using the native EventSource API, since EventSource only supports body-less GET requests.",
     },
   },
@@ -235,7 +235,7 @@ const WORKFLOW_NODES = [
     detail: {
       server: "Browser",
       title: "Back in the browser",
-      location: "app/static/js/chat.js — readAssistantReplyStream's frame parser",
+      location: "app/static/js/chat_reply_stream.js — ReplyStream.handle",
       body: "Each SSE frame parsed out of xhr.responseText updates the assistant bubble's rendered text immediately — the same incremental Markdown render runs on every chunk, not just once at the end.",
     },
   },

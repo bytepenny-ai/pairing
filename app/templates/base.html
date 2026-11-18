@@ -49,7 +49,7 @@
   <!-- highlight.js: highlights fenced code in replies with one fixed color scheme (app.theme_config.HLJS_THEME), not a per-user setting like the UI theme below. -->
   <link rel="stylesheet" href="/static/vendor/highlightjs/styles/{{ hljs_theme }}.min.css">
   <script src="/static/vendor/highlightjs/highlight.min.js"></script>
-  <!-- KaTeX: renders LaTeX math in a reply (\[...\]/\(...\)/$$...$$; see chat.js extractMathSpans, which explains why bare $...$ is unsupported) as typeset math. Extracted and rendered before marked.parse, because CommonMark's backslash-escape rule (before any ASCII punctuation, including \( \), \[, \]) would strip the delimiters math relies on. -->
+  <!-- KaTeX: renders LaTeX math in a reply (\[...\]/\(...\)/$$...$$; see chat_markdown.js MessageMarkdown.extractMath, which explains why bare $...$ is unsupported) as typeset math. Extracted and rendered before marked.parse, because CommonMark's backslash-escape rule (before any ASCII punctuation, including \( \), \[, \]) would strip the delimiters math relies on. -->
   <link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
   <script src="/static/vendor/katex/katex.min.js"></script>
 

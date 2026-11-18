@@ -33,16 +33,17 @@ async def _events(db, user) -> list[dict]:
 async def test_retrieval_event_counts_the_source_documents_before_the_reply(db, user, monkeypatch):
     async def fake_retrieve(_db, _content, _user_id, top_k=4):
         return [
-            {"text": "Refunds within 30 days.", "filename": "policy.txt", "document_id": "a"},
-            {"text": "A refund needs the order.", "filename": "policy.txt", "document_id": "a"},
-            {"text": "Gift cards are final.", "filename": "cards.txt", "document_id": "b"},
+            {"text": "Refunds within 30 days.", "filename": "policy.txt", "document_id": "a", "score": 0.52},
+            {"text": "A refund needs the order.", "filename": "policy.txt", "document_id": "a", "score": 0.61},
+            {"text": "Gift cards are final.", "filename": "cards.txt", "document_id": "b", "score": 0.44},
         ]
 
     monkeypatch.setattr(chat_prompt_service, "retrieve_context", fake_retrieve)
     events = await _events(db, user)
 
     keys = [next(iter(event)) for event in events]
-    assert {"retrieval": 2} in events
+    retrieval = next(e for e in events if "retrieval" in e)
+    assert retrieval == {"retrieval": 2, "retrieval_best": 0.61}  # the best score, as shown under Sources
     assert keys.index("retrieval") < keys.index("chunk")
 
 

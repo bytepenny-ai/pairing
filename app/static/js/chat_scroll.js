@@ -28,15 +28,15 @@ class ChatScroll {
     if (this.following) this.el.scrollTop = this.el.scrollHeight;
   }
 
-  /* Like follow, but waits for late layout (images, styles) to settle (chat.js scrollMessagesToBottom). */
+  /* Like follow, but waits for late layout (images, styles) to settle (chat.js ChatPage.scrollToBottom). */
   settle() {
-    if (this.following) scrollMessagesToBottom();
+    if (this.following) chatPage.scrollToBottom();
   }
 
   /* The reader acted (sent a message, opened a chat): go to the bottom and follow again. */
   jump() {
     this.following = true;
-    scrollMessagesToBottom();
+    chatPage.scrollToBottom();
   }
 }
 

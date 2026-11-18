@@ -1,4 +1,4 @@
-/* Closes the header badge popups (chat.js closeHeaderPopups) on a press anywhere outside them.
+/* Closes the header badge popups (chat.js ChatPage.closeHeaderPopups) on a press anywhere outside them.
  * Pointerdown, not click: a text selection dragged out of the note editor doesn't close it. */
 class HeaderPopupDismiss {
   static POPUPS = ["slot-editor", "model-picker", "skills-picker", "export-menu", "thinking-confirm"];
@@ -13,7 +13,7 @@ class HeaderPopupDismiss {
     // composedPath: still right when a handler re-drew the pressed element.
     const ids = new Set(event.composedPath().map((el) => el.id).filter(Boolean));
     const inside = [...HeaderPopupDismiss.POPUPS, ...HeaderPopupDismiss.OPENERS].some((id) => ids.has(id));
-    if (!inside) closeHeaderPopups();
+    if (!inside) chatPage.closeHeaderPopups();
   }
 }
 

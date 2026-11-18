@@ -25,6 +25,11 @@ def server(monkeypatch) -> list:
 
     LIVE[:] = [FakeTool()]
     monkeypatch.setattr(McpToolCatalog, "tools", tools)
+
+    async def known(_self, _servers):  # the Tools popover's view
+        return list(LIVE)
+
+    monkeypatch.setattr(McpToolCatalog, "known", known)
     monkeypatch.setattr(mcp_settings_service, "get_enabled", yes)
     monkeypatch.setattr(tool_loop_service, "model_can_use_tools", yes)
     return LIVE

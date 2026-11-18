@@ -109,8 +109,9 @@ async def build_reply_stream(
         live_workflow.exit("chat_service_build")
     if turn.stopped:
         return
-    if turn.knowledge_sources:  # knowledge excerpts found: chat.js shows its vector space until the reply starts
-        yield {"retrieval": len(turn.knowledge_sources)}
+    if turn.knowledge_sources:  # excerpts found: chat_vector_space.js shows until the reply starts, with the best score
+        scores = [source["score"] for source in turn.knowledge_sources if "score" in source]
+        yield {"retrieval": len(turn.knowledge_sources), "retrieval_best": max(scores) if scores else None}
     follow_up, params, reply_model, fallback = turn.follow_up, turn.params, turn.reply_model, turn.fallback
     # Channels always finish generating (other members may rely on it); a personal chat has one viewer, so
     # leaving stops generation (cancel_on_disconnect=True). Both leave a clean status="error" record

@@ -1,7 +1,7 @@
 /* Chat tables: each table in a chat bubble gets a frame that scrolls sideways when the table is wider than the bubble
 (so a wide table never stretches the chat), and a Copy button. Copy puts the table on the clipboard both as HTML (so
 Excel, Sheets, LibreOffice and Word paste real cells) and as tab-separated text. Styles: style.css, "Chat tables".
-`frame` is called by chat.js renderMessageContent after every render, including each streamed chunk. */
+`frame` is called by chat_markdown.js MessageMarkdown.render after every render, including each streamed chunk. */
 class ChatTables {
   static COPIED_MS = 1500;
 

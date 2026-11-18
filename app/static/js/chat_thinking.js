@@ -3,7 +3,7 @@
 like the Tools switch (chat_tools.js). Shown only when the chat's model can think (GET
 /api/settings/model-capabilities reports "thinking"). When the model's switch sits early in the prompt
 ("thinking_rereads", e.g. Gemma 4), a chat with messages is re-read once after a change, so it asks first, like the
-model picker. Uses api from app.js and activeHasMessages from chat.js. */
+model picker. Uses api from app.js and chatPage.activeHasMessages from chat.js. */
 class ThinkingChip {
   static STATES = {
     off: { label: "Reasoning: off", title: "Answers right away, never reasons first. Click: always reason" },
@@ -51,9 +51,9 @@ class ThinkingChip {
   }
 
   click() {
-    if (this.capabilities.includes("thinking_rereads") && activeHasMessages) {
+    if (this.capabilities.includes("thinking_rereads") && chatPage.activeHasMessages) {
       const opening = this.confirmBox.classList.contains("hidden");
-      if (opening) closeHeaderPopups("thinking");
+      if (opening) chatPage.closeHeaderPopups("thinking");
       this.confirmBox.classList.toggle("hidden", !opening);
       return;
     }

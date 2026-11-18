@@ -59,6 +59,13 @@ class McpChatTool(McpToolOut):
     available: bool = True  # False once an admin removed it: still listed, but calls fail
 
 
+class McpChatServer(BaseModel):
+    """A tool server a chat may use; `error`: why it failed when last contacted (it is skipped for a while)."""
+
+    name: str
+    error: str | None = None
+
+
 class McpChatTools(BaseModel):
     """What one chat offers its model (chat_tool_set) and what an admin added since."""
 
@@ -66,6 +73,7 @@ class McpChatTools(BaseModel):
     frozen: bool  # the chat has its own saved list (it has used tools)
     tools: list[McpChatTool]
     new_tools: list[McpToolOut] = Field(default_factory=list)
+    servers: list[McpChatServer] = Field(default_factory=list)  # enabled servers; tools are fetched on first use
 
 
 class McpTestTool(McpToolOut):

@@ -21,6 +21,8 @@ def test_sources_carry_the_document_id_and_older_names_still_load() -> None:
     assert new is not None and (new[0].name, new[0].id) == ("handbook.pdf", "d1")
     assert old is not None and (old[0].name, old[0].id) == ("notes.md", None)
     assert _out(None).sources is None
+    scored = _out([{"name": "handbook.pdf", "id": "d1", "score": 0.35}]).sources
+    assert scored is not None and scored[0].score == 0.35 and new[0].score is None
 
 
 @pytest.mark.asyncio

@@ -43,7 +43,7 @@ class ChatFileViewer {
     return "text"; // any other file chats take is text (app/services/text_files.py); the preview says if it isn't
   }
 
-  /** Whether a file of this name opens in the viewer (chat.js renderAttachment); others download as before. */
+  /** Whether a file of this name opens in the viewer (chat_reply_body.js ReplyBody.renderAttachments); others download as before. */
   static canShow(name) {
     return ChatFileViewer.kindOf(name) !== null;
   }
@@ -123,7 +123,7 @@ class ChatFileViewer {
     const ticket = ++this.loading;
     let preview;
     try {
-      // A file just sent still has the browser's own blob: URL (the optimistic bubble, chat.js sendMessage) until the
+      // A file just sent still has the browser's own blob: URL (the optimistic bubble, chat_send.js MessageSender) until the
       // chat reloads its messages: read it here, as the server's preview isn't reachable through that URL.
       preview = url.startsWith("blob:") ? await ChatFileViewer.#localPreview(url, this.root) : await api(`${url}/preview`);
     } catch (err) {
@@ -137,7 +137,7 @@ class ChatFileViewer {
     if (preview.format === "markdown") {
       page.classList.add("markdown-body");
       // chat.js renders it as a reply is (math too); elsewhere (Settings > Knowledge) marked + DOMPurify directly.
-      if (typeof renderMessageContent === "function") renderMessageContent(page, preview.text);
+      if (typeof MessageMarkdown !== "undefined") MessageMarkdown.render(page, preview.text);
       else page.innerHTML = DOMPurify.sanitize(marked.parse(preview.text));
     } else {
       // Code, config and data in a code font; prose (text, Word, PDF) in the page's own.
