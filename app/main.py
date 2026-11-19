@@ -52,6 +52,7 @@ from app.routers import (
     memory_pins_admin,
     model_capabilities,
     model_catalog_admin,
+    my_stats,
     notes,
     pages,
     prompt_cache_admin,
@@ -197,6 +198,7 @@ app.include_router(mcp_admin.enabled_router)
 app.include_router(mcp_admin.limits_router)
 app.include_router(mcp_tools.router)
 app.include_router(stats.router)
+app.include_router(my_stats.router)
 app.include_router(workflow_live.router)
 app.include_router(telemetry.router)
 app.include_router(system_metrics.router)

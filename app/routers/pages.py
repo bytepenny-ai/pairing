@@ -68,6 +68,15 @@ async def notes_page(request: Request, db: AsyncSession = Depends(get_db)):
     return templates.TemplateResponse(request, "notes.html", await _profile_context(db, user))
 
 
+@router.get("/my-stats", response_class=HTMLResponse)
+async def my_stats_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """My stats: the signed-in user's own usage, for every user (routers/my_stats.py, my_stats.js)."""
+    auth = await PageAuth(request, db).resolve()
+    if isinstance(user := auth.require_login(), RedirectResponse):
+        return user
+    return templates.TemplateResponse(request, "my_stats.html", await _profile_context(db, user))
+
+
 @router.get("/stats", response_class=HTMLResponse)
 async def stats_page(request: Request, db: AsyncSession = Depends(get_db)):
     """The Stats screen: usage dashboard, with "Visual chat workflow", "Telemetry" and "System" in its own
