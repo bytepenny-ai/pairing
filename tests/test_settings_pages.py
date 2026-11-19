@@ -126,14 +126,20 @@ async def test_the_empty_chat_says_local_only_for_a_self_hosted_engine(db, user)
 
 
 @pytest.mark.asyncio
-async def test_the_images_link_shows_off_while_image_generation_is_off(db, admin_user, monkeypatch):
+async def test_the_images_link_shows_only_while_an_image_engine_runs(db, admin_user, monkeypatch):
+    from app.services import image_gen_link
+
+    async def yes(_self):
+        return True
+
     async def off(_db):
         return True
 
     html = (await pages.chat_page(_request(admin_user.id), db=db)).body.decode()
-    assert ">Off</span>" not in html  # one server: no badge
-    monkeypatch.setattr(pages.image_gen_ring, "is_off", off)
+    assert 'href="/images"' not in html  # no image engine running
+    monkeypatch.setattr(image_gen_link.ImageGenLink, "shown", yes)
     html = (await pages.chat_page(_request(admin_user.id), db=db)).body.decode()
-    assert ">Off</span>" in html
+    assert 'href="/images"' in html
+    monkeypatch.setattr(pages.image_gen_ring, "is_off", off)
     images = (await pages.image_generation_page(_request(admin_user.id), db=db)).body.decode()
     assert "Image generation is off" in images

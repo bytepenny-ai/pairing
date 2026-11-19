@@ -74,7 +74,7 @@ class ChatSidebar {
     const item = document.createElement("div");
     item.dataset.id = id;
     item.className =
-      "group flex items-center rounded-lg pr-1 text-sm transition-colors " +
+      "group flex items-center rounded-lg pr-1 text-[13px] transition-colors " +
       (id === chatPage.activeConversationId ? "bg-slate-800 text-slate-100" : "text-slate-300 hover:bg-slate-800/60");
     return item;
   }
